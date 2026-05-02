@@ -1,0 +1,205 @@
+{
+  "name": "Extrator Pró - Google Maps → CRM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b0c6a501-c1a4-4edc-b011-4091e27297rio",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [4272, 1248],
+      "id": "3422e792-f859-4b20-abd4-633936f3c1eb",
+      "name": "Webhook",
+      "webhookId": "e9f26cb8-2c26-429a-8111-d2a19a63b7c4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const empresas = items[0].json.body || [];\nreturn empresas.map(emp => ({\n  json: {\n    nome:         emp.nome_empresa || '',\n    telefone:     emp.telefone     || null,\n    website:      emp.website      || null,\n    rating:       emp.rating       ? parseFloat(emp.rating)   : null,\n    reviewsCount: emp.reviews      ? parseInt(emp.reviews, 10) : 0,\n    nicho:        emp.especialidades || null,\n    origem:       emp.endereco     || null,\n    observacoes:  [emp.mensagem, emp.disparo].filter(Boolean).join(' | ') || null,\n    fonte:        'google_maps',\n    status:       'novo',\n    priority:     'normal',\n    estado:       (emp.endereco || '').match(/\\b([A-Z]{2})\\b(?=\\s*,?\\s*\\d{5}|\\s*$)/)?.[1] || null\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4496, 1248],
+      "id": "7b624df5-5023-43d9-9dd5-0b758572d050",
+      "name": "Tratar Dados"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm.divulgabr.com.br/api/auth/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Tenant-Slug",
+              "value": "SEU_SLUG"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "seu@email.com"
+            },
+            {
+              "name": "senha",
+              "value": "suasenha"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4720, 1080],
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Login CRM"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [4720, 1248],
+      "id": "416f46d1-ad3b-4dbb-9bb8-80a7ba35a425",
+      "name": "Loop 1 por 1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm.divulgabr.com.br/api/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Login CRM').item.json.token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Tenant-Slug",
+              "value": "SEU_SLUG"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"nome\":         \"{{ $json.nome }}\",\n  \"telefone\":     {{ $json.telefone ? '\"' + $json.telefone + '\"' : 'null' }},\n  \"website\":      {{ $json.website ? '\"' + $json.website + '\"' : 'null' }},\n  \"rating\":       {{ $json.rating ?? 'null' }},\n  \"reviewsCount\": {{ $json.reviewsCount ?? 0 }},\n  \"nicho\":        {{ $json.nicho ? '\"' + $json.nicho + '\"' : 'null' }},\n  \"origem\":       {{ $json.origem ? '\"' + $json.origem + '\"' : 'null' }},\n  \"observacoes\":  {{ $json.observacoes ? '\"' + $json.observacoes + '\"' : 'null' }},\n  \"estado\":       {{ $json.estado ? '\"' + $json.estado + '\"' : 'null' }},\n  \"fonte\":        \"google_maps\",\n  \"status\":       \"novo\",\n  \"priority\":     \"normal\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4960, 1248],
+      "id": "3b625d55-d959-4c87-9ec6-028763d4370e",
+      "name": "Salvar no CRM"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [5184, 1248],
+      "id": "df2d5e43-ef0f-4f86-80f9-6b79ed901140",
+      "name": "Espera de Segurança (3s)",
+      "webhookId": "9339cff7-932d-4be1-a5b2-06066af6c350"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Tratar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tratar Dados": {
+      "main": [
+        [
+          {
+            "node": "Login CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login CRM": {
+      "main": [
+        [
+          {
+            "node": "Loop 1 por 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop 1 por 1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Salvar no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar no CRM": {
+      "main": [
+        [
+          {
+            "node": "Espera de Segurança (3s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Espera de Segurança (3s)": {
+      "main": [
+        [
+          {
+            "node": "Loop 1 por 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "instanceId": "10a519918cef272335e43856429e52da7a98cc071ad01bc3e82c3b83323afc30"
+  },
+  "tags": []
+}

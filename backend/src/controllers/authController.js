@@ -1,0 +1,41 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { validationResult } = require('express-validator');
+const prisma = require('../lib/prisma');
+
+exports.login = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { email, senha } = req.body;
+    const tenantId = req.tenant?.id || null;
+
+    // Busca por email + tenant (ou super_admin sem tenant)
+    const user = await prisma.user.findFirst({
+      where: tenantId
+        ? { email, tenantId }
+        : { email, role: 'super_admin' },
+      include: { tenant: { select: { nome: true, slug: true, corPrimaria: true, logo: true, modulos: true, plano: true, planoStatus: true, planoVencimento: true } } },
+    });
+
+    if (!user || !user.ativo) return res.status(401).json({ error: 'Email ou senha incorretos' });
+
+    const ok = await bcrypt.compare(senha, user.senha);
+    if (!ok) return res.status(401).json({ error: 'Email ou senha incorretos' });
+
+    const token = jwt.sign(
+      { id: user.id, nome: user.nome, email: user.email, role: user.role, tenantId: user.tenantId },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    res.json({
+      token,
+      user: { id: user.id, nome: user.nome, email: user.email, role: user.role },
+      tenant: user.tenant,
+    });
+  } catch (err) { next(err); }
+};
+
+exports.me = (req, res) => res.json({ user: req.user });

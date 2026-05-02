@@ -1,0 +1,213 @@
+{
+  "name": "CRM — Notificações de Agendamento (AgendaBot)",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook Agendamento",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "parameters": {
+        "path": "agendamento-notificacoes",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
+      }
+    },
+    {
+      "id": "code-normalizar",
+      "name": "Normalizar Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0],
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst ag = item.agendamento || {};\nconst lead = ag.lead || {};\nconst tenant = item.tenant || {};\nconst config = item.config || {};\n\nconst digits = (lead.telefone || '').replace(/\\D/g, '');\nconst phoneWA = digits.length >= 10 ? (digits.startsWith('55') ? digits : '55' + digits) : '';\n\nconst parts = (ag.data || '').split('-');\nconst dataFormatada = parts.length === 3 ? parts[2] + '/' + parts[1] + '/' + parts[0] : ag.data;\n\nconst evolutionBaseUrl = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';\nconst evolutionInstance = tenant.evolutionInstance || 'divulgabr';\nconst evolutionApiKey = tenant.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96';\n\nreturn [{ json: {\n  phoneWA,\n  dataFormatada,\n  hora: ag.hora || '',\n  tipo: ag.tipo || 'consulta',\n  canalOrigem: ag.canalOrigem || '',\n  leadNome: lead.nome || '',\n  leadTelefone: lead.telefone || '',\n  servicoNome: ag.servico?.nome || '',\n  tenantNome: tenant.nome || '',\n  nichoLabel: tenant.nichoLabel || 'atendimento',\n  apiToken: tenant.apiToken || '',\n  whatsappAdmin: config.whatsappAdmin || '',\n  agendamentoId: ag.id,\n  evolutionBaseUrl,\n  evolutionInstance,\n  evolutionApiKey,\n}}];"
+      }
+    },
+    {
+      "id": "http-buscar-config",
+      "name": "Buscar Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [480, 0],
+      "parameters": {
+        "method": "GET",
+        "url": "https://crm.divulgabr.com.br/api/n8n/settings",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $json.apiToken }}" }] }
+      }
+    },
+    {
+      "id": "code-montar-msgs",
+      "name": "Montar Mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 0],
+      "parameters": {
+        "jsCode": "const norm = $('Normalizar Dados').first().json;\nconst cfg = $input.first().json;\n\nfunction interpolar(template, vars) {\n  return template\n    .replace(/\\{\\{nome\\}\\}/g, vars.nome)\n    .replace(/\\{\\{data\\}\\}/g, vars.data)\n    .replace(/\\{\\{hora\\}\\}/g, vars.hora)\n    .replace(/\\{\\{servico\\}\\}/g, vars.servico)\n    .replace(/\\{\\{nicho\\}\\}/g, vars.nicho);\n}\n\nconst vars = {\n  nome: norm.leadNome,\n  data: norm.dataFormatada,\n  hora: norm.hora,\n  servico: norm.servicoNome || norm.tipo,\n  nicho: cfg.nichoLabel || norm.nichoLabel || 'atendimento',\n};\n\nconst tplCliente = cfg.mensagemWaConfirmacao\n  || '✅ Agendamento confirmado!\\n\\n📅 Data: {{data}}\\n🕐 Horário: {{hora}}\\n🏢 ' + norm.tenantNome + '\\n\\nSeu {{nicho}} está confirmado. Até lá!';\n\nconst tplAdmin = cfg.mensagemWaAdmin\n  || '📅 Novo agendamento!\\n\\n👤 {{nome}}\\n📱 ' + norm.leadTelefone + '\\n📅 {{data}} às {{hora}}\\n📋 {{nicho}}';\n\nreturn [{ json: {\n  ...norm,\n  nichoLabel: vars.nicho,\n  evolutionBaseUrl: cfg.evolutionBaseUrl || norm.evolutionBaseUrl,\n  evolutionInstance: cfg.evolutionInstance || norm.evolutionInstance,\n  evolutionApiKey: cfg.evolutionApiKey || norm.evolutionApiKey,\n  msgCliente: interpolar(tplCliente, vars),\n  msgAdmin: interpolar(tplAdmin, vars),\n}}];"
+      }
+    },
+    {
+      "id": "if-tem-telefone",
+      "name": "IF Tem Telefone",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, -120],
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "id": "c1", "leftValue": "={{ ($json.phoneWA || '').length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "http-wa-cliente",
+      "name": "WA Confirmacao Cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, -120],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($json.evolutionBaseUrl || 'https://api.divulgabr.com.br') + '/message/sendText/' + ($json.evolutionInstance || 'divulgabr') }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "apikey", "value": "={{ $json.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96' }}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.phoneWA, text: $json.msgCliente }) }}"
+      }
+    },
+    {
+      "id": "if-tem-admin",
+      "name": "IF Tem Admin WA",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 120],
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "id": "c2", "leftValue": "={{ ($json.whatsappAdmin || '').length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "http-wa-admin",
+      "name": "WA Alerta Admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, 120],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($json.evolutionBaseUrl || 'https://api.divulgabr.com.br') + '/message/sendText/' + ($json.evolutionInstance || 'divulgabr') }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "apikey", "value": "={{ $json.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96' }}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.whatsappAdmin, text: $json.msgAdmin }) }}"
+      }
+    },
+    {
+      "id": "cron-lembretes",
+      "name": "Cron Lembretes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 400],
+      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 30 }] } }
+    },
+    {
+      "id": "http-get-lembretes",
+      "name": "GET Agendamentos Lembrete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [240, 400],
+      "parameters": {
+        "method": "GET",
+        "url": "https://crm.divulgabr.com.br/api/n8n/lembretes-globais",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-Master-Token", "value": "791933052bfc4b26916ac21201a991e75ee75ba9fc5508dccd067fd16638e55b" }] }
+      }
+    },
+    {
+      "id": "code-converter-items",
+      "name": "Converter para Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400],
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst lembretes = data.lembretes || [];\nif (lembretes.length === 0) return [];\nreturn lembretes.map(l => {\n  const parts = (l.data || '').split('-');\n  const dataFormatada = parts.length === 3 ? parts[2] + '/' + parts[1] + '/' + parts[0] : l.data;\n  return { json: { ...l, dataFormatada } };\n});"
+      }
+    },
+    {
+      "id": "http-buscar-config-lembrete",
+      "name": "Buscar Config Lembrete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 400],
+      "parameters": {
+        "method": "GET",
+        "url": "https://crm.divulgabr.com.br/api/n8n/settings",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $json.apiToken }}" }] }
+      }
+    },
+    {
+      "id": "code-montar-lembrete",
+      "name": "Montar Lembrete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400],
+      "parameters": {
+        "jsCode": "const cfg = $input.first().json;\nlet item = {};\ntry { item = $('Converter para Items').item.json; } catch(e) {}\n\nif (!item.phoneWA) return [];\n\nconst tipoLembrete = item.tipoLembrete || 'dia';\n\nconst vars = {\n  nome: item.leadNome || '',\n  data: item.dataFormatada || '',\n  hora: item.hora || '',\n  servico: '',\n  nicho: cfg.nichoLabel || item.nichoLabel || 'atendimento',\n};\n\nconst prefixos = {\n  '3d':  '⏰ Lembrete: você tem um {{nicho}} em 3 dias!\\n\\n',\n  '1d':  '⏰ Lembrete: seu {{nicho}} é amanhã!\\n\\n',\n  'dia': '⏰ Lembrete: seu {{nicho}} é hoje!\\n\\n',\n};\n\nconst tpl = cfg.mensagemWaLembrete\n  || (prefixos[tipoLembrete] || prefixos['dia']) + '📅 {{data}} às {{hora}}\\n\\nSe precisar cancelar, entre em contato.';\n\nconst msgLembrete = tpl\n  .replace(/\\{\\{nome\\}\\}/g, vars.nome)\n  .replace(/\\{\\{data\\}\\}/g, vars.data)\n  .replace(/\\{\\{hora\\}\\}/g, vars.hora)\n  .replace(/\\{\\{servico\\}\\}/g, vars.servico)\n  .replace(/\\{\\{nicho\\}\\}/g, vars.nicho);\n\nconst evolutionBaseUrl = cfg.evolutionBaseUrl || item.evolutionBaseUrl || 'https://api.divulgabr.com.br';\nconst evolutionInstance = cfg.evolutionInstance || item.evolutionInstance || 'divulgabr';\nconst evolutionApiKey = cfg.evolutionApiKey || item.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96';\n\nreturn [{ json: { ...item, tipoLembrete, apiToken: item.apiToken || '', msgLembrete, evolutionBaseUrl, evolutionInstance, evolutionApiKey } }];"
+      }
+    },
+    {
+      "id": "http-wa-lembrete",
+      "name": "WA Lembrete Cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($json.evolutionBaseUrl || 'https://api.divulgabr.com.br') + '/message/sendText/' + ($json.evolutionInstance || 'divulgabr') }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "apikey", "value": "={{ $json.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96' }}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.phoneWA, text: $json.msgLembrete }) }}"
+      }
+    },
+    {
+      "id": "http-patch-lembrete",
+      "name": "PATCH Lembrete Enviado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1440, 400],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://crm.divulgabr.com.br/api/n8n/agendamentos/' + $json.agendamentoId }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $json.apiToken }}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tipoLembrete: $json.tipoLembrete }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Agendamento": { "main": [[{ "node": "Normalizar Dados", "type": "main", "index": 0 }]] },
+    "Normalizar Dados": { "main": [[{ "node": "Buscar Config", "type": "main", "index": 0 }]] },
+    "Buscar Config": { "main": [[{ "node": "Montar Mensagens", "type": "main", "index": 0 }]] },
+    "Montar Mensagens": { "main": [[{ "node": "IF Tem Telefone", "type": "main", "index": 0 }, { "node": "IF Tem Admin WA", "type": "main", "index": 0 }]] },
+    "IF Tem Telefone": { "main": [[{ "node": "WA Confirmacao Cliente", "type": "main", "index": 0 }], []] },
+    "IF Tem Admin WA": { "main": [[{ "node": "WA Alerta Admin", "type": "main", "index": 0 }], []] },
+    "Cron Lembretes": { "main": [[{ "node": "GET Agendamentos Lembrete", "type": "main", "index": 0 }]] },
+    "GET Agendamentos Lembrete": { "main": [[{ "node": "Converter para Items", "type": "main", "index": 0 }]] },
+    "Converter para Items": { "main": [[{ "node": "Buscar Config Lembrete", "type": "main", "index": 0 }]] },
+    "Buscar Config Lembrete": { "main": [[{ "node": "Montar Lembrete", "type": "main", "index": 0 }]] },
+    "Montar Lembrete": { "main": [[{ "node": "WA Lembrete Cliente", "type": "main", "index": 0 }]] },
+    "WA Lembrete Cliente": { "main": [[{ "node": "PATCH Lembrete Enviado", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "meta": { "instanceId": "crm-simples-agendabot" }
+}

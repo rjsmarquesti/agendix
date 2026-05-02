@@ -1,0 +1,285 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Tenant (empresa compradora) ────────────────────────────────────────────
+model Tenant {
+  id          Int           @id @default(autoincrement())
+  nome        String
+  slug        String        @unique
+  logo        String?
+  corPrimaria String        @default("#2563eb") @map("cor_primaria")
+  plano       Plano         @default(basico)
+  modulos     Json          @default("[\"leads\",\"agendamentos\"]")
+  ativo           Boolean  @default(true)
+  n8nWebhookUrl   String?  @map("n8n_webhook_url")
+  n8nApiKey       String?  @map("n8n_api_key")
+  apiToken        String?  @unique @map("api_token")
+  nichoLabel        String?  @map("nicho_label")
+  evolutionInstance String?  @map("evolution_instance")
+  evolutionApiKey   String?  @map("evolution_api_key")
+  evolutionBaseUrl  String?  @map("evolution_base_url")
+  planoStatus       String   @default("trial") @map("plano_status")
+  planoVencimento   DateTime? @map("plano_vencimento")
+  asaasCustomerId    String?  @map("asaas_customer_id")
+  n8nWorkflowWaId    String?  @map("n8n_workflow_wa_id")
+  n8nWorkflowNotifId String?  @map("n8n_workflow_notif_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  users              User[]
+  leads              Lead[]
+  agendamentos       Agendamento[]
+  configuracaoAgenda ConfiguracaoAgenda?
+  conversasWhatsapp  ConversaWhatsapp[]
+  servicos           Servico[]
+  bloqueios          BloqueioHorario[]
+
+  @@map("tenants")
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+model User {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int?     @map("tenant_id")
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  nome      String
+  email     String
+  senha     String
+  role      Role     @default(atendente)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+// ─── Lead ────────────────────────────────────────────────────────────────────
+model Lead {
+  id          Int        @id @default(autoincrement())
+  tenantId    Int        @map("tenant_id")
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Dados básicos
+  nome        String
+  telefone    String?
+  telefone2   String?    @map("telefone2")
+  email       String?
+  origem      String?
+  status      StatusLead @default(novo)
+  priority    Priority   @default(normal)
+  observacoes String?
+  fonte       Fonte      @default(manual)
+
+  // Endereço completo
+  cep         String?
+  logradouro  String?
+  numero      String?
+  complemento String?
+  bairro      String?
+  cidade      String?
+  municipio   String?
+  estado      String?
+
+  // Dados Google Maps
+  nicho         String?
+  categoria     String?
+  subcategoria  String?
+  googleMapsUrl String?  @map("google_maps_url")
+  placeId       String?  @map("place_id")
+  rating        Float?
+  reviewsCount  Int?     @default(0) @map("reviews_count")
+  website       String?
+
+  // Redes sociais
+  facebook      String?
+  instagram     String?
+  telegram      String?
+  especialidades String?
+
+  // Disparo
+  disparo   String?
+  mensagem  String?
+
+  // Funil
+  ultimoContato  DateTime? @map("ultimo_contato")
+  proximoContato DateTime? @map("proximo_contato")
+
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  agendamentos Agendamento[]
+
+  @@unique([placeId, tenantId])
+  @@index([tenantId, status])
+  @@index([nicho])
+  @@index([estado])
+  @@index([municipio])
+  @@index([fonte])
+  @@map("leads")
+}
+
+// ─── Agendamento ─────────────────────────────────────────────────────────────
+model Agendamento {
+  id          Int         @id @default(autoincrement())
+  tenantId    Int         @map("tenant_id")
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId      Int         @map("lead_id")
+  lead        Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  servicoId   Int?        @map("servico_id")
+  servico     Servico?    @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  data        String
+  hora        String
+  tipo        String?     @default("reunião")
+  status      StatusAgend @default(marcado)
+  observacoes String?
+  // Campos dual-canal
+  canalOrigem     CanalOrigem @default(manual) @map("canal_origem")
+  clienteNome     String?     @map("cliente_nome")
+  clienteTelefone String?     @map("cliente_telefone")
+  lembreteEnviado    Boolean @default(false) @map("lembrete_enviado")
+  lembrete3dEnviado  Boolean @default(false) @map("lembrete_3d_enviado")
+  lembrete1dEnviado  Boolean @default(false) @map("lembrete_1d_enviado")
+  lembreteDiaEnviado Boolean @default(false) @map("lembrete_dia_enviado")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([tenantId, data])
+  @@index([data, status])
+  @@index([lembreteEnviado, status])
+  @@map("agendamentos")
+}
+
+// ─── Servico (por tenant) ─────────────────────────────────────────────────────
+model Servico {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nome        String
+  descricao   String?
+  duracaoMin  Int      @default(60) @map("duracao_min")
+  preco       Decimal? @db.Decimal(10, 2)
+  ativo       Boolean  @default(true)
+  ordem       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  agendamentos Agendamento[]
+
+  @@map("servicos")
+}
+
+// ─── BloqueioHorario (por tenant) ────────────────────────────────────────────
+model BloqueioHorario {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  data        String
+  horaInicio  String?  @map("hora_inicio")
+  horaFim     String?  @map("hora_fim")
+  motivo      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, data])
+  @@map("bloqueios_horario")
+}
+
+// ─── ConfiguracaoAgenda (por tenant) ─────────────────────────────────────────
+model ConfiguracaoAgenda {
+  id              Int     @id @default(autoincrement())
+  tenantId        Int     @unique @map("tenant_id")
+  tenant          Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  horarioInicio   String  @default("08:00") @map("horario_inicio")
+  horarioFim      String  @default("18:00") @map("horario_fim")
+  duracaoSlot     Int     @default(60) @map("duracao_slot")
+  diasUteis       String  @default("1,2,3,4,5") @map("dias_uteis")
+  antecedenciaMin Int     @default(2) @map("antecedencia_min")
+  antecedenciaMax Int     @default(30) @map("antecedencia_max")
+  mensagemConfirmacao   String? @map("mensagem_confirmacao")
+  mensagemWaConfirmacao String? @map("mensagem_wa_confirmacao")
+  mensagemWaLembrete    String? @map("mensagem_wa_lembrete")
+  mensagemWaAdmin       String? @map("mensagem_wa_admin")
+  whatsappAdmin   String? @map("whatsapp_admin")
+  ativo           Boolean @default(true)
+
+  @@map("configuracoes_agenda")
+}
+
+// ─── ConversaWhatsapp (estado da conversa em andamento) ──────────────────────
+model ConversaWhatsapp {
+  id        Int             @id @default(autoincrement())
+  tenantId  Int             @map("tenant_id")
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  telefone  String
+  estado    EstadoConversa  @default(inicio)
+  dadosJson Json?           @map("dados_json")
+  expiresAt DateTime        @map("expires_at")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  @@unique([telefone, tenantId])
+  @@index([tenantId, expiresAt])
+  @@map("conversas_whatsapp")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+enum Plano {
+  basico
+  pro
+  premium
+}
+
+enum Role {
+  super_admin
+  admin
+  atendente
+}
+
+enum StatusLead {
+  novo
+  contato
+  qualificado
+  proposta
+  agendado
+  convertido
+  perdido
+}
+
+enum Priority {
+  baixa
+  normal
+  alta
+  urgente
+}
+
+enum Fonte {
+  google_maps
+  manual
+  csv_import
+  api
+}
+
+enum StatusAgend {
+  marcado
+  confirmado
+  cancelado
+  realizado
+}
+
+enum CanalOrigem {
+  manual
+  web
+  whatsapp
+}
+
+enum EstadoConversa {
+  inicio
+  aguardando_data
+  aguardando_slot
+  aguardando_nome
+  aguardando_confirmacao
+  concluida
+  cancelada
+}

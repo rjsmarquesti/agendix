@@ -1,0 +1,59 @@
+require('dotenv').config();
+const express = require('express');
+const cors    = require('cors');
+const helmet  = require('helmet');
+
+const requestLogger = require('./src/middlewares/requestLogger');
+const { loginLimiter, agendamentoPublicoLimiter, n8nLimiter, apiGeralLimiter } = require('./src/middlewares/rateLimiter');
+
+const app = express();
+
+// CSP restritivo para rotas de API; desativado para o formulário público (agendar.html usa scripts inline)
+app.use((req, res, next) => {
+  if (req.path === '/agendar.html' || req.path === '/sw.js' || req.path === '/manifest.json') {
+    return helmet({ contentSecurityPolicy: false })(req, res, next);
+  }
+  return helmet()(req, res, next);
+});
+app.use(cors({ exposedHeaders: ['X-Tenant-Slug', 'X-Correlation-Id'] }));
+app.use(express.json());
+app.use(requestLogger);
+app.use(express.static(require('path').join(__dirname, 'public')));
+
+// Rate limiting por grupo de rota
+app.use('/api/auth/login',             loginLimiter);
+app.use('/api/public/:slug/agendar',   agendamentoPublicoLimiter);
+app.use('/api/n8n',                    n8nLimiter);
+app.use('/api',                        apiGeralLimiter);
+
+// Rotas de agendamento público (sem autenticação, por slug)
+app.use('/api/public/:slug', require('./src/routes/public'));
+
+// Rotas públicas
+app.use('/api/auth', require('./src/routes/auth'));
+
+// Rotas super admin (sem tenant middleware)
+app.use('/api/admin/tenants', require('./src/routes/tenants'));
+
+// Rotas de integração n8n (autenticadas por API token, sem tenant middleware JWT)
+app.use('/api/n8n',     require('./src/routes/n8n'));
+app.use('/api/webhook', require('./src/routes/webhook'));
+
+// Rotas protegidas por tenant
+const tenantMiddleware = require('./src/middlewares/tenant');
+app.use('/api/leads',        tenantMiddleware, require('./src/routes/leads'));
+app.use('/api/agendamentos', tenantMiddleware, require('./src/routes/agendamentos'));
+app.use('/api/servicos',     tenantMiddleware, require('./src/routes/servicos'));
+app.use('/api/bloqueios',    tenantMiddleware, require('./src/routes/bloqueios'));
+app.use('/api/dashboard',    tenantMiddleware, require('./src/routes/dashboard'));
+app.use('/api/settings',     tenantMiddleware, require('./src/routes/settings'));
+app.use('/api/users',        tenantMiddleware, require('./src/routes/users'));
+
+app.use(require('./src/middlewares/errorHandler'));
+
+const PORT = process.env.PORT || 3000;
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`Backend rodando na porta ${PORT}`));
+}
+
+module.exports = app;

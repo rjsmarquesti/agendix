@@ -1,0 +1,497 @@
+{
+  "name": "CRM — Bot Agendamento WhatsApp (AgendaBot)",
+  "nodes": [
+    {
+      "id": "wh-evolution",
+      "name": "Webhook Evolution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "parameters": { "httpMethod": "POST", "path": "agendamento-whatsapp", "options": {} }
+    },
+    {
+      "id": "code-extrair",
+      "name": "Extrair Mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0],
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst body = raw.body || raw;\nconst data = body.data || body;\n\nconst key = data?.key || {};\nconst msg = data?.message || {};\n\n// Ignora mensagens enviadas pelo próprio bot\nif (key.fromMe) return [];\n\nconst phone = (key.remoteJid || '').replace('@s.whatsapp.net', '').replace(/\\D/g, '');\nconst pushName = data?.pushName || data?.notifyName || '';\n\nconst texto =\n  msg?.conversation ||\n  msg?.extendedTextMessage?.text ||\n  msg?.imageMessage?.caption ||\n  msg?.videoMessage?.caption ||\n  '';\n\nconst tenantSlug = body.instance || raw.instance || '';\n\nreturn [{ json: { phone, pushName, texto, tenantSlug } }];\n"
+      }
+    },
+    {
+      "id": "if-valido",
+      "name": "IF Mensagem Valida",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [480, 0],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "id": "v1", "leftValue": "={{ $json.phone }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } },
+            { "id": "v2", "leftValue": "={{ $json.texto }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "http-resolver-tenant",
+      "name": "Resolver Tenant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 0],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://crm.divulgabr.com.br/api/n8n/tenant-by-slug/' + $('Extrair Mensagem').first().json.tenantSlug }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-Master-Token", "value": "791933052bfc4b26916ac21201a991e75ee75ba9fc5508dccd067fd16638e55b" }] },
+        "options": {}
+      }
+    },
+    {
+      "id": "http-buscar-config-wa",
+      "name": "Buscar Config WA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [960, -128],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "GET",
+        "url": "https://crm.divulgabr.com.br/api/n8n/settings",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $('Resolver Tenant').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+    {
+      "id": "http-get-conversa",
+      "name": "GET Conversa Atual",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [960, -128],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "url": "={{ 'https://crm.divulgabr.com.br/api/n8n/conversas/' + $('Extrair Mensagem').first().json.phone }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $('Resolver Tenant').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-conversa-ativa",
+      "name": "IF Conversa Ativa",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, -128],
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "id": "ca1", "leftValue": "={{ $json.conversa?.estado }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-processar-etapa",
+      "name": "Processar Etapa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, -240],
+      "parameters": {
+        "jsCode": "const conversa = $input.first().json.conversa || {};\nconst estado = conversa.estado || 'inicio';\nconst dados = conversa.dadosJson || {};\nconst texto = $('Extrair Mensagem').first().json.texto.trim().toLowerCase();\nconst phone = $('Extrair Mensagem').first().json.phone;\nreturn [{ json: { estado, dados, texto, phone, conversa } }];"
+      }
+    },
+    {
+      "id": "switch-estado",
+      "name": "Switch Estado",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1680, -240],
+      "parameters": {
+        "rules": { "values": [
+          { "conditions": { "conditions": [{ "leftValue": "={{ $json.estado }}", "rightValue": "aguardando_data", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "aguardando_data" },
+          { "conditions": { "conditions": [{ "leftValue": "={{ $json.estado }}", "rightValue": "aguardando_slot", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "aguardando_slot" },
+          { "conditions": { "conditions": [{ "leftValue": "={{ $json.estado }}", "rightValue": "aguardando_nome", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "aguardando_nome" },
+          { "conditions": { "conditions": [{ "leftValue": "={{ $json.estado }}", "rightValue": "aguardando_confirmacao", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "aguardando_confirmacao" }
+        ]},
+        "options": {}
+      }
+    },
+    {
+      "id": "code-proc-data",
+      "name": "Proc Aguardando Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, -480],
+      "parameters": {
+        "jsCode": "const { texto, dados, phone } = $json;\nlet dataISO = '';\nconst hoje = new Date();\nif (/amanh[aã]/i.test(texto)) {\n  const d = new Date(hoje); d.setDate(d.getDate()+1);\n  dataISO = d.toISOString().split('T')[0];\n} else {\n  const m = texto.match(/(\\d{1,2})[\\/\\-](\\d{1,2})(?:[\\/\\-](\\d{2,4}))?/);\n  if (m) {\n    const dia = m[1].padStart(2,'0');\n    const mes = m[2].padStart(2,'0');\n    const ano = m[3] ? (m[3].length===2?'20'+m[3]:m[3]) : hoje.getFullYear().toString();\n    dataISO = `${ano}-${mes}-${dia}`;\n  }\n}\nreturn [{ json: { ...dados, phone, dataISO, acao: dataISO ? 'buscar_slots' : 'pedir_data_novamente' } }];"
+      }
+    },
+    {
+      "id": "http-get-slots",
+      "name": "GET Slots Disponiveis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2160, -480],
+      "parameters": {
+        "url": "={{ 'https://crm.divulgabr.com.br/api/n8n/disponibilidade?data=' + $json.dataISO }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $('Resolver Tenant').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-proc-slot",
+      "name": "Proc Aguardando Slot",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, -240],
+      "parameters": {
+        "jsCode": "const { texto, dados, phone } = $json;\nconst slots = dados.slots || [];\nlet slotEscolhido = '';\nconst num = parseInt(texto);\nif (!isNaN(num) && num >= 1 && num <= slots.length) {\n  slotEscolhido = slots[num-1];\n} else if (/^\\d{1,2}:\\d{2}$/.test(texto)) {\n  slotEscolhido = slots.includes(texto) ? texto : '';\n}\nreturn [{ json: { ...dados, phone, slotEscolhido, acao: slotEscolhido ? 'confirmar_slot' : 'pedir_slot_novamente' } }];"
+      }
+    },
+    {
+      "id": "code-proc-nome",
+      "name": "Proc Aguardando Nome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 0],
+      "parameters": {
+        "jsCode": "const { texto, dados, phone } = $json;\nconst nome = texto.trim().length >= 2 ? texto.trim() : '';\nreturn [{ json: { ...dados, phone, clienteNome: nome, acao: nome ? 'confirmar' : 'pedir_nome_novamente' } }];"
+      }
+    },
+    {
+      "id": "code-proc-confirm",
+      "name": "Proc Aguardando Confirmacao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 240],
+      "parameters": {
+        "jsCode": "const { texto, dados, phone } = $json;\nconst sim = /^(s|sim|yes|confirmo|ok|isso|certo|pode)$/i.test(texto.trim());\nconst nao = /^(n|n[aã]o|nao|cancel|cancelar|desistir)$/i.test(texto.trim());\nreturn [{ json: { ...dados, phone, acao: sim ? 'criar_agendamento' : nao ? 'cancelar' : 'pedir_confirmacao_novamente' } }];"
+      }
+    },
+    {
+      "id": "http-claude",
+      "name": "Gemini Classifica Intencao",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1440, 128],
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "sendQuery": true,
+        "queryParameters": { "parameters": [{ "name": "key", "value": "AIzaSyBGA6NOt3hRR4xOqpiPYuF2k-9zTx4-19Y" }] },
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "content-type", "value": "application/json" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"contents\": [{\n    \"role\": \"user\",\n    \"parts\": [{ \"text\": \"Você é um classificador de intenção para agendamentos. Classifique em UMA das categorias:\\n- agendar\\n- cancelar\\n- consultar\\n- outros\\n\\nResponda APENAS com uma palavra.\\n\\nMensagem: {{ $('Extrair Mensagem').first().json.texto }}\" }]\n  }],\n  \"generationConfig\": { \"maxOutputTokens\": 10, \"temperature\": 0 }\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "code-parse-intencao",
+      "name": "Parse Intencao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 128],
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst texto = (resp.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().toLowerCase();\nconst phone = $('Extrair Mensagem').first().json.phone;\nconst pushName = $('Extrair Mensagem').first().json.pushName;\nconst validas = ['agendar','cancelar','consultar'];\nconst intencao = validas.find(v => texto.includes(v)) || 'outros';\nreturn [{ json: { intencao, phone, pushName } }];"
+      }
+    },
+    {
+      "id": "switch-intencao",
+      "name": "Switch Intencao",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1920, 480],
+      "parameters": {
+        "rules": { "values": [
+          { "conditions": { "conditions": [{ "leftValue": "={{ $json.intencao }}", "rightValue": "agendar", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "agendar" },
+          { "conditions": { "conditions": [{ "leftValue": "={{ $json.intencao }}", "rightValue": "cancelar", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "cancelar" },
+          { "conditions": { "conditions": [{ "leftValue": "={{ $json.intencao }}", "rightValue": "consultar", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "consultar" }
+        ]},
+        "options": {}
+      }
+    },
+    {
+      "id": "http-put-conv-agendar",
+      "name": "Iniciar Conversa Agendar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2160, 368],
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://crm.divulgabr.com.br/api/n8n/conversas/' + $json.phone }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $('Resolver Tenant').first().json.apiToken }}" }] },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ estado: 'aguardando_data', dadosJson: { pushName: $json.pushName } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "http-wa-pedir-data",
+      "name": "WA Pedir Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2400, 384],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Buscar Config WA').first().json.evolutionBaseUrl || 'https://api.divulgabr.com.br') + '/message/sendText/' + ($('Buscar Config WA').first().json.evolutionInstance || 'divulgabr') }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "apikey", "value": "={{ $('Buscar Config WA').first().json.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96' }}" }] },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $('Parse Intencao').first().json.phone, text: 'Para agendar seu ' + ($('Buscar Config WA').first().json.nichoLabel || 'atendimento') + ', qual data você prefere?\\n\\nExemplo: amanhã, 25/05 ou 25/05/2025' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "http-get-agend-cancelar",
+      "name": "GET Agendamentos Cancelar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2160, 608],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "url": "={{ 'https://crm.divulgabr.com.br/api/n8n/agendamentos?proximos=true&telefone=' + $json.phone }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $('Resolver Tenant').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-tem-agend-cancelar",
+      "name": "IF Tem Agendamento",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2400, 608],
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "id": "tc1", "leftValue": "={{ $json.agendamentos?.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-msg-cancelar",
+      "name": "Formatar Cancelamento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 544],
+      "parameters": {
+        "jsCode": "const ag = $json.agendamentos[0];\nconst parts = (ag.data||'').split('-');\nconst dataF = parts.length===3 ? parts[2]+'/'+parts[1]+'/'+parts[0] : ag.data;\nconst nicho = $('Buscar Config WA').first().json.nichoLabel || 'atendimento';\nreturn [{ json: { agendamentoId: ag.id, phone: $('Parse Intencao').first().json.phone, texto: 'Encontrei seu ' + nicho + ':\\n📅 '+dataF+' às '+ag.hora+'\\n\\nDeseja cancelar? (sim/não)' } }];"
+      }
+    },
+    {
+      "id": "http-wa-confirma-cancel",
+      "name": "WA Confirma Cancelar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2880, 544],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Buscar Config WA').first().json.evolutionBaseUrl || 'https://api.divulgabr.com.br') + '/message/sendText/' + ($('Buscar Config WA').first().json.evolutionInstance || 'divulgabr') }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "apikey", "value": "={{ $('Buscar Config WA').first().json.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96' }}" }] },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.phone, text: $json.texto }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "http-wa-sem-agend",
+      "name": "WA Sem Agendamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2640, 688],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Buscar Config WA').first().json.evolutionBaseUrl || 'https://api.divulgabr.com.br') + '/message/sendText/' + ($('Buscar Config WA').first().json.evolutionInstance || 'divulgabr') }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "apikey", "value": "={{ $('Buscar Config WA').first().json.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96' }}" }] },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $('Parse Intencao').first().json.phone, text: 'Não encontrei ' + ($('Buscar Config WA').first().json.nichoLabel || 'atendimento') + ' futuro em seu nome. Se quiser agendar, é só me dizer!' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "http-get-agend-consultar",
+      "name": "GET Proximo Agendamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2160, 848],
+      "parameters": {
+        "url": "={{ 'https://crm.divulgabr.com.br/api/n8n/agendamentos?proximos=true&telefone=' + $json.phone }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $('Resolver Tenant').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-msg-consultar",
+      "name": "Formatar Consulta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2400, 848],
+      "parameters": {
+        "jsCode": "const phone = $('Parse Intencao').first().json.phone;\nconst agendamentos = $json.agendamentos || [];\nconst nicho = $('Buscar Config WA').first().json.nichoLabel || 'atendimento';\nif (agendamentos.length === 0) {\n  return [{ json: { phone, texto: 'Você não possui ' + nicho + ' futuros agendados.' } }];\n}\nconst ag = agendamentos[0];\nconst parts = (ag.data||'').split('-');\nconst dataF = parts.length===3 ? parts[2]+'/'+parts[1]+'/'+parts[0] : ag.data;\nreturn [{ json: { phone, texto: '📅 Seu próximo ' + nicho + ':\\n\\nData: '+dataF+'\\nHorário: '+ag.hora+'\\nTipo: '+(ag.tipo||nicho) } }];"
+      }
+    },
+    {
+      "id": "http-wa-consulta",
+      "name": "WA Resposta Consulta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2640, 848],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Buscar Config WA').first().json.evolutionBaseUrl || 'https://api.divulgabr.com.br') + '/message/sendText/' + ($('Buscar Config WA').first().json.evolutionInstance || 'divulgabr') }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "apikey", "value": "={{ $('Buscar Config WA').first().json.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96' }}" }] },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.phone, text: $json.texto }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "http-wa-outros",
+      "name": "WA Resposta Outros",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2160, 1024],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Buscar Config WA').first().json.evolutionBaseUrl || 'https://api.divulgabr.com.br') + '/message/sendText/' + ($('Buscar Config WA').first().json.evolutionInstance || 'divulgabr') }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "apikey", "value": "={{ $('Buscar Config WA').first().json.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96' }}" }] },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.phone, text: 'Olá! Posso ajudar com agendamentos. Digite:\\n- *agendar* para marcar um horário\\n- *cancelar* para cancelar\\n- *consultar* para ver seus horários marcados' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "http-criar-agendamento",
+      "name": "POST Criar Agendamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2400, 128],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm.divulgabr.com.br/api/n8n/agendamentos",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $('Resolver Tenant').first().json.apiToken }}" }] },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ cliente_nome: $json.clienteNome, cliente_telefone: $json.phone, data: $json.dataISO, hora: $json.slotEscolhido, tipo: $json.nichoLabel || 'consulta', servicoId: $json.servicoId || undefined }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "http-del-conversa",
+      "name": "DELETE Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2640, 240],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ 'https://crm.divulgabr.com.br/api/n8n/conversas/' + ($json.cliente_telefone || $('Proc Aguardando Confirmacao').first().json.phone) }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-API-Token", "value": "={{ $('Resolver Tenant').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-msg-confirmado",
+      "name": "Montar Confirmacao Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2880, 240],
+      "parameters": {
+        "jsCode": "const cfg = $('Buscar Config WA').first().json;\nconst dados = $('Proc Aguardando Confirmacao').first().json;\nconst ag = $('POST Criar Agendamento').first().json.agendamento || {};\nconst parts = (ag.data||dados.dataISO||'').split('-');\nconst dataF = parts.length===3 ? parts[2]+'/'+parts[1]+'/'+parts[0] : (ag.data||dados.dataISO||'');\nconst nicho = cfg.nichoLabel || 'atendimento';\nconst phone = dados.phone || ($('Extrair Mensagem').first().json.phone);\n\nconst tpl = cfg.mensagemWaConfirmacao\n  || '✅ ' + nicho.charAt(0).toUpperCase() + nicho.slice(1) + ' confirmado!\\n\\n📅 {{data}} às {{hora}}\\n\\nAté lá!';\n\nconst texto = tpl\n  .replace(/\\{\\{nome\\}\\}/g, dados.clienteNome || '')\n  .replace(/\\{\\{data\\}\\}/g, dataF)\n  .replace(/\\{\\{hora\\}\\}/g, ag.hora || dados.slotEscolhido || '')\n  .replace(/\\{\\{servico\\}\\}/g, '')\n  .replace(/\\{\\{nicho\\}\\}/g, nicho);\n\nreturn [{ json: { phone, texto } }];"
+      }
+    },
+    {
+      "id": "http-wa-confirmado",
+      "name": "WA Agendamento Confirmado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [3120, 240],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('Buscar Config WA').first().json.evolutionBaseUrl || 'https://api.divulgabr.com.br') + '/message/sendText/' + ($('Buscar Config WA').first().json.evolutionInstance || 'divulgabr') }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "apikey", "value": "={{ $('Buscar Config WA').first().json.evolutionApiKey || '9015A0349CE0-4C04-B429-4A0FA18BCE96' }}" }] },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.phone, text: $json.texto }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Evolution": { "main": [[{ "node": "Extrair Mensagem", "type": "main", "index": 0 }]] },
+    "Extrair Mensagem": { "main": [[{ "node": "IF Mensagem Valida", "type": "main", "index": 0 }]] },
+    "IF Mensagem Valida": { "main": [[{ "node": "Resolver Tenant", "type": "main", "index": 0 }], []] },
+    "Resolver Tenant": { "main": [[{ "node": "Buscar Config WA", "type": "main", "index": 0 }]] },
+    "Buscar Config WA": { "main": [[{ "node": "GET Conversa Atual", "type": "main", "index": 0 }]] },
+    "GET Conversa Atual": { "main": [[{ "node": "IF Conversa Ativa", "type": "main", "index": 0 }]] },
+    "IF Conversa Ativa": { "main": [
+      [{ "node": "Processar Etapa", "type": "main", "index": 0 }],
+      [{ "node": "Gemini Classifica Intencao", "type": "main", "index": 0 }]
+    ]},
+    "Processar Etapa": { "main": [[{ "node": "Switch Estado", "type": "main", "index": 0 }]] },
+    "Switch Estado": { "main": [
+      [{ "node": "Proc Aguardando Data", "type": "main", "index": 0 }],
+      [{ "node": "Proc Aguardando Slot", "type": "main", "index": 0 }],
+      [{ "node": "Proc Aguardando Nome", "type": "main", "index": 0 }],
+      [{ "node": "Proc Aguardando Confirmacao", "type": "main", "index": 0 }]
+    ]},
+    "Proc Aguardando Data": { "main": [[{ "node": "GET Slots Disponiveis", "type": "main", "index": 0 }]] },
+    "Gemini Classifica Intencao": { "main": [[{ "node": "Parse Intencao", "type": "main", "index": 0 }]] },
+    "Parse Intencao": { "main": [[{ "node": "Switch Intencao", "type": "main", "index": 0 }]] },
+    "Switch Intencao": { "main": [
+      [{ "node": "Iniciar Conversa Agendar", "type": "main", "index": 0 }],
+      [{ "node": "GET Agendamentos Cancelar", "type": "main", "index": 0 }],
+      [{ "node": "GET Proximo Agendamento", "type": "main", "index": 0 }],
+      [{ "node": "WA Resposta Outros", "type": "main", "index": 0 }]
+    ]},
+    "Iniciar Conversa Agendar": { "main": [[{ "node": "WA Pedir Data", "type": "main", "index": 0 }]] },
+    "GET Agendamentos Cancelar": { "main": [[{ "node": "IF Tem Agendamento", "type": "main", "index": 0 }]] },
+    "IF Tem Agendamento": { "main": [
+      [{ "node": "Formatar Cancelamento", "type": "main", "index": 0 }],
+      [{ "node": "WA Sem Agendamento", "type": "main", "index": 0 }]
+    ]},
+    "Formatar Cancelamento": { "main": [[{ "node": "WA Confirma Cancelar", "type": "main", "index": 0 }]] },
+    "GET Proximo Agendamento": { "main": [[{ "node": "Formatar Consulta", "type": "main", "index": 0 }]] },
+    "Formatar Consulta": { "main": [[{ "node": "WA Resposta Consulta", "type": "main", "index": 0 }]] },
+    "Proc Aguardando Confirmacao": { "main": [[{ "node": "POST Criar Agendamento", "type": "main", "index": 0 }]] },
+    "POST Criar Agendamento": { "main": [[{ "node": "DELETE Conversa", "type": "main", "index": 0 }]] },
+    "DELETE Conversa": { "main": [[{ "node": "Montar Confirmacao Final", "type": "main", "index": 0 }]] },
+    "Montar Confirmacao Final": { "main": [[{ "node": "WA Agendamento Confirmado", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "meta": { "instanceId": "crm-simples-agendabot" }
+}
