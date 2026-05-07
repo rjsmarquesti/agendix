@@ -21,6 +21,9 @@ router.delete('/:id', ...onlySuper, ctrl.deletar);
 router.post('/:id/usuarios',              ...onlySuper, ctrl.criarUsuario);
 router.put('/:id/usuarios/:userId/senha', ...onlySuper, ctrl.resetarSenha);
 
+// Evolution API — criar/recriar instância
+router.post('/:id/create-evolution', ...onlySuper, ctrl.criarEvolution);
+
 // Provisioning n8n
 router.use('/:id/provision-n8n', require('./provisioning'));
 

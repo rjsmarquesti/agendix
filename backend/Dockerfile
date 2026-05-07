@@ -15,6 +15,9 @@ COPY . .
 # Gera o Prisma Client com o schema já disponível
 RUN npx prisma generate
 
+# Garante que o diretório de uploads existe
+RUN mkdir -p uploads/logos
+
 EXPOSE 3000
 
 # Roda migrations + seed + servidor

@@ -19,7 +19,8 @@ exports.login = async (req, res, next) => {
       include: { tenant: { select: { nome: true, slug: true, corPrimaria: true, logo: true, modulos: true, plano: true, planoStatus: true, planoVencimento: true } } },
     });
 
-    if (!user || !user.ativo) return res.status(401).json({ error: 'Email ou senha incorretos' });
+    if (!user) return res.status(401).json({ error: 'Email ou senha incorretos' });
+    if (!user.ativo) return res.status(401).json({ error: 'Conta não ativada. Verifique seu email e WhatsApp para o link de ativação.', code: 'INACTIVE' });
 
     const ok = await bcrypt.compare(senha, user.senha);
     if (!ok) return res.status(401).json({ error: 'Email ou senha incorretos' });

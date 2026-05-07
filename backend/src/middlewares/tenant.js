@@ -17,6 +17,9 @@ module.exports = async (req, res, next) => {
     const tenant = await prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) return res.status(404).json({ error: 'Empresa não encontrada' });
     if (!tenant.ativo) return res.status(403).json({ error: 'Empresa inativa' });
+    if (tenant.planoStatus === 'trial' && tenant.planoVencimento && new Date() > new Date(tenant.planoVencimento)) {
+      return res.status(402).json({ error: 'Período de teste encerrado. Escolha um plano para continuar.' });
+    }
     if (tenant.planoStatus === 'cancelado') {
       return res.status(402).json({ error: 'Assinatura cancelada. Entre em contato com o suporte.' });
     }

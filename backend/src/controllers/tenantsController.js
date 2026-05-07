@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { provisionarWorkflows, removerWorkflows } = require('../services/n8nProvisioningService');
+const { createInstance, deleteInstance } = require('../services/evolutionService');
 
 exports.listar = async (req, res, next) => {
   try {
@@ -50,6 +51,24 @@ exports.criar = async (req, res, next) => {
         .catch(err => console.error(`[n8n] Falha ao provisionar tenant ${tenant.slug}:`, err.message));
     }
 
+    // Criação da instância Evolution — fire-and-forget
+    if (process.env.EVOLUTION_GLOBAL_API_KEY) {
+      createInstance(tenant.slug)
+        .then(async (result) => {
+          const apiKey = result?.hash?.apikey || result?.apikey || null;
+          const baseUrl = process.env.EVOLUTION_BASE_URL || 'https://api.divulgabr.com.br';
+          await prisma.tenant.update({
+            where: { id: tenant.id },
+            data: {
+              evolutionInstance: tenant.slug,
+              evolutionApiKey: apiKey,
+              evolutionBaseUrl: baseUrl,
+            },
+          });
+        })
+        .catch(err => console.error(`[evolution] Falha ao criar instância ${tenant.slug}:`, err.message));
+    }
+
     res.status(201).json({ tenant });
   } catch (err) {
     if (err.code === 'P2002') return res.status(400).json({ error: 'Slug já em uso' });
@@ -59,14 +78,13 @@ exports.criar = async (req, res, next) => {
 
 exports.atualizar = async (req, res, next) => {
   try {
-    const { nome, slug, logo, corPrimaria, plano, modulos, ativo, planoStatus, planoVencimento, asaasCustomerId } = req.body;
+    const { nome, slug, logo, corPrimaria, plano, modulos, ativo, planoStatus, planoVencimento } = req.body;
     const tenant = await prisma.tenant.update({
       where: { id: Number(req.params.id) },
       data: {
         nome, slug, logo: logo || null, corPrimaria, plano, modulos, ativo,
         planoStatus: planoStatus || undefined,
         planoVencimento: planoVencimento ? new Date(planoVencimento) : undefined,
-        asaasCustomerId: asaasCustomerId || undefined,
       },
     });
     res.json({ tenant });
@@ -86,6 +104,9 @@ exports.deletar = async (req, res, next) => {
       } catch (err) {
         console.error(`[n8n] Falha ao remover workflows de ${tenant.slug}:`, err.message);
       }
+    }
+    if (tenant?.evolutionInstance) {
+      deleteInstance(tenant.evolutionInstance, tenant.evolutionApiKey).catch(() => {});
     }
     await prisma.tenant.delete({ where: { id } });
     res.json({ message: 'Empresa removida' });
@@ -111,6 +132,25 @@ exports.criarUsuario = async (req, res, next) => {
     if (err.code === 'P2002') return res.status(400).json({ error: 'Email já cadastrado nesta empresa' });
     next(err);
   }
+};
+
+// Criar/recriar instância Evolution para um tenant
+exports.criarEvolution = async (req, res, next) => {
+  try {
+    const tenant = await prisma.tenant.findUnique({ where: { id: Number(req.params.id) } });
+    if (!tenant) return res.status(404).json({ error: 'Empresa não encontrada' });
+    const result = await createInstance(tenant.slug);
+    const apiKey = result?.hash?.apikey || result?.apikey || null;
+    const updated = await prisma.tenant.update({
+      where: { id: tenant.id },
+      data: {
+        evolutionInstance: tenant.slug,
+        evolutionApiKey: apiKey,
+        evolutionBaseUrl: process.env.EVOLUTION_BASE_URL || 'https://api.divulgabr.com.br',
+      },
+    });
+    res.json({ tenant: updated });
+  } catch (err) { next(err); }
 };
 
 // Resetar senha de um usuário

@@ -12,7 +12,8 @@ exports.get = async (req, res, next) => {
 exports.update = async (req, res, next) => {
   try {
     const { nome, logo, corPrimaria, modulos, n8nWebhookUrl, n8nApiKey, nichoLabel,
-            evolutionInstance, evolutionApiKey, evolutionBaseUrl } = req.body;
+            evolutionInstance, evolutionApiKey, evolutionBaseUrl,
+            lembretesDiretosAtivo } = req.body;
     const tenant = await prisma.tenant.update({
       where: { id: req.user.tenantId },
       data: {
@@ -22,6 +23,7 @@ exports.update = async (req, res, next) => {
         evolutionInstance: evolutionInstance || null,
         evolutionApiKey: evolutionApiKey || null,
         evolutionBaseUrl: evolutionBaseUrl || null,
+        lembretesDiretosAtivo: lembretesDiretosAtivo === true,
       },
     });
     res.json({ tenant });

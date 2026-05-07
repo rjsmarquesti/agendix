@@ -80,7 +80,7 @@ router.post('/agendar', resolverTenant, async (req, res, next) => {
     // Verificar limite de agendamentos/mês do plano
     const mesAtual = new Date().toISOString().slice(0, 7);
     const totalMes = await prisma.agendamento.count({ where: { tenantId: req.tenant.id, data: { startsWith: mesAtual } } });
-    const limiteAg = LIMITE_AGENDAMENTOS[req.tenant.plano] ?? 50;
+    const limiteAg = LIMITE_AGENDAMENTOS[req.tenant.plano] ?? 60;
     if (totalMes >= limiteAg) {
       return res.status(402).json({ error: 'Agendamentos do mês esgotados. Entre em contato com a empresa.' });
     }

@@ -128,7 +128,7 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
         {field('email',   'Email',   'email', { placeholder: 'email@exemplo.com' })}
         {field('website', 'Website', 'text',  { placeholder: 'https://...' })}
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {sel('status',   'Status',     STATUS_OPTIONS,   STATUS_LABEL)}
         {sel('priority', 'Prioridade', PRIORITY_OPTIONS)}
         {sel('fonte',    'Fonte',      FONTE_OPTIONS,    FONTE_LABEL)}
@@ -182,7 +182,7 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
       {/* Endereço */}
       <div className="border-t border-gray-100 pt-4">
         <p className="text-sm font-semibold text-gray-700 mb-3">Endereço <span className="font-normal text-gray-400">(opcional)</span></p>
-        <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
           <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
             <input type="text" value={form.cep}
@@ -201,12 +201,12 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
             {field('logradouro', 'Logradouro', 'text', { placeholder: 'Rua, Av...' })}
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           {field('numero',      'Número',      'text', { placeholder: '123' })}
           {field('complemento', 'Complemento', 'text', { placeholder: 'Apto...' })}
           {field('bairro',      'Bairro',      'text', {})}
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="col-span-2">
             {field('cidade', 'Cidade', 'text', {})}
           </div>

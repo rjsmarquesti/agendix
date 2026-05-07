@@ -26,10 +26,14 @@ model Tenant {
   evolutionBaseUrl  String?  @map("evolution_base_url")
   planoStatus       String   @default("trial") @map("plano_status")
   planoVencimento   DateTime? @map("plano_vencimento")
-  asaasCustomerId    String?  @map("asaas_customer_id")
-  n8nWorkflowWaId    String?  @map("n8n_workflow_wa_id")
-  n8nWorkflowNotifId String?  @map("n8n_workflow_notif_id")
-  createdAt          DateTime @default(now()) @map("created_at")
+  mpCustomerId          String?  @map("mp_customer_id")
+  mpSubscriptionId      String?  @map("mp_subscription_id")
+  mpPlanId              String?  @map("mp_plan_id")
+  n8nWorkflowWaId       String?  @map("n8n_workflow_wa_id")
+  n8nWorkflowNotifId    String?  @map("n8n_workflow_notif_id")
+  lembretesDiretosAtivo  Boolean  @default(false) @map("lembretes_diretos_ativo")
+  whatsappResponsavel    String?  @map("whatsapp_responsavel")
+  createdAt              DateTime @default(now()) @map("created_at")
 
   users              User[]
   leads              Lead[]
@@ -38,6 +42,8 @@ model Tenant {
   conversasWhatsapp  ConversaWhatsapp[]
   servicos           Servico[]
   bloqueios          BloqueioHorario[]
+  lancamentos        LancamentoFinanceiro[]
+  notificacoes       Notificacao[]
 
   @@map("tenants")
 }
@@ -50,9 +56,14 @@ model User {
   nome      String
   email     String
   senha     String
-  role      Role     @default(atendente)
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
+  role                 Role     @default(atendente)
+  ativo                Boolean  @default(true)
+  whatsapp             String?
+  createdAt            DateTime @default(now()) @map("created_at")
+  passwordResetToken   String?  @map("password_reset_token")
+  passwordResetExpires DateTime? @map("password_reset_expires")
+  activationToken      String?  @map("activation_token")
+  activationExpires    DateTime? @map("activation_expires")
 
   @@unique([email, tenantId])
   @@map("users")
@@ -112,6 +123,7 @@ model Lead {
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
   agendamentos Agendamento[]
+  lancamentos  LancamentoFinanceiro[]
 
   @@unique([placeId, tenantId])
   @@index([tenantId, status])
@@ -167,6 +179,7 @@ model Servico {
   createdAt   DateTime @default(now()) @map("created_at")
 
   agendamentos Agendamento[]
+  lancamentos  LancamentoFinanceiro[]
 
   @@map("servicos")
 }
@@ -229,6 +242,7 @@ enum Plano {
   basico
   pro
   premium
+  business
 }
 
 enum Role {
@@ -272,6 +286,57 @@ enum CanalOrigem {
   manual
   web
   whatsapp
+}
+
+// ─── LancamentoFinanceiro ─────────────────────────────────────────────────────
+model LancamentoFinanceiro {
+  id            Int             @id @default(autoincrement())
+  tenantId      Int             @map("tenant_id")
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tipo          TipoLancamento
+  descricao     String
+  valor         Decimal         @db.Decimal(10, 2)
+  data          String
+  categoria     String?
+  status        StatusPagamento @default(pendente)
+  leadId        Int?            @map("lead_id")
+  lead          Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  servicoId     Int?            @map("servico_id")
+  servico       Servico?        @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  observacoes   String?
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  @@index([tenantId, data])
+  @@index([tenantId, tipo])
+  @@index([tenantId, status])
+  @@map("lancamentos_financeiros")
+}
+
+enum TipoLancamento {
+  receita
+  despesa
+}
+
+enum StatusPagamento {
+  pago
+  pendente
+  cancelado
+}
+
+// ─── Notificacao (in-app, por tenant) ────────────────────────────────────────
+model Notificacao {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int      @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tipo      String   // lembrete_enviado, lembrete_falhou, agendamento_hoje
+  titulo    String
+  corpo     String?
+  lida      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, lida])
+  @@map("notificacoes")
 }
 
 enum EstadoConversa {

@@ -4,9 +4,9 @@ import AdminLayout from '../../components/AdminLayout';
 import Modal from '../../components/Modal';
 import { api } from '../../services/api';
 
-const PLANO_COLOR  = { basico: 'bg-slate-700 text-slate-300', pro: 'bg-blue-900 text-blue-300', premium: 'bg-yellow-900 text-yellow-300' };
-const STATUS_COLOR = { trial: 'bg-slate-700 text-slate-300', ativo: 'bg-green-900 text-green-300', inadimplente: 'bg-red-900 text-red-300', cancelado: 'bg-red-950 text-red-400' };
-const STATUS_LABEL = { trial: 'Trial', ativo: 'Ativo', inadimplente: 'Inadimplente', cancelado: 'Cancelado' };
+const PLANO_COLOR  = { basico: 'bg-slate-700 text-slate-300', pro: 'bg-blue-900 text-blue-300', premium: 'bg-yellow-900 text-yellow-300', business: 'bg-purple-900 text-purple-300' };
+const STATUS_COLOR = { trial: 'bg-slate-700 text-slate-300', ativo: 'bg-green-900 text-green-300', inadimplente: 'bg-red-900 text-red-300', cancelado: 'bg-red-950 text-red-400', inativo: 'bg-gray-700 text-gray-400' };
+const STATUS_LABEL = { trial: 'Trial', ativo: 'Ativo', inadimplente: 'Inadimplente', cancelado: 'Cancelado', inativo: 'Inativo' };
 const CORES = ['#2563eb','#7c3aed','#db2777','#dc2626','#ea580c','#16a34a','#0891b2','#1e293b'];
 const MODULOS = [{ id: 'leads', label: 'Leads' }, { id: 'agendamentos', label: 'Agendamentos' }];
 
@@ -25,6 +25,7 @@ export default function AdminClientes() {
   const [senhaUserId, setSUID]    = useState(null);
   const [loading, setLoading]     = useState(false);
   const [provLoading, setProvLoading] = useState(null); // id do tenant em provisioning
+  const [evoLoading, setEvoLoading]   = useState(null); // id do tenant em criação Evolution
 
   const load = useCallback(async () => {
     try { const d = await api.get('/admin/tenants'); setTenants(d.tenants); }
@@ -100,6 +101,18 @@ export default function AdminClientes() {
       load();
     } catch (err) { toast.error(err.message); }
     finally { setProvLoading(null); }
+  }
+
+  // ── Evolution API ────────────────────────────────────────────────────────
+  async function criarEvolution(t) {
+    if (!confirm(`Criar instância WhatsApp para "${t.nome}" na Evolution API?`)) return;
+    setEvoLoading(t.id);
+    try {
+      await api.post(`/admin/tenants/${t.id}/create-evolution`);
+      toast.success(`Instância WhatsApp criada para ${t.nome}!`);
+      load();
+    } catch (err) { toast.error(err.message); }
+    finally { setEvoLoading(null); }
   }
 
   // ── Senha ────────────────────────────────────────────────────────────────
@@ -182,7 +195,20 @@ export default function AdminClientes() {
                 </span>
               </div>
               <div className="flex items-center gap-2 mb-3 flex-wrap">
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${PLANO_COLOR[t.plano]}`}>{t.plano}</span>
+                <select
+                  value={t.plano}
+                  onChange={async e => {
+                    const novoPlano = e.target.value;
+                    try { await api.put(`/admin/tenants/${t.id}`, { plano: novoPlano }); load(); }
+                    catch (err) { toast.error(err.message); }
+                  }}
+                  className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer border-0 outline-none ${PLANO_COLOR[t.plano]}`}
+                >
+                  <option value="basico">Básico</option>
+                  <option value="pro">Pro</option>
+                  <option value="premium">Premium</option>
+                  <option value="business">Business</option>
+                </select>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_COLOR[t.planoStatus] || STATUS_COLOR.trial}`}>{STATUS_LABEL[t.planoStatus] || 'Trial'}</span>
                 <span className="text-slate-400 text-xs">{t._count?.leads || 0} leads</span>
                 <span className="text-slate-400 text-xs">· {t._count?.users || 0} usuários</span>
@@ -194,6 +220,10 @@ export default function AdminClientes() {
                 <button onClick={() => provisionarN8n(t)} disabled={provLoading === t.id}
                   className={`flex-1 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center disabled:opacity-40 ${t.n8nWorkflowWaId ? 'text-green-400' : 'text-yellow-400'}`}>
                   {provLoading === t.id ? '...' : t.n8nWorkflowWaId ? 'n8n ✓' : 'n8n'}
+                </button>
+                <button onClick={() => criarEvolution(t)} disabled={evoLoading === t.id}
+                  className={`flex-1 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center disabled:opacity-40 ${t.evolutionInstance ? 'text-green-400' : 'text-slate-400'}`}>
+                  {evoLoading === t.id ? '...' : t.evolutionInstance ? 'WA ✓' : 'WA'}
                 </button>
                 <button onClick={() => deletarTenant(t)} className="flex-1 text-red-500 hover:text-red-400 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">Remover</button>
               </div>
@@ -213,12 +243,13 @@ export default function AdminClientes() {
               <th className="px-6 py-4">Leads</th>
               <th className="px-6 py-4">Usuários</th>
               <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4 no-print">WhatsApp</th>
               <th className="px-6 py-4 no-print">Ações</th>
             </tr>
           </thead>
           <tbody>
             {filtrados.length === 0
-              ? <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-500">Nenhum cliente encontrado</td></tr>
+              ? <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">Nenhum cliente encontrado</td></tr>
               : filtrados.map(t => (
                 <tr key={t.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
                   <td className="px-6 py-4">
@@ -239,7 +270,20 @@ export default function AdminClientes() {
                   <td className="px-6 py-4 text-slate-400 text-sm font-mono">{t.slug}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize w-fit ${PLANO_COLOR[t.plano]}`}>{t.plano}</span>
+                      <select
+                        value={t.plano}
+                        onChange={async e => {
+                          const novoPlano = e.target.value;
+                          try { await api.put(`/admin/tenants/${t.id}`, { plano: novoPlano }); load(); }
+                          catch (err) { toast.error(err.message); }
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer border-0 outline-none w-fit ${PLANO_COLOR[t.plano]}`}
+                      >
+                        <option value="basico">Básico</option>
+                        <option value="pro">Pro</option>
+                        <option value="premium">Premium</option>
+                        <option value="business">Business</option>
+                      </select>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold w-fit ${STATUS_COLOR[t.planoStatus] || STATUS_COLOR.trial}`}>{STATUS_LABEL[t.planoStatus] || 'Trial'}</span>
                     </div>
                   </td>
@@ -250,6 +294,23 @@ export default function AdminClientes() {
                       className={`px-2.5 py-1 rounded-full text-xs font-semibold ${t.ativo ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>
                       {t.ativo ? 'Ativo' : 'Inativo'}
                     </button>
+                  </td>
+                  <td className="px-6 py-4 no-print">
+                    {t.evolutionInstance ? (
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-900/60 text-green-400 rounded-full text-xs font-semibold w-fit">
+                        <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+                        Instância OK
+                      </span>
+                    ) : (
+                      <button onClick={() => criarEvolution(t)} disabled={evoLoading === t.id}
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-700 hover:bg-green-900/60 text-slate-400 hover:text-green-400 rounded-full text-xs font-semibold transition disabled:opacity-40">
+                        {evoLoading === t.id
+                          ? <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                          : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        }
+                        {evoLoading === t.id ? 'Criando...' : 'Criar'}
+                      </button>
+                    )}
                   </td>
                   <td className="px-6 py-4 no-print">
                     <div className="flex items-center gap-1">
@@ -305,11 +366,27 @@ export default function AdminClientes() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">URL da Logo <span className="font-normal text-gray-400">(opcional)</span></label>
-            <input type="url" value={formTenant.logo}
-              onChange={e => setFT(f => ({ ...f, logo: e.target.value }))}
-              placeholder="https://..."
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Logo <span className="font-normal text-gray-400">(opcional)</span></label>
+            <div className="flex items-center gap-2">
+              <input type="url" value={formTenant.logo}
+                onChange={e => setFT(f => ({ ...f, logo: e.target.value }))}
+                placeholder="Cole uma URL ou envie um arquivo →"
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50" />
+              <label className="cursor-pointer px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-600 hover:bg-gray-100 transition whitespace-nowrap">
+                📁 Enviar
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden"
+                  onChange={async e => {
+                    const file = e.target.files[0]; if (!file) return;
+                    const fd = new FormData(); fd.append('logo', file);
+                    try {
+                      const d = await api.post('/settings/upload-logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                      setFT(f => ({ ...f, logo: d.url }));
+                      toast.success('Logo enviada!');
+                    } catch (err) { toast.error(err.message); }
+                    e.target.value = '';
+                  }} />
+              </label>
+            </div>
             {formTenant.logo && <img src={formTenant.logo} alt="preview" className="mt-2 h-10 object-contain rounded-lg border bg-gray-50 p-1" />}
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -320,6 +397,7 @@ export default function AdminClientes() {
                 <option value="basico">Básico (1 usuário · 50 ag/mês)</option>
                 <option value="pro">Pro (5 usuários · 300 ag/mês · Bot WA)</option>
                 <option value="premium">Premium (ilimitado · Bot WA)</option>
+                <option value="business">Business (ilimitado · Bot WA · Financeiro)</option>
               </select>
             </div>
             <div>

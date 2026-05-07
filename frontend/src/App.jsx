@@ -8,7 +8,12 @@ import Agendamentos from './pages/Agendamentos';
 import Servicos     from './pages/Servicos';
 import Users        from './pages/Users';
 import Settings     from './pages/Settings';
+import Financeiro   from './pages/Financeiro';
 import AgendaHoje     from './pages/AgendaHoje';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword  from './pages/ResetPassword';
+import Register       from './pages/Register';
+import Ativar         from './pages/Ativar';
 import AdminLogin      from './pages/admin/AdminLogin';
 import AdminDashboard  from './pages/admin/AdminDashboard';
 import AdminClientes   from './pages/admin/AdminClientes';
@@ -34,8 +39,12 @@ export default function App() {
     <AuthProvider>
       <Routes>
         {/* Rotas públicas */}
-        <Route path="/login"       element={<Login />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/login"           element={<Login />} />
+        <Route path="/cadastro"        element={<Register />} />
+        <Route path="/ativar"          element={<Ativar />} />
+        <Route path="/esqueci-senha"   element={<ForgotPassword />} />
+        <Route path="/redefinir-senha" element={<ResetPassword />} />
+        <Route path="/admin/login"     element={<AdminLogin />} />
 
         {/* Rotas do tenant */}
         <Route path="/"             element={<PrivateRoute><Dashboard /></PrivateRoute>} />
@@ -45,6 +54,7 @@ export default function App() {
         <Route path="/usuarios"     element={<PrivateRoute roles={['admin','super_admin']}><Users /></PrivateRoute>} />
         <Route path="/configuracoes"element={<PrivateRoute roles={['admin','super_admin']}><Settings /></PrivateRoute>} />
         <Route path="/agenda-hoje"  element={<PrivateRoute><AgendaHoje /></PrivateRoute>} />
+        <Route path="/financeiro"   element={<PrivateRoute roles={['admin','super_admin']}><Financeiro /></PrivateRoute>} />
 
         {/* Rotas super admin */}
         <Route path="/admin"          element={<AdminRoute><AdminDashboard /></AdminRoute>} />

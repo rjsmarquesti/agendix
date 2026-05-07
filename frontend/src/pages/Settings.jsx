@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import { api } from '../services/api';
@@ -34,12 +34,21 @@ const TABS = [
   { id: 'agenda',     label: 'Agenda' },
   { id: 'integracao', label: 'Integração' },
   { id: 'n8n',        label: 'Bot / n8n' },
+  { id: 'plano',      label: 'Plano' },
+  { id: 'dados',      label: 'Dados' },
+];
+
+const PLANOS_MP = [
+  { id: 'basico',   label: 'Básico',   preco: 'R$ 37/mês',  descricao: '1 usuário · 60 agendamentos/mês' },
+  { id: 'pro',      label: 'Pro',      preco: 'R$ 57/mês',  descricao: '5 usuários · 300 agendamentos · Bot WhatsApp' },
+  { id: 'premium',  label: 'Premium',  preco: 'R$ 97/mês',  descricao: 'Usuários ilimitados · Agendamentos ilimitados · Bot WA' },
+  { id: 'business', label: 'Business', preco: 'R$ 127/mês', descricao: 'Tudo do Premium + Módulo Financeiro completo' },
 ];
 
 export default function Settings() {
   const { tenant, updateTenant } = useAuth();
   const [tab, setTab]           = useState('empresa');
-  const [form, setForm]         = useState({ nome: '', logo: '', corPrimaria: '#2563eb', modulos: [], n8nWebhookUrl: '', n8nApiKey: '', nichoLabel: '', evolutionInstance: '', evolutionApiKey: '', evolutionBaseUrl: '', n8nWorkflowWaId: null, n8nWorkflowNotifId: null });
+  const [form, setForm]         = useState({ nome: '', logo: '', corPrimaria: '#2563eb', modulos: [], n8nWebhookUrl: '', n8nApiKey: '', nichoLabel: '', evolutionInstance: '', evolutionApiKey: '', evolutionBaseUrl: '', n8nWorkflowWaId: null, n8nWorkflowNotifId: null, lembretesDiretosAtivo: false });
   const [agendaForm, setAgendaForm] = useState({
     horarioInicio: '08:00', horarioFim: '18:00', duracaoSlot: 60,
     diasUteis: '1,2,3,4,5', antecedenciaMin: 2, antecedenciaMax: 30,
@@ -48,10 +57,16 @@ export default function Settings() {
   });
   const [apiToken, setApiToken]   = useState('');
   const [loading, setLoading]     = useState(false);
+  const [planoStatus, setPlanoStatus] = useState(null);
+  const [planoLoading, setPlanoLoading] = useState(false);
   const [agendaLoading, setAL]    = useState(false);
   const [genLoading, setGL]       = useState(false);
-  const [showToken, setShowToken] = useState(false);
-  const [usoMes, setUsoMes]       = useState(null);
+  const [showToken, setShowToken]   = useState(false);
+  const [usoMes, setUsoMes]         = useState(null);
+  const [waStatus, setWaStatus]     = useState(null);
+  const [waQrcode, setWaQrcode]     = useState(null);
+  const [waLoading, setWaLoading]   = useState(false);
+  const pollingRef = useRef(null);
   const [bloqueios, setBloqueios] = useState([]);
   const [bloqueioForm, setBloqueioForm] = useState({ data: '', tipoBloco: 'dia', horaInicio: '', horaFim: '', motivo: '' });
   const [bloqueioLoading, setBloqueioLoading] = useState(false);
@@ -98,6 +113,15 @@ export default function Settings() {
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('status') === 'approved') {
+      toast.success('Pagamento aprovado! Seu plano será atualizado em instantes.');
+      window.history.replaceState({}, '', '/configuracoes');
+      setTab('plano');
+    }
+
+    api.get('/payments/status').then(setPlanoStatus).catch(() => setPlanoStatus({ erro: true }));
+
     api.get('/settings').then(d => {
       const t = d.tenant;
       setForm({
@@ -111,6 +135,7 @@ export default function Settings() {
         evolutionBaseUrl: t.evolutionBaseUrl || '',
         n8nWorkflowWaId: t.n8nWorkflowWaId || null,
         n8nWorkflowNotifId: t.n8nWorkflowNotifId || null,
+        lembretesDiretosAtivo: t.lembretesDiretosAtivo || false,
       });
       if (t.apiToken) setApiToken(t.apiToken);
     }).catch(err => toast.error(err.message));
@@ -186,6 +211,40 @@ export default function Settings() {
     finally { setGL(false); }
   }
 
+  async function verificarStatusWa() {
+    try {
+      const d = await api.get('/settings/whatsapp/status');
+      setWaStatus(d.status);
+      if (d.status === 'open') {
+        setWaQrcode(null);
+        if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+      }
+    } catch { /* silencioso */ }
+  }
+
+  async function conectarWhatsapp() {
+    setWaLoading(true);
+    try {
+      await verificarStatusWa();
+      const status = (await api.get('/settings/whatsapp/status')).status;
+      if (status === 'open') { toast.success('WhatsApp já está conectado!'); return; }
+      const d = await api.get('/settings/whatsapp/qrcode');
+      if (d.qrcode) {
+        setWaQrcode(d.qrcode);
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        pollingRef.current = setInterval(verificarStatusWa, 5000);
+      } else {
+        toast.error('QR Code não disponível. Tente novamente.');
+      }
+    } catch (err) { toast.error(err.message); }
+    finally { setWaLoading(false); }
+  }
+
+  useEffect(() => {
+    verificarStatusWa();
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, []);
+
   function copiar(texto) {
     navigator.clipboard.writeText(texto);
     toast.success('Copiado!');
@@ -203,15 +262,17 @@ export default function Settings() {
     <Layout title="Configurações" subtitle="Personalize sua empresa no sistema">
       <div className="max-w-2xl">
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 mb-6">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all
-                ${tab === t.id ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}>
-              {t.label}
-            </button>
-          ))}
+        {/* Tabs — scroll horizontal em mobile */}
+        <div className="overflow-x-auto mb-6 -mx-1 px-1">
+          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 min-w-max sm:min-w-0">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`px-3 sm:flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap
+                  ${tab === t.id ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── ABA EMPRESA ── */}
@@ -225,9 +286,26 @@ export default function Settings() {
                   className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL da Logo <span className="text-gray-400 font-normal">(opcional)</span></label>
-                <input type="url" value={form.logo} onChange={e => setForm(f => ({ ...f, logo: e.target.value }))}
-                  placeholder="https://..." className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Logo <span className="text-gray-400 font-normal">(opcional)</span></label>
+                <div className="flex items-center gap-2">
+                  <input type="url" value={form.logo} onChange={e => setForm(f => ({ ...f, logo: e.target.value }))}
+                    placeholder="Cole uma URL ou envie um arquivo →"
+                    className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                  <label className="cursor-pointer px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition whitespace-nowrap">
+                    📁 Enviar
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden"
+                      onChange={async e => {
+                        const file = e.target.files[0]; if (!file) return;
+                        const fd = new FormData(); fd.append('logo', file);
+                        try {
+                          const d = await api.post('/settings/upload-logo', fd);
+                          setForm(f => ({ ...f, logo: d.url }));
+                          toast.success('Logo enviada!');
+                        } catch (err) { toast.error(err.message); }
+                        e.target.value = '';
+                      }} />
+                  </label>
+                </div>
                 {form.logo && <img src={form.logo} alt="preview" className="mt-2 h-12 object-contain rounded-lg border" />}
               </div>
               <div>
@@ -321,11 +399,11 @@ export default function Settings() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dias de atendimento</label>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="grid grid-cols-7 gap-1.5 sm:flex sm:gap-2 sm:flex-wrap">
                     {DIAS_SEMANA.map(d => (
                       <button key={d.value} type="button"
                         onClick={() => toggleDia(d.value)}
-                        className={`w-12 h-12 rounded-xl text-sm font-semibold border transition
+                        className={`h-10 sm:w-12 sm:h-12 rounded-xl text-xs sm:text-sm font-semibold border transition
                           ${diasAtivos.includes(d.value)
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'}`}>
@@ -426,17 +504,19 @@ export default function Settings() {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Link direto</label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <input readOnly value={linkFormulario}
-                      className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-xs bg-gray-50 dark:bg-gray-700 font-mono text-gray-600 dark:text-gray-400 truncate" />
-                    <button type="button" onClick={() => copiar(linkFormulario)}
-                      className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
-                      Copiar
-                    </button>
-                    <a href={linkFormulario} target="_blank" rel="noreferrer"
-                      className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
-                      Abrir
-                    </a>
+                      className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-xs bg-gray-50 dark:bg-gray-700 font-mono text-gray-600 dark:text-gray-400 truncate min-w-0" />
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => copiar(linkFormulario)}
+                        className="flex-1 sm:flex-none px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
+                        Copiar
+                      </button>
+                      <a href={linkFormulario} target="_blank" rel="noreferrer"
+                        className="flex-1 sm:flex-none text-center px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
+                        Abrir
+                      </a>
+                    </div>
                   </div>
                 </div>
 
@@ -461,7 +541,7 @@ export default function Settings() {
               <p className="text-xs text-gray-500 dark:text-gray-400">Bloqueie dias ou intervalos específicos para que não apareçam como disponíveis no formulário público.</p>
 
               <form onSubmit={adicionarBloqueio} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Data</label>
                     <input type="date" value={bloqueioForm.data}
@@ -479,7 +559,7 @@ export default function Settings() {
                   </div>
                 </div>
                 {bloqueioForm.tipoBloco === 'hora' && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Início</label>
                       <input type="time" value={bloqueioForm.horaInicio}
@@ -560,6 +640,24 @@ export default function Settings() {
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
                 </div>
               </div>
+              {/* Lembretes diretos */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="font-semibold text-gray-900 dark:text-gray-100">Lembretes automáticos diretos</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Envia lembretes de agendamento diretamente pelo sistema (sem depender do n8n).
+                      Requer instância Evolution configurada abaixo. O sistema verifica a cada hora.
+                    </p>
+                  </div>
+                  <button type="button"
+                    onClick={() => setForm(f => ({ ...f, lembretesDiretosAtivo: !f.lembretesDiretosAtivo }))}
+                    className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${form.lembretesDiretosAtivo ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.lembretesDiretosAtivo ? 'translate-x-5' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="font-semibold text-gray-900 dark:text-gray-100">WhatsApp (Evolution API)</h2>
@@ -596,6 +694,43 @@ export default function Settings() {
                 </button>
               </div>
             </form>
+
+            {/* Conexão WhatsApp — QR Code */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">Conexão WhatsApp</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Escaneie o QR Code para conectar o número deste tenant.</p>
+                </div>
+                {waStatus === 'open' ? (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-semibold">
+                    <span className="w-2 h-2 bg-green-500 rounded-full inline-block animate-pulse" />
+                    Conectado
+                  </span>
+                ) : waStatus === 'not_configured' ? (
+                  <span className="px-3 py-1.5 bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 rounded-full text-xs font-semibold">Não configurado</span>
+                ) : (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full text-xs font-semibold">
+                    <span className="w-2 h-2 bg-yellow-500 rounded-full inline-block" />
+                    Desconectado
+                  </span>
+                )}
+              </div>
+
+              {waQrcode ? (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <img src={waQrcode} alt="QR Code WhatsApp" className="w-40 h-40 sm:w-52 sm:h-52 rounded-xl border-4 border-green-500" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center">Abra o WhatsApp → Aparelhos conectados → Conectar aparelho</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 animate-pulse">Aguardando conexão...</p>
+                </div>
+              ) : (
+                <button onClick={conectarWhatsapp} disabled={waLoading || waStatus === 'not_configured'}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  {waLoading ? 'Carregando...' : waStatus === 'open' ? 'Reconectar WhatsApp' : 'Conectar WhatsApp'}
+                </button>
+              )}
+            </div>
 
             {/* Token de API */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
@@ -692,14 +827,14 @@ export default function Settings() {
                   <div className="flex items-center justify-between text-sm mb-1">
                     <span className="text-gray-400">Agendamentos este mês</span>
                     <span className="text-white font-medium">
-                      {usoMes} / {tenant?.plano === 'basico' ? 50 : tenant?.plano === 'pro' ? 300 : '∞'}
+                      {usoMes} / {tenant?.plano === 'basico' ? 60 : tenant?.plano === 'pro' ? 300 : '∞'}
                     </span>
                   </div>
                   {tenant?.plano !== 'premium' && (
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div
-                        className={`h-2 rounded-full transition-all ${usoMes / (tenant?.plano === 'basico' ? 50 : 300) > 0.8 ? 'bg-red-500' : 'bg-blue-500'}`}
-                        style={{ width: `${Math.min(100, (usoMes / (tenant?.plano === 'basico' ? 50 : 300)) * 100)}%` }}
+                        className={`h-2 rounded-full transition-all ${usoMes / (tenant?.plano === 'basico' ? 60 : 300) > 0.8 ? 'bg-red-500' : 'bg-blue-500'}`}
+                        style={{ width: `${Math.min(100, (usoMes / (tenant?.plano === 'basico' ? 60 : 300)) * 100)}%` }}
                       />
                     </div>
                   )}
@@ -751,6 +886,127 @@ export default function Settings() {
                   </p>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── ABA DADOS ── */}
+        {tab === 'plano' && (
+          <div className="space-y-6">
+            {/* Status atual */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-3">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Assinatura atual</h2>
+              {planoStatus ? (
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Plano: <strong className="text-gray-900 dark:text-gray-100 capitalize">{planoStatus.plano}</strong></span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${planoStatus.planoStatus === 'ativo' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : planoStatus.planoStatus === 'trial' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                    {planoStatus.planoStatus}
+                  </span>
+                  {planoStatus.planoVencimento && (
+                    <span className="text-gray-500 dark:text-gray-400">Vencimento: <strong className="text-gray-900 dark:text-gray-100">{new Date(planoStatus.planoVencimento).toLocaleDateString('pt-BR')}</strong></span>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">Carregando...</p>
+              )}
+              {planoStatus?.mpSubscriptionId && (
+                <button
+                  disabled={planoLoading}
+                  onClick={async () => {
+                    if (!window.confirm('Cancelar sua assinatura? O acesso continuará até o fim do período pago.')) return;
+                    setPlanoLoading(true);
+                    try {
+                      await api.put('/payments/cancelar');
+                      toast.success('Assinatura cancelada.');
+                      const d = await api.get('/payments/status');
+                      setPlanoStatus(d);
+                    } catch (err) { toast.error(err.message); }
+                    finally { setPlanoLoading(false); }
+                  }}
+                  className="text-sm text-red-500 hover:text-red-700 underline">
+                  Cancelar assinatura
+                </button>
+              )}
+            </div>
+
+            {/* Escolher plano */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Escolher / trocar plano</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PLANOS_MP.map(p => (
+                  <div key={p.id} className={`border rounded-xl p-4 flex flex-col gap-2 ${planoStatus?.plano === p.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600'}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{p.label}</span>
+                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{p.preco}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{p.descricao}</p>
+                    <button
+                      disabled={planoLoading || planoStatus?.plano === p.id}
+                      onClick={async () => {
+                        setPlanoLoading(true);
+                        try {
+                          const d = await api.post('/payments/assinar', { plano: p.id });
+                          if (d.init_point) window.open(d.init_point, '_blank');
+                          toast.success('Redirecionando para o Mercado Pago...');
+                        } catch (err) { toast.error(err.message); }
+                        finally { setPlanoLoading(false); }
+                      }}
+                      className={`mt-1 text-sm font-semibold py-1.5 rounded-lg transition ${planoStatus?.plano === p.id ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 cursor-default' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                      {planoStatus?.plano === p.id ? 'Plano atual' : 'Assinar'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'dados' && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Exportar backup</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Baixe um arquivo JSON com todos os seus dados: leads, agendamentos, serviços, configurações, bloqueios e lançamentos financeiros.</p>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/settings/backup`, {
+                      headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'X-Tenant-Slug': localStorage.getItem('tenantSlug') || '' },
+                    });
+                    if (!res.ok) throw new Error('Erro ao gerar backup');
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `backup-${new Date().toISOString().slice(0, 10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch (err) { toast.error(err.message); }
+                }}
+                className="btn-primary text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition">
+                ⬇ Exportar backup
+              </button>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Restaurar backup</h2>
+              <p className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl px-4 py-3">
+                ⚠️ Esta ação <strong>apaga todos os dados atuais</strong> (leads, agendamentos, serviços, bloqueios e financeiro) e substitui pelo conteúdo do arquivo de backup.
+              </p>
+              <label className="cursor-pointer inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition font-semibold">
+                📂 Selecionar arquivo .json
+                <input type="file" accept=".json" className="hidden"
+                  onChange={async e => {
+                    const file = e.target.files[0]; if (!file) return;
+                    if (!window.confirm('Tem certeza? Todos os dados atuais serão substituídos pelo backup.')) { e.target.value = ''; return; }
+                    try {
+                      const text = await file.text();
+                      const data = JSON.parse(text);
+                      await api.post('/settings/restore', data);
+                      toast.success('Backup restaurado com sucesso!');
+                    } catch (err) { toast.error(err.message || 'Arquivo inválido.'); }
+                    e.target.value = '';
+                  }} />
+              </label>
             </div>
           </div>
         )}

@@ -94,7 +94,7 @@ function AgendForm({ form, setForm, leads, onSubmit, loading }) {
         {inp('data', 'Data *', 'date', { required: true })}
         {inp('hora', 'Hora *', 'time', { required: true })}
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {inp('tipo', 'Tipo', 'text', { placeholder: 'Consulta, Reunião...' })}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
@@ -338,42 +338,43 @@ export default function Agendamentos() {
 
       {/* Toolbar */}
       {viewMode === 'lista' && (
-      <div className="flex flex-wrap gap-3 mb-4 no-print">
-        <input type="date" value={filtroData} onChange={e => setFiltroData(e.target.value)}
-          className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />
-        <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}
-          className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-w-[150px]">
-          <option value="">Todos os status</option>
-          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-        </select>
-        <select value={filtroCanal} onChange={e => setFiltroCanal(e.target.value)}
-          className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-w-[150px]">
-          <option value="">Todos os canais</option>
-          {CANAL_OPTIONS.map(c => (
-            <option key={c} value={c}>
-              {CANAL_STYLE[c].icon} {CANAL_STYLE[c].label}
-            </option>
-          ))}
-        </select>
-        <button onClick={() => { setFiltroData(''); setFiltroStatus(''); setFiltroCanal(''); }}
-          className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition bg-white dark:bg-gray-900">
-          Limpar filtros
-        </button>
-        <div className="flex-1" />
-        <button onClick={imprimirPDF}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-          </svg>
-          {algumSelecionado ? `PDF (${selecionados.size})` : 'PDF'}
-        </button>
-        <button onClick={openCreate}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm flex items-center gap-2">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Novo
-        </button>
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-4 no-print">
+        <div className="flex gap-2 flex-wrap">
+          <input type="date" value={filtroData} onChange={e => setFiltroData(e.target.value)}
+            className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-full sm:w-auto" />
+          <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}
+            className="flex-1 sm:flex-none px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+            <option value="">Todos os status</option>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+          </select>
+          <select value={filtroCanal} onChange={e => setFiltroCanal(e.target.value)}
+            className="flex-1 sm:flex-none px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+            <option value="">Todos os canais</option>
+            {CANAL_OPTIONS.map(c => (
+              <option key={c} value={c}>{CANAL_STYLE[c].icon} {CANAL_STYLE[c].label}</option>
+            ))}
+          </select>
+          <button onClick={() => { setFiltroData(''); setFiltroStatus(''); setFiltroCanal(''); }}
+            className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition bg-white dark:bg-gray-900">
+            Limpar
+          </button>
+        </div>
+        <div className="flex gap-2 sm:ml-auto">
+          <button onClick={imprimirPDF}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 text-sm font-medium transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            {algumSelecionado ? `PDF (${selecionados.size})` : 'PDF'}
+          </button>
+          <button onClick={openCreate}
+            className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-xl transition text-sm flex items-center justify-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Novo
+          </button>
+        </div>
       </div>
       )}
 

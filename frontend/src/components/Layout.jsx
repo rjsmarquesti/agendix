@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import NotificacaoBell from './NotificacaoBell';
 
 export default function Layout({ children, title, subtitle }) {
   const { user, tenant, logout } = useAuth();
@@ -12,6 +13,12 @@ export default function Layout({ children, title, subtitle }) {
   const cor = tenant?.corPrimaria || '#2563eb';
   const modulos = tenant?.modulos || ['leads', 'agendamentos'];
 
+  const diasTrial = useMemo(() => {
+    if (tenant?.planoStatus !== 'trial' || !tenant?.planoVencimento) return null;
+    const diff = new Date(tenant.planoVencimento) - new Date();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }, [tenant]);
+
   const navItems = [
     { to: '/', label: 'Dashboard', sempre: true, icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /> },
     { to: '/leads', label: 'Leads', modulo: 'leads', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /> },
@@ -20,11 +27,13 @@ export default function Layout({ children, title, subtitle }) {
     { to: '/servicos', label: 'Serviços', modulo: 'agendamentos', roles: ['admin', 'super_admin'], icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /> },
     { to: '/usuarios', label: 'Usuários', roles: ['admin', 'super_admin'], icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /> },
     { to: '/configuracoes', label: 'Configurações', roles: ['admin', 'super_admin'], icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /> },
+    { to: '/financeiro', label: 'Financeiro', plano: 'business', roles: ['admin', 'super_admin'], icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
   ];
 
   const itemsVisiveis = navItems.filter(item => {
     if (item.modulo && !modulos.includes(item.modulo)) return false;
     if (item.roles && !item.roles.includes(user?.role)) return false;
+    if (item.plano && tenant?.plano !== item.plano) return false;
     return true;
   });
 
@@ -117,6 +126,7 @@ export default function Layout({ children, title, subtitle }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <NotificacaoBell />
             {/* Toggle dark/light */}
             <button onClick={toggleTheme}
               title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
@@ -139,6 +149,18 @@ export default function Layout({ children, title, subtitle }) {
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:block">{user?.nome}</span>
           </div>
         </header>
+        {diasTrial !== null && (
+          <div className={`px-4 md:px-8 py-2.5 flex items-center justify-between gap-4 text-sm font-medium
+            ${diasTrial <= 3 ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-b border-red-200 dark:border-red-800'
+                             : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-b border-amber-200 dark:border-amber-800'}`}>
+            <span>
+              {diasTrial === 0
+                ? 'Seu período de teste encerrou hoje.'
+                : `Período de teste: ${diasTrial} dia${diasTrial !== 1 ? 's' : ''} restante${diasTrial !== 1 ? 's' : ''}.`}
+            </span>
+            <Link to="/configuracoes" className="underline whitespace-nowrap">Escolher plano</Link>
+          </div>
+        )}
         <div className="flex-1 p-4 md:p-8">{children}</div>
       </main>
     </div>

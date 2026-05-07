@@ -7,11 +7,18 @@ async function main() {
   // Super admin (sem tenant)
   const superAdmin = await prisma.user.findFirst({ where: { role: 'super_admin' } });
   if (!superAdmin) {
-    const senha = await bcrypt.hash('superadmin123', 10);
+    const senha = await bcrypt.hash('An@Beatriz270172', 10);
     await prisma.user.create({
-      data: { nome: 'Super Admin', email: 'super@crm.com', senha, role: 'super_admin', tenantId: null },
+      data: { nome: 'Super Admin', email: 'suporte@divulgabr.com.br', senha, role: 'super_admin', tenantId: null },
     });
-    console.log('✅ Super Admin criado: super@crm.com / superadmin123');
+    console.log('✅ Super Admin criado: suporte@divulgabr.com.br');
+  } else if (superAdmin.email !== 'suporte@divulgabr.com.br') {
+    const senha = await bcrypt.hash('An@Beatriz270172', 10);
+    await prisma.user.update({
+      where: { id: superAdmin.id },
+      data: { email: 'suporte@divulgabr.com.br', senha },
+    });
+    console.log('✅ Super Admin atualizado: suporte@divulgabr.com.br');
   }
 
   // Tenant demo

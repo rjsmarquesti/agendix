@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agendix — Agende. Organize. Cresça.</title>
+  <style>
+    :root {
+      --primary: #5B3DF5;
+      --secondary: #2F80ED;
+      --accent: #27AE60;
+      --dark: #0F172A;
+      --gray: #64748B;
+      --light: #F8FAFC;
+      --white: #FFFFFF;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: var(--dark);
+      background: var(--white);
+      overflow-x: hidden;
+    }
+
+    img { max-width: 100%; height: auto; display: block; }
+
+    /* ── HEADER ── */
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.97);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(91, 61, 245, 0.2);
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .logo-wrap img { height: 36px; width: auto; }
+
+    .logo-text {
+      font-size: 1.35rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    nav a {
+      color: rgba(255,255,255,0.75);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s;
+      white-space: nowrap;
+    }
+
+    nav a:hover { color: var(--white); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      border: none;
+      white-space: nowrap;
+    }
+
+    .btn-primary { background: var(--primary); color: var(--white); }
+    .btn-primary:hover { background: #4a2ed4; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(91,61,245,0.4); }
+
+    .btn-outline { background: transparent; color: var(--white); border: 2px solid rgba(255,255,255,0.4); }
+    .btn-outline:hover { border-color: var(--white); background: rgba(255,255,255,0.08); }
+
+    .btn-white { background: var(--white); color: var(--primary); }
+    .btn-white:hover { background: var(--light); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+
+    .btn-lg { padding: 14px 28px; font-size: 1rem; border-radius: 10px; }
+
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 6px;
+      flex-shrink: 0;
+    }
+
+    .hamburger span {
+      display: block;
+      width: 22px;
+      height: 2px;
+      background: var(--white);
+      border-radius: 2px;
+    }
+
+    /* ── MOBILE NAV ── */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      top: 64px; left: 0; right: 0;
+      background: rgba(15,23,42,0.99);
+      padding: 16px 20px 24px;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 99;
+      border-bottom: 1px solid rgba(91,61,245,0.2);
+    }
+
+    .mobile-nav a {
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: block;
+    }
+
+    .mobile-nav .btn {
+      margin-top: 12px;
+      width: 100%;
+      justify-content: center;
+      padding: 13px 20px;
+      font-size: 1rem;
+    }
+
+    .mobile-nav.open { display: flex; }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--dark) 0%, #1a0d3d 55%, #0d1b3e 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 100px 20px 60px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: min(600px, 100vw);
+      height: min(600px, 100vw);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(91,61,245,0.15) 0%, transparent 70%);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .hero-content {
+      max-width: 720px;
+      width: 100%;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-logo {
+      width: min(110px, 28vw);
+      height: auto;
+      margin: 0 auto 28px;
+      filter: drop-shadow(0 0 24px rgba(91,61,245,0.5));
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(91,61,245,0.15);
+      border: 1px solid rgba(91,61,245,0.35);
+      color: #a78bfa;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 100px;
+      margin-bottom: 20px;
+    }
+
+    .hero-badge .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50% { opacity:.5; transform:scale(.8); }
+    }
+
+    .hero h1 {
+      font-size: clamp(1.75rem, 6vw, 3.25rem);
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1.15;
+      margin-bottom: 18px;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 36px;
+      line-height: 1.65;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .hero-ctas .btn { flex: 1 1 auto; max-width: 260px; }
+
+    .hero-stats {
+      display: flex;
+      gap: 0;
+      justify-content: center;
+      margin-top: 52px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      text-align: center;
+      padding: 0 24px;
+      border-right: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .stat:last-child { border-right: none; }
+
+    .stat-number { font-size: 1.6rem; font-weight: 800; color: var(--white); }
+    .stat-label { font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-top: 2px; }
+
+    /* ── SECTIONS ── */
+    section { padding: 72px 20px; }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .section-tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+
+    .section-title {
+      font-size: clamp(1.5rem, 4vw, 2.25rem);
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 14px;
+      line-height: 1.2;
+    }
+
+    .section-sub {
+      font-size: 1rem;
+      color: var(--gray);
+      max-width: 540px;
+      line-height: 1.7;
+    }
+
+    .section-header { text-align: center; margin-bottom: 48px; }
+    .section-header .section-sub { margin: 0 auto; }
+
+    /* ── COMO FUNCIONA ── */
+    .how { background: var(--light); }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 28px;
+    }
+
+    .step-card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 32px 28px;
+      border: 2px solid transparent;
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .step-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(91,61,245,0.12);
+    }
+
+    .step-number {
+      position: absolute;
+      top: -13px; left: 28px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: var(--white);
+      font-size: 0.78rem;
+      font-weight: 800;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .step-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, rgba(91,61,245,0.1), rgba(47,128,237,0.1));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .step-icon svg { width: 24px; height: 24px; }
+    .step-card h3 { font-size: 1.05rem; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
+    .step-card p { color: var(--gray); font-size: 0.9rem; line-height: 1.65; }
+
+    /* ── RECURSOS ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .feature-card {
+      padding: 28px;
+      border-radius: 14px;
+      border: 1px solid #e2e8f0;
+      background: var(--white);
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 8px 28px rgba(91,61,245,0.1);
+      transform: translateY(-3px);
+    }
+
+    .feature-icon {
+      width: 44px; height: 44px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .feature-icon svg { width: 22px; height: 22px; }
+    .fi-purple { background: rgba(91,61,245,0.1); }
+    .fi-blue   { background: rgba(47,128,237,0.1); }
+    .fi-green  { background: rgba(39,174,96,0.1); }
+
+    .feature-card h3 { font-size: 1rem; font-weight: 700; color: var(--dark); margin-bottom: 6px; }
+    .feature-card p { color: var(--gray); font-size: 0.88rem; line-height: 1.65; }
+
+    /* ── PLANOS ── */
+    .pricing { background: var(--light); }
+
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .plan-card {
+      background: var(--white);
+      border-radius: 18px;
+      padding: 32px 24px;
+      border: 2px solid #e2e8f0;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s;
+    }
+
+    .plan-card:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,0.08); }
+    .plan-card.popular { border-color: var(--primary); box-shadow: 0 8px 36px rgba(91,61,245,0.18); }
+
+    .popular-badge {
+      position: absolute;
+      top: -13px; left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: var(--white);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    .plan-name { font-size: 0.9rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+
+    .plan-price { display: flex; align-items: baseline; gap: 3px; margin-bottom: 6px; }
+    .plan-price .currency { font-size: 1rem; font-weight: 700; color: var(--dark); }
+    .plan-price .amount { font-size: 2.6rem; font-weight: 800; color: var(--dark); line-height: 1; }
+    .plan-price .period { font-size: 0.82rem; color: var(--gray); }
+
+    .plan-desc { font-size: 0.84rem; color: var(--gray); margin-bottom: 20px; line-height: 1.5; }
+
+    .plan-features { list-style: none; flex: 1; margin-bottom: 24px; }
+
+    .plan-features li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: var(--dark);
+      padding: 6px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .plan-features li:last-child { border-bottom: none; }
+
+    .check {
+      width: 17px; height: 17px;
+      border-radius: 50%;
+      background: rgba(39,174,96,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .check svg { width: 9px; height: 9px; }
+    .plan-card .btn { width: 100%; }
+
+    /* ── DEPOIMENTOS ── */
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .testimonial-card {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 28px;
+      border: 1px solid #e2e8f0;
+      transition: all 0.3s;
+    }
+
+    .testimonial-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,0.08); transform: translateY(-3px); }
+
+    .stars { display: flex; gap: 2px; margin-bottom: 14px; }
+    .stars svg { width: 15px; height: 15px; fill: #f59e0b; }
+
+    .testimonial-text { font-size: 0.93rem; color: var(--dark); line-height: 1.75; margin-bottom: 20px; font-style: italic; }
+
+    .testimonial-author { display: flex; align-items: center; gap: 10px; }
+
+    .author-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--white);
+      flex-shrink: 0;
+    }
+
+    .author-name { font-weight: 700; font-size: 0.9rem; color: var(--dark); }
+    .author-role { font-size: 0.78rem; color: var(--gray); }
+
+    /* ── CTA FINAL ── */
+    .cta-section {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      text-align: center;
+      padding: 80px 20px;
+    }
+
+    .cta-section h2 { font-size: clamp(1.6rem, 5vw, 2.6rem); font-weight: 800; color: var(--white); margin-bottom: 14px; line-height: 1.2; }
+    .cta-section p { font-size: 1rem; color: rgba(255,255,255,0.8); margin-bottom: 36px; max-width: 480px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+    .cta-section .btn-white { margin-bottom: 32px; }
+
+    .cta-guarantee { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.84rem; color: rgba(255,255,255,0.7); flex-wrap: wrap; text-align: center; }
+    .cta-guarantee svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    /* ── FOOTER ── */
+    footer { background: var(--dark); padding: 52px 20px 28px; }
+
+    .footer-inner { max-width: 1200px; margin: 0 auto; }
+
+    .footer-top {
+      display: grid;
+      grid-template-columns: 1.4fr repeat(3, 1fr);
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    .footer-brand p { font-size: 0.88rem; color: rgba(255,255,255,0.5); margin-top: 10px; line-height: 1.65; max-width: 260px; }
+
+    .footer-col h4 { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 14px; }
+    .footer-col ul { list-style: none; }
+    .footer-col ul li { margin-bottom: 9px; }
+    .footer-col ul li a { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.88rem; transition: color 0.2s; }
+    .footer-col ul li a:hover { color: var(--white); }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .footer-bottom p { color: rgba(255,255,255,0.35); font-size: 0.82rem; }
+
+    .footer-slogan {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .footer-top { grid-template-columns: 1fr 1fr; }
+      .footer-brand { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 768px) {
+      nav { display: none; }
+      .hamburger { display: flex; }
+
+      .hero { padding: 88px 16px 48px; min-height: auto; }
+      .hero-ctas { flex-direction: column; align-items: center; }
+      .hero-ctas .btn { max-width: 100%; width: 100%; }
+
+      .hero-stats { gap: 0; }
+      .stat { padding: 0 16px; }
+      .stat-number { font-size: 1.3rem; }
+
+      section { padding: 56px 16px; }
+
+      .steps { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .testimonials-grid { grid-template-columns: 1fr; }
+
+      .plans-grid { grid-template-columns: 1fr; max-width: 360px; margin: 0 auto; }
+
+      .footer-top { grid-template-columns: 1fr 1fr; gap: 28px; }
+      .footer-brand { grid-column: 1 / -1; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
+
+    @media (max-width: 400px) {
+      .hero-stats { flex-direction: column; gap: 16px; }
+      .stat { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 12px 0; }
+      .stat:last-child { border-bottom: none; }
+      .footer-top { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="#" class="logo-wrap">
+      <img src="/logo.png" alt="Agendix">
+      <span class="logo-text">Agendix</span>
+    </a>
+    <nav>
+      <a href="#como-funciona">Recursos</a>
+      <a href="#planos">Planos</a>
+      <a href="#contato">Contato</a>
+      <a href="https://agendix.divulgabr.com.br/cadastro" class="btn btn-primary">Começar grátis</a>
+    </nav>
+    <button class="hamburger" onclick="toggleNav()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<div class="mobile-nav" id="mobileNav">
+  <a href="#como-funciona" onclick="toggleNav()">Como funciona</a>
+  <a href="#recursos" onclick="toggleNav()">Recursos</a>
+  <a href="#planos" onclick="toggleNav()">Planos</a>
+  <a href="#depoimentos" onclick="toggleNav()">Depoimentos</a>
+  <a href="https://agendix.divulgabr.com.br/cadastro" class="btn btn-primary">Começar grátis</a>
+</div>
+
+<section class="hero">
+  <div class="hero-content">
+    <img src="/logo.png" alt="Agendix" class="hero-logo">
+    <div class="hero-badge"><span class="dot"></span>Sistema completo de agendamentos</div>
+    <h1>Agendamentos <span>inteligentes</span><br>para o seu negócio</h1>
+    <p class="hero-sub">Automatize sua agenda, gerencie seus clientes e aumente seu faturamento.<br>Tudo em um único sistema simples e poderoso.</p>
+    <div class="hero-ctas">
+      <a href="https://agendix.divulgabr.com.br/cadastro" class="btn btn-primary btn-lg">Começar grátis agora</a>
+      <a href="#como-funciona" class="btn btn-outline btn-lg">Ver como funciona</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><div class="stat-number">+500</div><div class="stat-label">Agendamentos/mês</div></div>
+      <div class="stat"><div class="stat-number">4 Planos</div><div class="stat-label">Para todo negócio</div></div>
+      <div class="stat"><div class="stat-number">24h</div><div class="stat-label">Disponível online</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="how" id="como-funciona">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Como funciona</span>
+      <h2 class="section-title">Comece em 3 passos simples</h2>
+      <p class="section-sub">Configure em minutos e comece a receber agendamentos pelo WhatsApp, link ou QR Code.</p>
+    </div>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <h3>Crie sua conta</h3>
+        <p>Cadastre sua empresa, configure o perfil, horários de atendimento e os serviços que você oferece.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <h3>Configure sua agenda</h3>
+        <p>Defina dias úteis, horários, duração dos slots e conecte seu WhatsApp para ativar o bot automático.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.39 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.13 1 .37 1.97.72 2.9a2 2 0 0 1-.45 2.11L7.91 9A16 16 0 0 0 15 16.09l1.05-1.05a2 2 0 0 1 2.11-.45c.93.35 1.9.59 2.9.72A2 2 0 0 1 22 16.92z"/>
+          </svg>
+        </div>
+        <h3>Receba agendamentos</h3>
+        <p>Clientes agendam pelo WhatsApp, link público ou QR Code. Você recebe notificações e confirma com 1 clique.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="recursos">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Recursos</span>
+      <h2 class="section-title">Tudo que você precisa para crescer</h2>
+      <p class="section-sub">Ferramentas profissionais para negócios de todos os tamanhos.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon fi-green"><svg viewBox="0 0 24 24" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <h3>Bot WhatsApp Automático</h3>
+        <p>Seu cliente envia uma mensagem e o bot agenda sozinho. Confirmação, lembretes e cancelamentos automáticos.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-purple"><svg viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <h3>Agenda Online 24h</h3>
+        <p>Link público personalizado. Clientes agendam a qualquer hora, direto pelo celular.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-blue"><svg viewBox="0 0 24 24" fill="none" stroke="#2F80ED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <h3>CRM de Leads</h3>
+        <p>Kanban visual de clientes com status, histórico e integração direta com os agendamentos.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-green"><svg viewBox="0 0 24 24" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <h3>Módulo Financeiro</h3>
+        <p>Controle receitas e despesas vinculadas a cada agendamento. Dashboard com saldo e pendências.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-purple"><svg viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+        <h3>Dashboard & Relatórios</h3>
+        <p>Visão geral em tempo real: agendamentos do dia, receita do mês e taxa de conversão.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-blue"><svg viewBox="0 0 24 24" fill="none" stroke="#2F80ED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <h3>Multi-usuário por Equipe</h3>
+        <p>Adicione atendentes com permissões específicas. Cada um vê apenas o que precisa.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pricing" id="planos">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Planos e Preços</span>
+      <h2 class="section-title">Escolha o plano ideal para você</h2>
+      <p class="section-sub">Sem taxa de setup. Sem surpresas. Cancele quando quiser.</p>
+    </div>
+    <div class="plans-grid">
+      <div class="plan-card">
+        <div class="plan-name">Básico</div>
+        <div class="plan-price"><span class="currency">R$</span><span class="amount">37</span><span class="period">/mês</span></div>
+        <p class="plan-desc">Ideal para autônomos e profissionais independentes.</p>
+        <ul class="plan-features">
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>1 usuário</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>50 agendamentos/mês</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Agenda online pública</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>CRM de leads</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Dashboard básico</li>
+        </ul>
+        <a href="https://agendix.divulgabr.com.br/cadastro" class="btn btn-outline" style="border-color:var(--primary);color:var(--primary);">Começar agora</a>
+      </div>
+
+      <div class="plan-card popular">
+        <div class="popular-badge">⭐ Mais popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price"><span class="currency">R$</span><span class="amount">57</span><span class="period">/mês</span></div>
+        <p class="plan-desc">Para negócios que querem crescer com automação.</p>
+        <ul class="plan-features">
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>5 usuários</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>300 agendamentos/mês</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Bot WhatsApp automático</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Lembretes automáticos</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>CRM avançado</li>
+        </ul>
+        <a href="https://agendix.divulgabr.com.br/cadastro" class="btn btn-primary">Escolher Pro</a>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price"><span class="currency">R$</span><span class="amount">97</span><span class="period">/mês</span></div>
+        <p class="plan-desc">Para equipes que precisam de capacidade ilimitada.</p>
+        <ul class="plan-features">
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Usuários ilimitados</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Agendamentos ilimitados</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Bot WhatsApp automático</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Todos os recursos Pro</li>
+          <li><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Backup de dados</li>
+        </ul>
+        <a href="https://agendix.divulgabr.com.br/cadastro" class="btn btn-outline" style="border-color:var(--primary);color:var(--primary);">Escolher Premium</a>
+      </div>
+
+      <div class="plan-card" style="background:linear-gradient(160deg,#0F172A 0%,#1a0d3d 100%);border-color:rgba(91,61,245,0.4);">
+        <div class="plan-name" style="color:rgba(255,255,255,0.5);">Business</div>
+        <div class="plan-price"><span class="currency" style="color:var(--white);">R$</span><span class="amount" style="color:var(--white);">127</span><span class="period" style="color:rgba(255,255,255,0.5);">/mês</span></div>
+        <p class="plan-desc" style="color:rgba(255,255,255,0.55);">Gestão completa com módulo financeiro integrado.</p>
+        <ul class="plan-features">
+          <li style="color:var(--white);border-color:rgba(255,255,255,0.08);"><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Tudo do Premium</li>
+          <li style="color:var(--white);border-color:rgba(255,255,255,0.08);"><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Módulo Financeiro completo</li>
+          <li style="color:var(--white);border-color:rgba(255,255,255,0.08);"><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Dashboard financeiro</li>
+          <li style="color:var(--white);border-color:rgba(255,255,255,0.08);"><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Controle receitas/despesas</li>
+          <li style="color:var(--white);border-color:rgba(255,255,255,0.08);"><span class="check"><svg viewBox="0 0 12 12"><polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Suporte prioritário</li>
+        </ul>
+        <a href="https://agendix.divulgabr.com.br/cadastro" class="btn btn-primary">Escolher Business</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="depoimentos">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Depoimentos</span>
+      <h2 class="section-title">O que nossos clientes dizem</h2>
+      <p class="section-sub">Negócios de diferentes segmentos usando o Agendix para crescer.</p>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+        <p class="testimonial-text">"Antes eu perdia clientes por falta de organização. Com o Agendix o bot WhatsApp agenda sozinho e eu só apareço para atender. Triplicou minha produtividade."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:linear-gradient(135deg,#5B3DF5,#2F80ED);">MC</div>
+          <div><div class="author-name">Marina Costa</div><div class="author-role">Esteticista · São Paulo, SP</div></div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+        <p class="testimonial-text">"O módulo financeiro do plano Business mudou como eu gerencio a clínica. Consigo ver em tempo real o quanto entrou e o que está pendente. Imprescindível."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:linear-gradient(135deg,#27AE60,#2F80ED);">RL</div>
+          <div><div class="author-name">Dr. Ricardo Lima</div><div class="author-role">Odontologista · Brasília, DF</div></div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+        <p class="testimonial-text">"Tenho 3 funcionárias e o Agendix organiza tudo. Os clientes chegam com hora marcada e as faltas reduziram 70% com os lembretes automáticos."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:linear-gradient(135deg,#5B3DF5,#e91e8c);">JS</div>
+          <div><div class="author-name">Juliana Santos</div><div class="author-role">Salão de Beleza · Goiânia, GO</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section" id="contato">
+  <div class="container">
+    <h2>Pronto para organizar<br>sua agenda de uma vez?</h2>
+    <p>Junte-se a centenas de profissionais que já automatizaram seus agendamentos com o Agendix.</p>
+    <div><a href="https://agendix.divulgabr.com.br/cadastro" class="btn btn-white btn-lg">Criar minha conta grátis</a></div>
+    <br>
+    <div class="cta-guarantee">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Sem cartão de crédito · Cancele quando quiser · Dados seguros
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a href="#" class="logo-wrap">
+          <img src="/logo.png" alt="Agendix" style="height:32px;">
+          <span class="logo-text">Agendix</span>
+        </a>
+        <p>Sistema completo de agendamentos para profissionais e pequenos negócios.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Produto</h4>
+        <ul>
+          <li><a href="#como-funciona">Como funciona</a></li>
+          <li><a href="#recursos">Recursos</a></li>
+          <li><a href="#planos">Planos</a></li>
+          <li><a href="https://agendix.divulgabr.com.br/cadastro">Entrar</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Empresa</h4>
+        <ul>
+          <li><a href="#">Sobre nós</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">DivulgaBR</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Suporte</h4>
+        <ul>
+          <li><a href="#">Central de Ajuda</a></li>
+          <li><a href="mailto:suporte@divulgabr.com.br">Contato</a></li>
+          <li><a href="#">Privacidade</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 Agendix · DivulgaBR. Todos os direitos reservados.</p>
+      <span class="footer-slogan">Agende. Organize. Cresça.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function toggleNav() {
+    document.getElementById('mobileNav').classList.toggle('open');
+  }
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', () => document.getElementById('mobileNav').classList.remove('open'));
+  });
+</script>
+</body>
+</html>
