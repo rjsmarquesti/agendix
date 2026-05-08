@@ -44,6 +44,7 @@ model Tenant {
   bloqueios          BloqueioHorario[]
   lancamentos        LancamentoFinanceiro[]
   notificacoes       Notificacao[]
+  adminLancamentos   AdminLancamento[]
 
   @@map("tenants")
 }
@@ -347,4 +348,25 @@ enum EstadoConversa {
   aguardando_confirmacao
   concluida
   cancelada
+}
+
+// ─── AdminLancamento (financeiro da plataforma SaaS) ─────────────────────────
+model AdminLancamento {
+  id          Int             @id @default(autoincrement())
+  tipo        TipoLancamento
+  descricao   String
+  valor       Decimal         @db.Decimal(10, 2)
+  data        String
+  categoria   String?
+  status      StatusPagamento @default(pago)
+  tenantId    Int?            @map("tenant_id")
+  tenant      Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  referencia  String?
+  observacoes String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@index([data])
+  @@index([tipo])
+  @@map("admin_lancamentos")
 }

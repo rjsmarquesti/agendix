@@ -14,10 +14,13 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword  from './pages/ResetPassword';
 import Register       from './pages/Register';
 import Ativar         from './pages/Ativar';
-import AdminLogin      from './pages/admin/AdminLogin';
-import AdminDashboard  from './pages/admin/AdminDashboard';
-import AdminClientes   from './pages/admin/AdminClientes';
-import AdminPerfil     from './pages/admin/AdminPerfil';
+import AdminLogin                  from './pages/admin/AdminLogin';
+import AdminDashboard              from './pages/admin/AdminDashboard';
+import AdminClientes               from './pages/admin/AdminClientes';
+import AdminPerfil                 from './pages/admin/AdminPerfil';
+import AdminDashboardFinanceiro    from './pages/admin/AdminDashboardFinanceiro';
+import AdminFinanceiro             from './pages/admin/AdminFinanceiro';
+import AdminFluxoCaixa             from './pages/admin/AdminFluxoCaixa';
 
 function PrivateRoute({ children, roles }) {
   const { token, user } = useAuth();
@@ -57,9 +60,12 @@ export default function App() {
         <Route path="/financeiro"   element={<PrivateRoute roles={['admin','super_admin']}><Financeiro /></PrivateRoute>} />
 
         {/* Rotas super admin */}
-        <Route path="/admin"          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-        <Route path="/admin/clientes" element={<AdminRoute><AdminClientes /></AdminRoute>} />
-        <Route path="/admin/perfil"   element={<AdminRoute><AdminPerfil /></AdminRoute>} />
+        <Route path="/admin"                        element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/clientes"               element={<AdminRoute><AdminClientes /></AdminRoute>} />
+        <Route path="/admin/perfil"                 element={<AdminRoute><AdminPerfil /></AdminRoute>} />
+        <Route path="/admin/financeiro"             element={<AdminRoute><AdminDashboardFinanceiro /></AdminRoute>} />
+        <Route path="/admin/financeiro/lancamentos" element={<AdminRoute><AdminFinanceiro /></AdminRoute>} />
+        <Route path="/admin/financeiro/fluxo-caixa" element={<AdminRoute><AdminFluxoCaixa /></AdminRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

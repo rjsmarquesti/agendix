@@ -39,7 +39,8 @@ app.use('/api/public/:slug', require('./src/routes/public'));
 app.use('/api/auth', require('./src/routes/auth'));
 
 // Rotas super admin (sem tenant middleware)
-app.use('/api/admin/tenants', require('./src/routes/tenants'));
+app.use('/api/admin/tenants',    require('./src/routes/tenants'));
+app.use('/api/admin/financeiro', require('./src/routes/adminFinanceiro'));
 
 // Rotas de integração n8n (autenticadas por API token, sem tenant middleware JWT)
 app.use('/api/n8n',     require('./src/routes/n8n'));
