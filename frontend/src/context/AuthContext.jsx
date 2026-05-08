@@ -14,6 +14,27 @@ export function AuthProvider({ children }) {
     }
   }, [tenant]);
 
+  // Ao montar com token ativo, busca dados frescos do tenant no servidor
+  // Garante que plano/planoStatus atualizados pelo webhook MP sejam refletidos sem novo login
+  useEffect(() => {
+    if (!token) return;
+    const slug = (() => { try { return JSON.parse(localStorage.getItem('crm_tenant'))?.slug; } catch { return null; } })();
+    if (!slug) return;
+
+    fetch('/api/settings', {
+      headers: { Authorization: `Bearer ${token}`, 'X-Tenant-Slug': slug },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.tenant) {
+          const atualizado = { ...data.tenant };
+          localStorage.setItem('crm_tenant', JSON.stringify(atualizado));
+          setTenant(atualizado);
+        }
+      })
+      .catch(() => {}); // silencioso — não bloqueia o app
+  }, [token]); // roda uma vez ao carregar (ou ao trocar de token)
+
   function login(data) {
     localStorage.setItem('crm_token', data.token);
     localStorage.setItem('crm_user', JSON.stringify(data.user));
