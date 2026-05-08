@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { provisionarWorkflows, removerWorkflows } = require('../services/n8nProvisioningService');
 const { createInstance, deleteInstance } = require('../services/evolutionService');
+const audit = require('../lib/audit');
 
 exports.listar = async (req, res, next) => {
   try {
@@ -69,6 +70,7 @@ exports.criar = async (req, res, next) => {
         .catch(err => console.error(`[evolution] Falha ao criar instância ${tenant.slug}:`, err.message));
     }
 
+    audit.log('tenant_criado', { entidade: 'tenant', entidadeId: tenant.id, userId: req.user?.id, ip: req.ip, detalhes: { nome: tenant.nome, slug: tenant.slug } });
     res.status(201).json({ tenant });
   } catch (err) {
     if (err.code === 'P2002') return res.status(400).json({ error: 'Slug já em uso' });
@@ -109,6 +111,7 @@ exports.deletar = async (req, res, next) => {
       deleteInstance(tenant.evolutionInstance, tenant.evolutionApiKey).catch(() => {});
     }
     await prisma.tenant.delete({ where: { id } });
+    audit.log('tenant_deletado', { entidade: 'tenant', entidadeId: id, userId: req.user?.id, ip: req.ip, detalhes: { nome: tenant?.nome, slug: tenant?.slug } });
     res.json({ message: 'Empresa removida' });
   } catch (err) { next(err); }
 };

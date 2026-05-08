@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
+const audit = require('../lib/audit');
 
 exports.login = async (req, res, next) => {
   try {
@@ -30,6 +31,13 @@ exports.login = async (req, res, next) => {
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
+
+    audit.log('login', {
+      entidade: 'user', entidadeId: user.id,
+      tenantId: user.tenantId || null,
+      userId: user.id, ip: req.ip,
+      detalhes: { email: user.email, role: user.role },
+    });
 
     res.json({
       token,

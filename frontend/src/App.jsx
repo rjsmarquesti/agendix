@@ -21,6 +21,9 @@ import AdminPerfil                 from './pages/admin/AdminPerfil';
 import AdminDashboardFinanceiro    from './pages/admin/AdminDashboardFinanceiro';
 import AdminFinanceiro             from './pages/admin/AdminFinanceiro';
 import AdminFluxoCaixa             from './pages/admin/AdminFluxoCaixa';
+import AdminBackups                from './pages/admin/AdminBackups';
+import AdminConsumo                from './pages/admin/AdminConsumo';
+import AdminLogs                   from './pages/admin/AdminLogs';
 
 function PrivateRoute({ children, roles }) {
   const { token, user } = useAuth();
@@ -66,6 +69,9 @@ export default function App() {
         <Route path="/admin/financeiro"             element={<AdminRoute><AdminDashboardFinanceiro /></AdminRoute>} />
         <Route path="/admin/financeiro/lancamentos" element={<AdminRoute><AdminFinanceiro /></AdminRoute>} />
         <Route path="/admin/financeiro/fluxo-caixa" element={<AdminRoute><AdminFluxoCaixa /></AdminRoute>} />
+        <Route path="/admin/backups" element={<AdminRoute><AdminBackups /></AdminRoute>} />
+        <Route path="/admin/consumo" element={<AdminRoute><AdminConsumo /></AdminRoute>} />
+        <Route path="/admin/logs"    element={<AdminRoute><AdminLogs /></AdminRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

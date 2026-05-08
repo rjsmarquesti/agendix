@@ -45,6 +45,7 @@ model Tenant {
   lancamentos        LancamentoFinanceiro[]
   notificacoes       Notificacao[]
   adminLancamentos   AdminLancamento[]
+  backups            Backup[]
 
   @@map("tenants")
 }
@@ -369,4 +370,37 @@ model AdminLancamento {
   @@index([data])
   @@index([tipo])
   @@map("admin_lancamentos")
+}
+
+// ─── Backup (histórico de backups admin e tenant) ─────────────────────────────
+model Backup {
+  id           Int      @id @default(autoincrement())
+  tipo         String
+  tenantId     Int?     @map("tenant_id")
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  nomeArquivo  String   @map("nome_arquivo")
+  tamanhoBytes Int?     @map("tamanho_bytes")
+  descricao    String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([tipo])
+  @@map("backups")
+}
+
+// ─── AuditLog (registro de ações críticas) ────────────────────────────────────
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  acao       String
+  entidade   String?
+  entidadeId String?  @map("entidade_id")
+  tenantId   Int?     @map("tenant_id")
+  userId     Int?     @map("user_id")
+  ip         String?
+  detalhes   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([tenantId])
+  @@index([acao])
+  @@map("audit_logs")
 }
