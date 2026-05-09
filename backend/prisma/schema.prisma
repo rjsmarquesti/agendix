@@ -33,6 +33,9 @@ model Tenant {
   n8nWorkflowNotifId    String?  @map("n8n_workflow_notif_id")
   lembretesDiretosAtivo  Boolean  @default(false) @map("lembretes_diretos_ativo")
   whatsappResponsavel    String?  @map("whatsapp_responsavel")
+  trialEmailD3EnviadoEm  DateTime? @map("trial_email_d3_enviado_em")
+  trialEmailD10EnviadoEm DateTime? @map("trial_email_d10_enviado_em")
+  trialEmailD13EnviadoEm DateTime? @map("trial_email_d13_enviado_em")
   createdAt              DateTime @default(now()) @map("created_at")
 
   users              User[]

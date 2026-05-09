@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import { BadgeLead, BadgeAgend } from '../components/Badge';
+import OnboardingChecklist from '../components/OnboardingChecklist';
 import { api } from '../services/api';
 
 function StatCard({ label, value, color, icon }) {
@@ -39,6 +40,7 @@ export default function Dashboard() {
 
   return (
     <Layout title="Dashboard" subtitle="Visão geral do seu CRM">
+      <OnboardingChecklist />
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
         <StatCard label="Total de Leads" value={stats?.totalLeads}

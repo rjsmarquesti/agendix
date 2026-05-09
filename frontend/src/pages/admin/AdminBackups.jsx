@@ -89,6 +89,25 @@ export default function AdminBackups() {
 
   const backupSel = confirmRestore ? backups.find(b => b.id === confirmRestore) : null;
 
+  async function baixar(b) {
+    try {
+      const token = localStorage.getItem('crm_token');
+      const res = await fetch(`/api/admin/backups/${b.id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { toast.error('Erro ao baixar backup'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = b.nomeArquivo;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Erro ao baixar backup');
+    }
+  }
+
   return (
     <AdminLayout title="Gestor de Backups" subtitle="Criar, baixar e restaurar backups de clientes e do admin">
 
@@ -180,14 +199,13 @@ export default function AdminBackups() {
                     <td className="px-5 py-4">
                       <div className="flex gap-2">
                         {/* Download */}
-                        <a href={`/api/admin/backups/${b.id}/download`}
-                          target="_blank" rel="noreferrer"
+                        <button onClick={() => baixar(b)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-slate-700 transition-colors"
                           title="Baixar">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                           </svg>
-                        </a>
+                        </button>
                         {/* Restaurar */}
                         <button onClick={() => setConfirmRestore(b.id)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-green-400 hover:bg-slate-700 transition-colors"

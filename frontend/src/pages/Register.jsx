@@ -335,9 +335,9 @@ export default function Register() {
 
             <p className="text-center text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
               Ao criar sua conta, você concorda com nossos{' '}
-              <a href="#" className="text-violet-600 dark:text-violet-400 hover:underline">Termos de Uso</a>{' '}
-              ou{' '}
-              <a href="#" className="text-violet-600 dark:text-violet-400 hover:underline">Política de Privacidade</a>
+              <a href="/termos" target="_blank" className="text-violet-600 dark:text-violet-400 hover:underline">Termos de Uso</a>{' '}
+              e{' '}
+              <a href="/privacidade" target="_blank" className="text-violet-600 dark:text-violet-400 hover:underline">Política de Privacidade</a>
             </p>
 
             <p className="text-center text-sm text-gray-500 dark:text-gray-400">

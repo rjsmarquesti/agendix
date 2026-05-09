@@ -85,6 +85,8 @@ router.get('/status', authMiddleware, tenantMiddleware, async (req, res) => {
   }
 });
 
+const PRECO_PLANO = { basico: 37, pro: 57, premium: 97, business: 127 };
+
 // POST /api/payments/webhook — recebe notificações do Mercado Pago
 // IMPORTANTE: precisa de body raw — registrado com express.raw() em server.js
 router.post('/webhook', async (req, res) => {
@@ -124,6 +126,24 @@ router.post('/webhook', async (req, res) => {
             ...(planName ? { plano: planName } : {}),
           },
         });
+
+        // Grava receita no financeiro admin ao autorizar pagamento
+        if (sub.status === 'authorized' && planName) {
+          const valor = PRECO_PLANO[planName] ?? 0;
+          const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { nome: true } });
+          await prisma.adminLancamento.create({
+            data: {
+              tipo: 'receita',
+              categoria: 'assinatura',
+              descricao: `Assinatura ${planName} — ${tenant?.nome || `Tenant #${tenantId}`}`,
+              valor,
+              data: new Date(),
+              status: 'pago',
+              referencia: data.id,
+              tenantId,
+            },
+          });
+        }
       }
     }
 

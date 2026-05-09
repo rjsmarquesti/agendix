@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const prisma = require('../lib/prisma');
-const { enviarEmailRedefinicao, enviarEmailAtivacao } = require('../lib/mailer');
+const { enviarEmailRedefinicao, enviarEmailAtivacao, enviarEmailBoasVindas } = require('../lib/mailer');
 
 const validarLogin = [
   body('email').isEmail().withMessage('Email inválido'),
@@ -115,10 +115,18 @@ router.get('/ativar', async (req, res, next) => {
 
     if (!user) return res.status(400).json({ error: 'Link de ativação inválido ou expirado' });
 
-    await prisma.user.update({
+    const userAtivado = await prisma.user.update({
       where: { id: user.id },
       data: { ativo: true, activationToken: null, activationExpires: null },
+      include: { tenant: { select: { slug: true } } },
     });
+
+    // Email de boas-vindas com primeiros passos (fire-and-forget)
+    enviarEmailBoasVindas({
+      para: userAtivado.email,
+      nome: userAtivado.nome,
+      slug: userAtivado.tenant?.slug || '',
+    }).catch(e => console.error('[ativar] email boas-vindas:', e.message));
 
     res.json({ ok: true, message: 'Conta ativada com sucesso!' });
   } catch (err) { next(err); }

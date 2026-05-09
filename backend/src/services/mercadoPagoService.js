@@ -24,7 +24,7 @@ async function criarAssinatura(tenant, plano) {
     body: {
       preapproval_plan_id: planId,
       external_reference: String(tenant.id),
-      back_url: `${process.env.APP_URL}/configuracoes?status=approved`,
+      back_url: `${process.env.APP_URL}/pagamento/retorno?status=approved`,
     },
   });
 

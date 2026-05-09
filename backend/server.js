@@ -69,7 +69,9 @@ app.use(require('./src/middlewares/errorHandler'));
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
   const { agendarCron } = require('./src/services/notificacaoService');
+  const { agendarCronTrial } = require('./src/services/trialEmailService');
   agendarCron();
+  agendarCronTrial();
   app.listen(PORT, () => console.log(`Backend rodando na porta ${PORT}`));
 }
 

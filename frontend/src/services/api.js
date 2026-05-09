@@ -25,6 +25,11 @@ async function request(endpoint, options = {}) {
     return;
   }
 
+  if (res.status === 402) {
+    window.location.href = '/trial-expirado';
+    return;
+  }
+
   if (!res.ok) throw new Error(data.error || data.errors?.[0]?.msg || 'Erro na requisição');
   return data;
 }

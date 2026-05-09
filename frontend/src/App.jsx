@@ -13,7 +13,12 @@ import AgendaHoje     from './pages/AgendaHoje';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword  from './pages/ResetPassword';
 import Register       from './pages/Register';
-import Ativar         from './pages/Ativar';
+import Ativar               from './pages/Ativar';
+import TrialExpirado        from './pages/TrialExpirado';
+import PagamentoRetorno     from './pages/PagamentoRetorno';
+import AgendamentoPublico   from './pages/AgendamentoPublico';
+import Termos               from './pages/Termos';
+import Privacidade          from './pages/Privacidade';
 import AdminLogin                  from './pages/admin/AdminLogin';
 import AdminDashboard              from './pages/admin/AdminDashboard';
 import AdminClientes               from './pages/admin/AdminClientes';
@@ -50,7 +55,12 @@ export default function App() {
         <Route path="/ativar"          element={<Ativar />} />
         <Route path="/esqueci-senha"   element={<ForgotPassword />} />
         <Route path="/redefinir-senha" element={<ResetPassword />} />
-        <Route path="/admin/login"     element={<AdminLogin />} />
+        <Route path="/admin/login"         element={<AdminLogin />} />
+        <Route path="/trial-expirado"      element={<TrialExpirado />} />
+        <Route path="/pagamento/retorno"   element={<PagamentoRetorno />} />
+        <Route path="/agendar/:slug"       element={<AgendamentoPublico />} />
+        <Route path="/termos"              element={<Termos />} />
+        <Route path="/privacidade"         element={<Privacidade />} />
 
         {/* Rotas do tenant */}
         <Route path="/"             element={<PrivateRoute><Dashboard /></PrivateRoute>} />
