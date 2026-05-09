@@ -34,6 +34,7 @@ const TABS = [
   { id: 'agenda',     label: 'Agenda' },
   { id: 'integracao', label: 'Integração' },
   { id: 'n8n',        label: 'Bot / n8n' },
+  { id: 'agente-ia',  label: 'Agente IA' },
   { id: 'plano',      label: 'Plano' },
   { id: 'dados',      label: 'Dados' },
 ];
@@ -71,6 +72,14 @@ export default function Settings() {
   const [bloqueioForm, setBloqueioForm] = useState({ data: '', tipoBloco: 'dia', horaInicio: '', horaFim: '', motivo: '' });
   const [bloqueioLoading, setBloqueioLoading] = useState(false);
 
+  // ── Agente IA ──
+  const [agentConfig, setAgentConfig]   = useState(null);
+  const [agentForm, setAgentForm]       = useState({ persona: 'Assistente', promptBase: '', horarioInicio: '09:00', horarioFim: '18:00', diasUteis: '1,2,3,4,5', msgForaHorario: '' });
+  const [agentLeads, setAgentLeads]     = useState([]);
+  const [agentStats, setAgentStats]     = useState(null);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentSaving, setAgentSaving]   = useState(false);
+
   function mesFiltro() {
     const hoje = new Date();
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -81,6 +90,50 @@ export default function Settings() {
       const d = await api.get(`/bloqueios?mes=${mesFiltro()}`);
       setBloqueios(d.bloqueios || []);
     } catch { /* silencioso */ }
+  }
+
+  async function carregarAgente() {
+    try {
+      const [cfg, leads, stats] = await Promise.all([
+        api.get('/agente-ia/config'),
+        api.get('/agente-ia/leads'),
+        api.get('/agente-ia/stats'),
+      ]);
+      if (cfg.config) {
+        setAgentConfig(cfg.config);
+        setAgentForm({
+          persona: cfg.config.persona,
+          promptBase: cfg.config.promptBase,
+          horarioInicio: cfg.config.horarioInicio,
+          horarioFim: cfg.config.horarioFim,
+          diasUteis: cfg.config.diasUteis,
+          msgForaHorario: cfg.config.msgForaHorario || '',
+        });
+      }
+      setAgentLeads(leads.leads || []);
+      setAgentStats(stats);
+    } catch { /* plano sem acesso — silencioso */ }
+  }
+
+  async function salvarAgente(e) {
+    e.preventDefault();
+    setAgentSaving(true);
+    try {
+      const d = await api.put('/agente-ia/config', agentForm);
+      setAgentConfig(d.config);
+      toast.success('Agente IA salvo!');
+    } catch (err) { toast.error(err.message); }
+    finally { setAgentSaving(false); }
+  }
+
+  async function toggleAgente() {
+    setAgentLoading(true);
+    try {
+      const d = await api.post('/agente-ia/toggle', {});
+      setAgentConfig(c => ({ ...c, ativo: d.ativo }));
+      toast.success(d.ativo ? 'Agente IA ativado!' : 'Agente IA desativado.');
+    } catch (err) { toast.error(err.message); }
+    finally { setAgentLoading(false); }
   }
 
   async function adicionarBloqueio(e) {
@@ -156,6 +209,7 @@ export default function Settings() {
     }).catch(() => {});
 
     carregarBloqueios();
+    carregarAgente();
 
     // Uso de agendamentos no mês atual
     const mesAtual = new Date().toISOString().slice(0, 7);
@@ -1008,6 +1062,154 @@ export default function Settings() {
                   }} />
               </label>
             </div>
+          </div>
+        )}
+
+        {/* ── ABA AGENTE IA ── */}
+        {tab === 'agente-ia' && (
+          <div className="space-y-6">
+            {!agentConfig && !agentForm.promptBase ? (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="text-center py-4">
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Disponível nos planos <strong>Premium</strong> e <strong>Business</strong>.</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-xs">Configure abaixo para ativar o atendimento automático no WhatsApp.</p>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Stats */}
+            {agentStats && (
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { label: 'Leads captados', value: agentStats.totalLeads },
+                  { label: 'Checkouts enviados', value: agentStats.checkouts },
+                  { label: 'Sessões ativas', value: agentStats.sessoes },
+                ].map(s => (
+                  <div key={s.label} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 text-center">
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{s.value}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Toggle ativo */}
+            {agentConfig && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">Agente IA</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {agentConfig.ativo ? '✅ Ativo — respondendo mensagens automaticamente' : '⏸ Inativo — não está respondendo'}
+                  </p>
+                </div>
+                <button onClick={toggleAgente} disabled={agentLoading}
+                  className={`px-5 py-2 rounded-xl font-semibold text-sm transition ${agentConfig.ativo ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+                  {agentLoading ? '...' : agentConfig.ativo ? 'Desativar' : 'Ativar'}
+                </button>
+              </div>
+            )}
+
+            {/* Formulário de configuração */}
+            <form onSubmit={salvarAgente} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Configuração do agente</h2>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome / Persona</label>
+                <input value={agentForm.persona} onChange={e => setAgentForm(f => ({ ...f, persona: e.target.value }))}
+                  placeholder="Ex: Ana, Suporte, Assistente"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prompt base <span className="text-red-500">*</span></label>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Descreva seu negócio, produtos, preços e como o agente deve se comportar. Inclua o link de checkout se quiser que o agente o envie.</p>
+                <textarea value={agentForm.promptBase} onChange={e => setAgentForm(f => ({ ...f, promptBase: e.target.value }))} required rows={8}
+                  placeholder="Você é o assistente de vendas da [Empresa]. Oferecemos [serviços/produtos]. Preços: [...]"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Início do atendimento</label>
+                  <input type="time" value={agentForm.horarioInicio} onChange={e => setAgentForm(f => ({ ...f, horarioInicio: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fim do atendimento</label>
+                  <input type="time" value={agentForm.horarioFim} onChange={e => setAgentForm(f => ({ ...f, horarioFim: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dias de atendimento</label>
+                <div className="flex gap-2 flex-wrap">
+                  {DIAS_SEMANA.map(d => {
+                    const dias = agentForm.diasUteis ? agentForm.diasUteis.split(',') : [];
+                    const ativo = dias.includes(d.value);
+                    return (
+                      <button key={d.value} type="button"
+                        onClick={() => {
+                          const novo = ativo ? dias.filter(x => x !== d.value) : [...dias, d.value].sort();
+                          setAgentForm(f => ({ ...f, diasUteis: novo.join(',') }));
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${ativo ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                        {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mensagem fora do horário <span className="text-gray-400 font-normal">(opcional)</span></label>
+                <textarea value={agentForm.msgForaHorario} onChange={e => setAgentForm(f => ({ ...f, msgForaHorario: e.target.value }))} rows={2}
+                  placeholder="Olá! Nosso horário de atendimento é de segunda a sexta, das 9h às 18h. Retornamos em breve!"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 text-xs text-blue-700 dark:text-blue-300">
+                📌 Configure a instância WhatsApp na aba <strong>Integração</strong>. O webhook da Evolution API deve apontar para:
+                <br />
+                <code className="font-mono mt-1 block select-all">{window.location.origin.replace(':5173', ':3000')}/api/webhook/agente/{tenant?.slug || 'seu-slug'}</code>
+                <br />
+                Evento: <strong>MESSAGES_UPSERT</strong>
+              </div>
+
+              <button type="submit" disabled={agentSaving}
+                className="btn-primary text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition disabled:opacity-60">
+                {agentSaving ? 'Salvando...' : 'Salvar configurações'}
+              </button>
+            </form>
+
+            {/* Leads captados */}
+            {agentLeads.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Leads captados pelo agente</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                        <th className="pb-2 pr-4">Telefone</th>
+                        <th className="pb-2 pr-4">Primeira mensagem</th>
+                        <th className="pb-2 pr-4">Checkout</th>
+                        <th className="pb-2">Captado em</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                      {agentLeads.map(l => (
+                        <tr key={l.id}>
+                          <td className="py-2 pr-4 font-mono text-xs">{l.telefone}</td>
+                          <td className="py-2 pr-4 text-gray-600 dark:text-gray-300 max-w-xs truncate">{l.primeiraMsg || '—'}</td>
+                          <td className="py-2 pr-4">{l.sentCheckout ? <span className="text-green-600 font-semibold">✓ Enviado</span> : <span className="text-gray-400">—</span>}</td>
+                          <td className="py-2 text-gray-400 text-xs">{new Date(l.createdAt).toLocaleDateString('pt-BR')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

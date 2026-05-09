@@ -49,6 +49,9 @@ model Tenant {
   notificacoes       Notificacao[]
   adminLancamentos   AdminLancamento[]
   backups            Backup[]
+  agentConfig        AgentConfig?
+  agentSessions      AgentSession[]
+  agentLeads         AgentLead[]
 
   @@map("tenants")
 }
@@ -388,6 +391,54 @@ model Backup {
 
   @@index([tipo])
   @@map("backups")
+}
+
+// ─── AgentConfig (configuração do Agente IA por tenant) ──────────────────────
+model AgentConfig {
+  id              Int      @id @default(autoincrement())
+  tenantId        Int      @unique @map("tenant_id")
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ativo           Boolean  @default(false)
+  persona         String   @default("Assistente")
+  promptBase      String   @db.Text
+  horarioInicio   String   @default("09:00") @map("horario_inicio")
+  horarioFim      String   @default("18:00") @map("horario_fim")
+  diasUteis       String   @default("1,2,3,4,5") @map("dias_uteis")
+  msgForaHorario  String?  @db.Text @map("msg_fora_horario")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("agent_configs")
+}
+
+// ─── AgentSession (sessão de conversa do agente por telefone) ─────────────────
+model AgentSession {
+  id           String   @id // telefone
+  tenantId     Int      @map("tenant_id")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messagesJson Json     @map("messages_json")
+  lastActivity DateTime @map("last_activity")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([id, tenantId])
+  @@map("agent_sessions")
+}
+
+// ─── AgentLead (leads captados pelo agente IA) ────────────────────────────────
+model AgentLead {
+  id           Int      @id @default(autoincrement())
+  tenantId     Int      @map("tenant_id")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  telefone     String
+  nome         String?
+  primeiraMsg  String?  @db.Text @map("primeira_msg")
+  sentCheckout Boolean  @default(false) @map("sent_checkout")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, telefone])
+  @@index([tenantId])
+  @@map("agent_leads")
 }
 
 // ─── AuditLog (registro de ações críticas) ────────────────────────────────────

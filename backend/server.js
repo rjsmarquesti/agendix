@@ -63,6 +63,7 @@ app.use('/api/settings',     tenantMiddleware, require('./src/routes/settings'))
 app.use('/api/users',        tenantMiddleware, require('./src/routes/users'));
 app.use('/api/financeiro',    tenantMiddleware, require('./src/routes/financeiro'));
 app.use('/api/notificacoes', tenantMiddleware, require('./src/routes/notificacoes'));
+app.use('/api/agente-ia',   tenantMiddleware, require('./src/routes/agenteIa'));
 
 app.use(require('./src/middlewares/errorHandler'));
 

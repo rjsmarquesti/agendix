@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const parseEndereco = require('../utils/parseEndereco');
+const { handleMessage } = require('../services/agentService');
 
 async function apiTokenAuth(req, res, next) {
   const token = req.headers['x-api-token'] || req.query.token;
@@ -90,6 +91,30 @@ router.post('/gmaps', apiTokenAuth, async (req, res) => {
   }
 
   res.json({ ok: true, inseridos, ignorados, erros });
+});
+
+// POST /api/webhook/agente/:slug
+// Recebe eventos da Evolution API — sem JWT, validado por slug
+router.post('/agente/:slug', async (req, res) => {
+  res.json({ ok: true }); // responde imediatamente para a Evolution API não retentar
+
+  try {
+    const tenant = await prisma.tenant.findFirst({ where: { slug: req.params.slug, ativo: true } });
+    if (!tenant) return;
+
+    const event = req.body?.event;
+    if (event !== 'messages.upsert') return;
+
+    const msg = req.body?.data;
+    if (!msg || msg.key?.fromMe) return; // ignora mensagens enviadas pelo próprio número
+
+    const phone = msg.key?.remoteJid?.replace('@s.whatsapp.net', '');
+    const text  = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+
+    if (!phone || !text) return;
+
+    await handleMessage(tenant, phone, text);
+  } catch { /* silencioso — não expor erros internos */ }
 });
 
 module.exports = router;
