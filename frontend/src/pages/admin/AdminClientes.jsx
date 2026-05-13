@@ -24,7 +24,6 @@ export default function AdminClientes() {
   const [formSenha, setFS]        = useState(EMPTY_SENHA);
   const [senhaUserId, setSUID]    = useState(null);
   const [loading, setLoading]     = useState(false);
-  const [provLoading, setProvLoading] = useState(null); // id do tenant em provisioning
   const [evoLoading, setEvoLoading]   = useState(null); // id do tenant em criação Evolution
 
   const load = useCallback(async () => {
@@ -88,19 +87,6 @@ export default function AdminClientes() {
       const d = await api.get(`/admin/tenants/${t.id}`);
       setDetalhe(d.tenant); setModal('detalhe');
     } catch (err) { toast.error(err.message); }
-  }
-
-  // ── Provisioning n8n ─────────────────────────────────────────────────────
-  async function provisionarN8n(t) {
-    const acao = t.n8nWorkflowWaId ? 'Recriar' : 'Provisionar';
-    if (!confirm(`${acao} workflows n8n para "${t.nome}"?`)) return;
-    setProvLoading(t.id);
-    try {
-      await api.post(`/admin/tenants/${t.id}/provision-n8n`);
-      toast.success(`Workflows n8n provisionados para ${t.nome}!`);
-      load();
-    } catch (err) { toast.error(err.message); }
-    finally { setProvLoading(null); }
   }
 
   // ── Evolution API ────────────────────────────────────────────────────────
@@ -217,10 +203,6 @@ export default function AdminClientes() {
                 <button onClick={() => abrirDetalhe(t)} className="flex-1 text-slate-400 hover:text-white text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">Ver</button>
                 <button onClick={() => abrirEditar(t)} className="flex-1 text-blue-400 hover:text-blue-300 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">Editar</button>
                 <button onClick={() => abrirUsuario(t)} className="flex-1 text-green-400 hover:text-green-300 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">+ Usuário</button>
-                <button onClick={() => provisionarN8n(t)} disabled={provLoading === t.id}
-                  className={`flex-1 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center disabled:opacity-40 ${t.n8nWorkflowWaId ? 'text-green-400' : 'text-yellow-400'}`}>
-                  {provLoading === t.id ? '...' : t.n8nWorkflowWaId ? 'n8n ✓' : 'n8n'}
-                </button>
                 <button onClick={() => criarEvolution(t)} disabled={evoLoading === t.id}
                   className={`flex-1 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center disabled:opacity-40 ${t.evolutionInstance ? 'text-green-400' : 'text-slate-400'}`}>
                   {evoLoading === t.id ? '...' : t.evolutionInstance ? 'WA ✓' : 'WA'}
@@ -325,15 +307,6 @@ export default function AdminClientes() {
                       <button onClick={() => abrirUsuario(t)} title="Adicionar usuário"
                         className="text-green-400 hover:text-green-300 hover:bg-slate-700 p-2 rounded-lg transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                      </button>
-                      <button onClick={() => provisionarN8n(t)}
-                        title={t.n8nWorkflowWaId ? 'Recriar workflows n8n' : 'Provisionar workflows n8n'}
-                        disabled={provLoading === t.id}
-                        className={`p-2 rounded-lg transition-colors ${t.n8nWorkflowWaId ? 'text-green-400 hover:text-green-300' : 'text-slate-400 hover:text-yellow-400'} hover:bg-slate-700 disabled:opacity-40`}>
-                        {provLoading === t.id
-                          ? <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                          : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        }
                       </button>
                       <button onClick={() => deletarTenant(t)} title="Remover"
                         className="text-red-500 hover:text-red-400 hover:bg-slate-700 p-2 rounded-lg transition-colors">

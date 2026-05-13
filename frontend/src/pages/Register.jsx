@@ -150,7 +150,7 @@ export default function Register() {
       <div className="relative z-10 space-y-8">
         <div>
           <h2 className="text-3xl font-bold text-white leading-tight">
-            Comece grátis<br />por 14 dias.
+            Comece grátis<br />por 30 dias.
           </h2>
           <p className="mt-3 text-sm leading-relaxed" style={{ color: 'rgba(148,163,184,0.85)' }}>
             O sistema de agendamento online que ajuda profissionais e empresas a economizar tempo, organizar atendimentos e crescer com mais profissionalismo.

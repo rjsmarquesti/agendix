@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AdminLogin() {
@@ -73,7 +73,12 @@ export default function AdminLogin() {
             </button>
           </form>
         </div>
-        <p className="text-center text-slate-600 text-xs mt-4">Divulga BR — CRM Divulga BR</p>
+        <div className="text-center mt-4 space-y-1">
+          <Link to="/admin/esqueci-senha" className="text-slate-500 hover:text-slate-300 text-xs transition-colors">
+            Esqueci minha senha
+          </Link>
+          <p className="text-slate-700 text-xs">Divulga BR — CRM Divulga BR</p>
+        </div>
       </div>
     </div>
   );

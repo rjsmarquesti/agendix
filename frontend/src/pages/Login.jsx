@@ -77,7 +77,7 @@ const FEATURES = [
 const INPUT_CLS = 'w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm transition placeholder-gray-400';
 
 export default function Login() {
-  const [form, setForm] = useState({ email: '', senha: '' });
+  const [form, setForm] = useState({ slug: localStorage.getItem('crm_slug') || '', email: '', senha: '' });
   const [showSenha, setShowSenha] = useState(false);
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
@@ -95,11 +95,11 @@ export default function Login() {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': form.email.split('@')[0] },
+        headers: { 'Content-Type': 'application/json', ...(form.slug.trim() ? { 'X-Tenant-Slug': form.slug.trim() } : {}) },
         body: JSON.stringify({ email: form.email, senha: form.senha }),
       });
       const data = await res.json();
-      if (!res.ok && res.status === 400) {
+      if (!res.ok && (res.status === 400 || res.status === 404) && !form.slug.trim()) {
         const res2 = await fetch('/api/auth/super-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -219,6 +219,22 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Slug da empresa <span className="text-gray-400 font-normal text-xs">(deixe em branco para acesso admin)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                  </svg>
+                </span>
+                <input type="text" placeholder="minha-empresa"
+                  value={form.slug} onChange={set('slug')}
+                  className={INPUT_CLS} />
+              </div>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">E-mail</label>

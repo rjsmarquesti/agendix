@@ -33,6 +33,11 @@ model Tenant {
   n8nWorkflowNotifId    String?  @map("n8n_workflow_notif_id")
   lembretesDiretosAtivo  Boolean  @default(false) @map("lembretes_diretos_ativo")
   whatsappResponsavel    String?  @map("whatsapp_responsavel")
+  smtpHost   String?  @map("smtp_host")
+  smtpPort   Int?     @map("smtp_port")
+  smtpUser   String?  @map("smtp_user")
+  smtpPass   String?  @map("smtp_pass")
+  smtpFrom   String?  @map("smtp_from")
   trialEmailD3EnviadoEm  DateTime? @map("trial_email_d3_enviado_em")
   trialEmailD10EnviadoEm DateTime? @map("trial_email_d10_enviado_em")
   trialEmailD13EnviadoEm DateTime? @map("trial_email_d13_enviado_em")
@@ -224,6 +229,10 @@ model ConfiguracaoAgenda {
   mensagemWaAdmin       String? @map("mensagem_wa_admin")
   whatsappAdmin   String? @map("whatsapp_admin")
   ativo           Boolean @default(true)
+  agendaDiaAtivo      Boolean  @default(false) @map("agenda_dia_ativo")
+  agendaDiaEmailAtivo Boolean  @default(false) @map("agenda_dia_email_ativo")
+  agendaDiaHorario    String   @default("07:00") @map("agenda_dia_horario")
+  agendaDiaEnviadoEm  String?  @map("agenda_dia_enviado_em")
 
   @@map("configuracoes_agenda")
 }

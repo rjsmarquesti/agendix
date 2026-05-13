@@ -1,7 +1,7 @@
 const { validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
-const { dispararWebhookAgendamento } = require('../services/webhook');
 const { criar: criarAgendamento } = require('../services/agendamentoService');
+const { notificarAgendamento } = require('../services/notificacaoService');
 
 const incluirLead = {
   lead: { select: { nome: true, telefone: true, email: true } },
@@ -44,14 +44,14 @@ exports.criar = async (req, res, next) => {
 
     const { lead_id, data, hora, tipo, status, observacoes } = req.body;
 
-    const tenant = await prisma.tenant.findUnique({ where: { id: req.user.tenantId }, select: { plano: true } });
+    const tenant = await prisma.tenant.findUnique({ where: { id: req.user.tenantId } });
 
     const agendamento = await criarAgendamento(
       { tenantId: req.user.tenantId, leadId: Number(lead_id), data, hora, tipo: tipo || 'reunião', status: status || 'marcado', observacoes },
       tenant.plano,
       { incluir: incluirLead }
     );
-    dispararWebhookAgendamento(req.user.tenantId, agendamento).catch(err => console.error('[webhook]', err.message));
+    notificarAgendamento(tenant, agendamento).catch(err => console.error('[notificar]', err.message));
     res.status(201).json({ agendamento });
   } catch (err) {
     if (err.status === 402) return res.status(402).json({ error: err.message + ' Faça upgrade.' });
@@ -76,6 +76,10 @@ exports.atualizar = async (req, res, next) => {
       data: { leadId: Number(lead_id), data, hora, tipo, status, observacoes },
       include: incluirLead,
     });
+    if (status === 'confirmado' && existe.status !== 'confirmado') {
+      const tenant = await prisma.tenant.findUnique({ where: { id: req.user.tenantId } });
+      notificarAgendamento(tenant, agendamento).catch(err => console.error('[notificar]', err.message));
+    }
     res.json({ agendamento });
   } catch (err) { next(err); }
 };

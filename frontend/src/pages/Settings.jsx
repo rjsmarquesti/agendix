@@ -32,6 +32,7 @@ const DURACAO_OPTIONS = [
 const TABS = [
   { id: 'empresa',    label: 'Empresa' },
   { id: 'agenda',     label: 'Agenda' },
+  { id: 'email',      label: 'Email' },
   { id: 'integracao', label: 'Integração' },
   { id: 'n8n',        label: 'Bot / n8n' },
   { id: 'agente-ia',  label: 'Agente IA' },
@@ -49,13 +50,15 @@ const PLANOS_MP = [
 export default function Settings() {
   const { tenant, updateTenant } = useAuth();
   const [tab, setTab]           = useState('empresa');
-  const [form, setForm]         = useState({ nome: '', logo: '', corPrimaria: '#2563eb', modulos: [], n8nWebhookUrl: '', n8nApiKey: '', nichoLabel: '', evolutionInstance: '', evolutionApiKey: '', evolutionBaseUrl: '', n8nWorkflowWaId: null, n8nWorkflowNotifId: null, lembretesDiretosAtivo: false });
+  const [form, setForm]         = useState({ nome: '', logo: '', corPrimaria: '#2563eb', modulos: [], n8nWebhookUrl: '', n8nApiKey: '', nichoLabel: '', evolutionInstance: '', evolutionApiKey: '', evolutionBaseUrl: '', n8nWorkflowWaId: null, n8nWorkflowNotifId: null, lembretesDiretosAtivo: false, smtpHost: '', smtpPort: '', smtpUser: '', smtpPass: '', smtpFrom: '' });
   const [agendaForm, setAgendaForm] = useState({
     horarioInicio: '08:00', horarioFim: '18:00', duracaoSlot: 60,
     diasUteis: '1,2,3,4,5', antecedenciaMin: 2, antecedenciaMax: 30,
     mensagemConfirmacao: '', mensagemWaConfirmacao: '', mensagemWaLembrete: '', mensagemWaAdmin: '',
     whatsappAdmin: '', ativo: true,
+    agendaDiaAtivo: false, agendaDiaEmailAtivo: false, agendaDiaHorario: '07:00',
   });
+  const [showSmtpPass, setShowSmtpPass] = useState(false);
   const [apiToken, setApiToken]   = useState('');
   const [loading, setLoading]     = useState(false);
   const [planoStatus, setPlanoStatus] = useState(null);
@@ -189,6 +192,11 @@ export default function Settings() {
         n8nWorkflowWaId: t.n8nWorkflowWaId || null,
         n8nWorkflowNotifId: t.n8nWorkflowNotifId || null,
         lembretesDiretosAtivo: t.lembretesDiretosAtivo || false,
+        smtpHost: t.smtpHost || '',
+        smtpPort: t.smtpPort || '',
+        smtpUser: t.smtpUser || '',
+        smtpPass: t.smtpPass || '',
+        smtpFrom: t.smtpFrom || '',
       });
       if (t.apiToken) setApiToken(t.apiToken);
     }).catch(err => toast.error(err.message));
@@ -205,6 +213,9 @@ export default function Settings() {
         mensagemWaAdmin: c.mensagemWaAdmin || '',
         whatsappAdmin: c.whatsappAdmin || '',
         ativo: c.ativo,
+        agendaDiaAtivo: c.agendaDiaAtivo || false,
+        agendaDiaEmailAtivo: c.agendaDiaEmailAtivo || false,
+        agendaDiaHorario: c.agendaDiaHorario || '07:00',
       });
     }).catch(() => {});
 
@@ -537,6 +548,34 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Agenda do Dia */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Agenda do dia</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Todos os usuários ativos receberão a agenda completa do dia no horário configurado.</p>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div onClick={() => setAgendaForm(f => ({ ...f, agendaDiaAtivo: !f.agendaDiaAtivo }))}
+                      className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${agendaForm.agendaDiaAtivo ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${agendaForm.agendaDiaAtivo ? 'translate-x-4' : ''}`} />
+                    </div>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Enviar agenda por WhatsApp</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div onClick={() => setAgendaForm(f => ({ ...f, agendaDiaEmailAtivo: !f.agendaDiaEmailAtivo }))}
+                      className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${agendaForm.agendaDiaEmailAtivo ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${agendaForm.agendaDiaEmailAtivo ? 'translate-x-4' : ''}`} />
+                    </div>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Enviar agenda por Email</span>
+                  </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enviar às</label>
+                    <input type="time" value={agendaForm.agendaDiaHorario}
+                      onChange={e => setAgendaForm(f => ({ ...f, agendaDiaHorario: e.target.value }))}
+                      className="px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <button type="submit" disabled={agendaLoading}
                   className="btn-primary text-white font-semibold px-8 py-3 rounded-xl transition text-sm disabled:opacity-60">
@@ -667,6 +706,61 @@ export default function Settings() {
               )}
             </div>
           </div>
+        )}
+
+        {/* ── ABA EMAIL ── */}
+        {tab === 'email' && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">SMTP do tenant</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Configure um SMTP próprio para enviar emails de confirmação e lembrete com a identidade da sua empresa. Se não configurado, o sistema usa o email padrão da plataforma.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">SMTP Host</label>
+                  <input value={form.smtpHost} onChange={e => setForm(f => ({ ...f, smtpHost: e.target.value }))}
+                    placeholder="smtp.hostinger.com"
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Porta</label>
+                  <input type="number" value={form.smtpPort} onChange={e => setForm(f => ({ ...f, smtpPort: e.target.value }))}
+                    placeholder="465"
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Usuário SMTP</label>
+                <input type="email" value={form.smtpUser} onChange={e => setForm(f => ({ ...f, smtpUser: e.target.value }))}
+                  placeholder="contato@suaempresa.com.br"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Senha SMTP</label>
+                <div className="relative">
+                  <input type={showSmtpPass ? 'text' : 'password'} value={form.smtpPass} onChange={e => setForm(f => ({ ...f, smtpPass: e.target.value }))}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-2.5 pr-10 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                  <button type="button" onClick={() => setShowSmtpPass(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">
+                    {showSmtpPass ? 'Ocultar' : 'Mostrar'}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email de origem (From)</label>
+                <input value={form.smtpFrom} onChange={e => setForm(f => ({ ...f, smtpFrom: e.target.value }))}
+                  placeholder="Minha Empresa <contato@suaempresa.com.br>"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Pode ser só o email ou no formato "Nome &lt;email&gt;"</p>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button type="submit" disabled={loading}
+                className="btn-primary text-white font-semibold px-8 py-3 rounded-xl transition text-sm disabled:opacity-60">
+                {loading ? 'Salvando...' : 'Salvar configurações de email'}
+              </button>
+            </div>
+          </form>
         )}
 
         {/* ── ABA INTEGRAÇÃO ── */}

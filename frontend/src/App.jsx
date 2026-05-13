@@ -29,6 +29,8 @@ import AdminFluxoCaixa             from './pages/admin/AdminFluxoCaixa';
 import AdminBackups                from './pages/admin/AdminBackups';
 import AdminConsumo                from './pages/admin/AdminConsumo';
 import AdminLogs                   from './pages/admin/AdminLogs';
+import AdminUsuarios               from './pages/admin/AdminUsuarios';
+import AdminForgotPassword         from './pages/admin/AdminForgotPassword';
 
 function PrivateRoute({ children, roles }) {
   const { token, user } = useAuth();
@@ -56,6 +58,7 @@ export default function App() {
         <Route path="/esqueci-senha"   element={<ForgotPassword />} />
         <Route path="/redefinir-senha" element={<ResetPassword />} />
         <Route path="/admin/login"         element={<AdminLogin />} />
+        <Route path="/admin/esqueci-senha" element={<AdminForgotPassword />} />
         <Route path="/trial-expirado"      element={<TrialExpirado />} />
         <Route path="/pagamento/retorno"   element={<PagamentoRetorno />} />
         <Route path="/agendar/:slug"       element={<AgendamentoPublico />} />
@@ -81,7 +84,8 @@ export default function App() {
         <Route path="/admin/financeiro/fluxo-caixa" element={<AdminRoute><AdminFluxoCaixa /></AdminRoute>} />
         <Route path="/admin/backups" element={<AdminRoute><AdminBackups /></AdminRoute>} />
         <Route path="/admin/consumo" element={<AdminRoute><AdminConsumo /></AdminRoute>} />
-        <Route path="/admin/logs"    element={<AdminRoute><AdminLogs /></AdminRoute>} />
+        <Route path="/admin/logs"      element={<AdminRoute><AdminLogs /></AdminRoute>} />
+        <Route path="/admin/usuarios"  element={<AdminRoute><AdminUsuarios /></AdminRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

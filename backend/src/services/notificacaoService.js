@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
+const { executarAgendaDia } = require('./agendaDiaService');
 
 function hoje() {
   return new Date().toISOString().split('T')[0];
@@ -122,13 +123,48 @@ async function executarLembretes() {
 }
 
 function agendarCron() {
-  // Roda a cada hora cheia
   cron.schedule('0 * * * *', () => {
     executarLembretes().catch(err =>
       console.error('[notificacaoService] Erro no cron:', err.message)
     );
   });
-  console.log('[notificacaoService] Cron de lembretes agendado (a cada hora)');
+  cron.schedule('0,30 * * * *', () => {
+    executarAgendaDia().catch(err =>
+      console.error('[agendaDia] Erro no cron:', err.message)
+    );
+  });
+  console.log('[notificacaoService] Crons agendados (lembretes a cada hora, agenda dia a cada 30 min)');
 }
 
-module.exports = { agendarCron, executarLembretes };
+async function notificarAgendamento(tenant, agendamento) {
+  if (!tenant.evolutionInstance || !tenant.evolutionApiKey) return;
+
+  const config = await prisma.configuracaoAgenda.findUnique({ where: { tenantId: tenant.id } });
+  if (!config) return;
+
+  const dataBr = agendamento.data ? agendamento.data.split('-').reverse().join('/') : '';
+  const hora   = agendamento.hora || '';
+  const nomeCliente = agendamento.lead?.nome || agendamento.clienteNome || '';
+  const nomeServico = agendamento.servico?.nome || agendamento.tipo || '';
+
+  const phoneCliente = agendamento.lead?.telefone || agendamento.clienteTelefone;
+  if (phoneCliente && config.mensagemWaConfirmacao) {
+    const msg = config.mensagemWaConfirmacao
+      .replace(/\{\{nome\}\}/g, nomeCliente)
+      .replace(/\{\{data\}\}/g, dataBr)
+      .replace(/\{\{hora\}\}/g, hora)
+      .replace(/\{\{servico\}\}/g, nomeServico);
+    await enviarViaEvolution(tenant, phoneCliente, msg).catch(e =>
+      console.error('[notificarAgendamento] cliente:', e.message)
+    );
+  }
+
+  if (config.whatsappAdmin) {
+    const adminMsg = `📅 Novo agendamento!\n\n👤 ${nomeCliente}\n🗂️ ${nomeServico}\n📆 ${dataBr} às ${hora}`;
+    await enviarViaEvolution(tenant, config.whatsappAdmin, adminMsg).catch(e =>
+      console.error('[notificarAgendamento] admin:', e.message)
+    );
+  }
+}
+
+module.exports = { agendarCron, executarLembretes, notificarAgendamento };

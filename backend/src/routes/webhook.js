@@ -1,7 +1,8 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const parseEndereco = require('../utils/parseEndereco');
-const { handleMessage } = require('../services/agentService');
+const { handleMessage }    = require('../services/agentService');
+const { handleBotMessage } = require('../services/botAgendamentoService');
 
 async function apiTokenAuth(req, res, next) {
   const token = req.headers['x-api-token'] || req.query.token;
@@ -113,7 +114,9 @@ router.post('/agente/:slug', async (req, res) => {
 
     if (!phone || !text) return;
 
-    await handleMessage(tenant, phone, text);
+    // Bot de agendamento tem prioridade; se não processar, cai no agente IA
+    const handled = await handleBotMessage(tenant, phone, text);
+    if (!handled) await handleMessage(tenant, phone, text);
   } catch { /* silencioso — não expor erros internos */ }
 });
 

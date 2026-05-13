@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function TrialExpirado() {
@@ -13,17 +13,17 @@ export default function TrialExpirado() {
               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Período de teste encerrado</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">PerÃ­odo de teste encerrado</h1>
         <p className="text-gray-400 mb-8">
-          Seu trial de 14 dias chegou ao fim. Escolha um plano para continuar usando o Agendix.
+          Seu trial de 30 dias chegou ao fim. Escolha um plano para continuar usando o Agendix.
         </p>
 
         <div className="space-y-3 mb-8">
           {[
-            { nome: 'Básico',   preco: 'R$ 37/mês', desc: '60 agendamentos · 1 usuário' },
-            { nome: 'Pro',      preco: 'R$ 57/mês', desc: '300 agendamentos · 5 usuários · Bot WA' },
-            { nome: 'Premium',  preco: 'R$ 97/mês', desc: 'Ilimitado · Bot WA · Financeiro' },
-            { nome: 'Business', preco: 'R$ 127/mês', desc: 'Ilimitado · Tudo incluso' },
+            { nome: 'BÃ¡sico',   preco: 'R$ 37/mÃªs', desc: '60 agendamentos Â· 1 usuÃ¡rio' },
+            { nome: 'Pro',      preco: 'R$ 57/mÃªs', desc: '300 agendamentos Â· 5 usuÃ¡rios Â· Bot WA' },
+            { nome: 'Premium',  preco: 'R$ 97/mÃªs', desc: 'Ilimitado Â· Bot WA Â· Financeiro' },
+            { nome: 'Business', preco: 'R$ 127/mÃªs', desc: 'Ilimitado Â· Tudo incluso' },
           ].map(p => (
             <div key={p.nome} className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-left">
               <div>
@@ -45,9 +45,10 @@ export default function TrialExpirado() {
         )}
 
         <p className="text-gray-600 text-xs mt-4">
-          Dúvidas? <a href="mailto:suporte@divulgabr.com.br" className="underline hover:text-gray-400">suporte@divulgabr.com.br</a>
+          DÃºvidas? <a href="mailto:suporte@divulgabr.com.br" className="underline hover:text-gray-400">suporte@divulgabr.com.br</a>
         </p>
       </div>
     </div>
   );
 }
+

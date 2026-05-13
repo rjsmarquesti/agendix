@@ -26,30 +26,30 @@ async function processarTenant(tenant, adminEmail, adminNome) {
     return;
   }
 
-  // D10: entre 10 e 11 dias após criação
-  if (dias >= 10 && dias < 11 && !tenant.trialEmailD10EnviadoEm) {
+  // D15: entre 15 e 16 dias após criação
+  if (dias >= 15 && dias < 16 && !tenant.trialEmailD10EnviadoEm) {
     await enviarEmailTrialD10({ para: adminEmail, nome: adminNome, slug });
     await prisma.tenant.update({
       where: { id: tenant.id },
       data: { trialEmailD10EnviadoEm: new Date() },
     });
-    console.log(`[trialEmail] D10 enviado → ${adminEmail}`);
+    console.log(`[trialEmail] D15 enviado → ${adminEmail}`);
     return;
   }
 
-  // D13: entre 13 e 14 dias após criação
-  if (dias >= 13 && dias < 14 && !tenant.trialEmailD13EnviadoEm) {
+  // D28: entre 28 e 29 dias após criação
+  if (dias >= 28 && dias < 29 && !tenant.trialEmailD13EnviadoEm) {
     await enviarEmailTrialD13({ para: adminEmail, nome: adminNome });
     await prisma.tenant.update({
       where: { id: tenant.id },
       data: { trialEmailD13EnviadoEm: new Date() },
     });
-    console.log(`[trialEmail] D13 enviado → ${adminEmail}`);
+    console.log(`[trialEmail] D28 enviado → ${adminEmail}`);
   }
 }
 
 async function executarEmailsTrial() {
-  // Apenas tenants em trial ativo com menos de 14 dias
+  // Apenas tenants em trial ativo
   const tenants = await prisma.tenant.findMany({
     where: { ativo: true, planoStatus: 'trial' },
     include: {

@@ -13,7 +13,8 @@ exports.update = async (req, res, next) => {
   try {
     const { nome, logo, corPrimaria, modulos, n8nWebhookUrl, n8nApiKey, nichoLabel,
             evolutionInstance, evolutionApiKey, evolutionBaseUrl,
-            lembretesDiretosAtivo } = req.body;
+            lembretesDiretosAtivo,
+            smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom } = req.body;
     const tenant = await prisma.tenant.update({
       where: { id: req.user.tenantId },
       data: {
@@ -24,6 +25,11 @@ exports.update = async (req, res, next) => {
         evolutionApiKey: evolutionApiKey || null,
         evolutionBaseUrl: evolutionBaseUrl || null,
         lembretesDiretosAtivo: lembretesDiretosAtivo === true,
+        smtpHost: smtpHost || null,
+        smtpPort: smtpPort ? Number(smtpPort) : null,
+        smtpUser: smtpUser || null,
+        smtpPass: smtpPass || null,
+        smtpFrom: smtpFrom || null,
       },
     });
     res.json({ tenant });
@@ -44,17 +50,23 @@ exports.getAgenda = async (req, res, next) => {
 // PUT configuração de agenda do tenant
 exports.updateAgenda = async (req, res, next) => {
   try {
-    const { horarioInicio, horarioFim, duracaoSlot, diasUteis, antecedenciaMin, antecedenciaMax, mensagemConfirmacao, mensagemWaConfirmacao, mensagemWaLembrete, mensagemWaAdmin, whatsappAdmin, ativo } = req.body;
+    const { horarioInicio, horarioFim, duracaoSlot, diasUteis, antecedenciaMin, antecedenciaMax, mensagemConfirmacao, mensagemWaConfirmacao, mensagemWaLembrete, mensagemWaAdmin, whatsappAdmin, ativo,
+            agendaDiaAtivo, agendaDiaEmailAtivo, agendaDiaHorario } = req.body;
     const msgFields = {
       mensagemConfirmacao: mensagemConfirmacao || null,
       mensagemWaConfirmacao: mensagemWaConfirmacao || null,
       mensagemWaLembrete: mensagemWaLembrete || null,
       mensagemWaAdmin: mensagemWaAdmin || null,
     };
+    const agendaDiaFields = {
+      agendaDiaAtivo: agendaDiaAtivo === true,
+      agendaDiaEmailAtivo: agendaDiaEmailAtivo === true,
+      agendaDiaHorario: agendaDiaHorario || '07:00',
+    };
     const config = await prisma.configuracaoAgenda.upsert({
       where: { tenantId: req.user.tenantId },
-      update: { horarioInicio, horarioFim, duracaoSlot: Number(duracaoSlot), diasUteis, antecedenciaMin: Number(antecedenciaMin), antecedenciaMax: Number(antecedenciaMax), ...msgFields, whatsappAdmin: whatsappAdmin || null, ativo: ativo !== false },
-      create: { tenantId: req.user.tenantId, horarioInicio, horarioFim, duracaoSlot: Number(duracaoSlot), diasUteis, antecedenciaMin: Number(antecedenciaMin), antecedenciaMax: Number(antecedenciaMax), ...msgFields, whatsappAdmin: whatsappAdmin || null },
+      update: { horarioInicio, horarioFim, duracaoSlot: Number(duracaoSlot), diasUteis, antecedenciaMin: Number(antecedenciaMin), antecedenciaMax: Number(antecedenciaMax), ...msgFields, whatsappAdmin: whatsappAdmin || null, ativo: ativo !== false, ...agendaDiaFields },
+      create: { tenantId: req.user.tenantId, horarioInicio, horarioFim, duracaoSlot: Number(duracaoSlot), diasUteis, antecedenciaMin: Number(antecedenciaMin), antecedenciaMax: Number(antecedenciaMax), ...msgFields, whatsappAdmin: whatsappAdmin || null, ...agendaDiaFields },
     });
     res.json({ config });
   } catch (err) { next(err); }

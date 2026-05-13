@@ -1,4 +1,4 @@
-const router = require('express').Router();
+﻿const router = require('express').Router();
 const { body } = require('express-validator');
 const ctrl = require('../controllers/authController');
 const auth = require('../middlewares/auth');
@@ -10,29 +10,27 @@ const prisma = require('../lib/prisma');
 const { enviarEmailRedefinicao, enviarEmailAtivacao, enviarEmailBoasVindas } = require('../lib/mailer');
 
 const validarLogin = [
-  body('email').isEmail().withMessage('Email inválido'),
-  body('senha').notEmpty().withMessage('Senha obrigatória'),
+  body('email').isEmail().withMessage('Email invÃ¡lido'),
+  body('senha').notEmpty().withMessage('Senha obrigatÃ³ria'),
 ];
 
-// Cadastro público — cria tenant + admin com trial de 14 dias (conta inativa até confirmação)
+// Cadastro pÃºblico â€” cria tenant + admin com trial de 30 dias (conta inativa atÃ© confirmaÃ§Ã£o)
 router.post('/register', async (req, res, next) => {
   try {
-    const { nomeEmpresa, nomeCompleto, email, confirmEmail, whatsapp, senha } = req.body;
+    const { nomeEmpresa, nomeCompleto, email, whatsapp, senha } = req.body;
 
-    if (!nomeEmpresa || !nomeCompleto || !email || !confirmEmail || !whatsapp || !senha)
-      return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
-    if (email !== confirmEmail)
-      return res.status(400).json({ error: 'Os emails não coincidem' });
+    if (!nomeEmpresa || !nomeCompleto || !email || !whatsapp || !senha)
+      return res.status(400).json({ error: 'Todos os campos sÃ£o obrigatÃ³rios' });
     if (senha.length < 6)
-      return res.status(400).json({ error: 'Senha mínimo 6 caracteres' });
+      return res.status(400).json({ error: 'Senha mÃ­nimo 6 caracteres' });
 
     const whatsappNorm = whatsapp.replace(/\D/g, '');
     if (whatsappNorm.length < 10)
-      return res.status(400).json({ error: 'WhatsApp inválido' });
+      return res.status(400).json({ error: 'WhatsApp invÃ¡lido' });
 
-    // Gera slug único a partir do nome da empresa
+    // Gera slug Ãºnico a partir do nome da empresa
     let baseSlug = nomeEmpresa.toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .normalize('NFD').replace(/̀-ͯ/gu, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
     let slug = baseSlug;
     let tentativa = 1;
@@ -40,7 +38,7 @@ router.post('/register', async (req, res, next) => {
       slug = `${baseSlug}-${++tentativa}`;
     }
 
-    const trialVencimento = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const trialVencimento = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const tenant = await prisma.tenant.create({
       data: {
@@ -75,18 +73,18 @@ router.post('/register', async (req, res, next) => {
     const appUrl = process.env.APP_URL || 'https://agendix.divulgabr.com.br';
     const linkAtivacao = `${appUrl}/ativar?token=${activationToken}`;
 
-    // Envia email de ativação (fire-and-forget)
+    // Envia email de ativaÃ§Ã£o (fire-and-forget)
     enviarEmailAtivacao({ para: email, nome: nomeCompleto, link: linkAtivacao }).catch(e =>
       console.error('[register] email ativacao:', e.message)
     );
 
-    // Envia WhatsApp de ativação via Evolution API global (fire-and-forget)
+    // Envia WhatsApp de ativaÃ§Ã£o via Evolution API global (fire-and-forget)
     const evoBase = process.env.EVOLUTION_BASE_URL || 'https://api.divulgabr.com.br';
     const evoKey  = process.env.EVOLUTION_GLOBAL_API_KEY;
     const evoInst = process.env.EVOLUTION_GLOBAL_INSTANCE;
     if (evoKey && evoInst) {
       const waNum = whatsappNorm.startsWith('55') ? whatsappNorm : `55${whatsappNorm}`;
-      const waMsg = `Olá, *${nomeCompleto}*! 👋\n\nSua conta no *Agendix* foi criada com sucesso.\n\nClique no link abaixo para ativar sua conta e começar a usar:\n\n${linkAtivacao}\n\n_Este link expira em 24 horas._`;
+      const waMsg = `OlÃ¡, *${nomeCompleto}*! ðŸ‘‹\n\nSua conta no *Agendix* foi criada com sucesso.\n\nClique no link abaixo para ativar sua conta e comeÃ§ar a usar:\n\n${linkAtivacao}\n\n_Este link expira em 24 horas._`;
       fetch(`${evoBase}/message/sendText/${evoInst}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: evoKey },
@@ -98,7 +96,7 @@ router.post('/register', async (req, res, next) => {
       message: 'Conta criada! Verifique seu email e WhatsApp para ativar.',
     });
   } catch (err) {
-    if (err.code === 'P2002') return res.status(400).json({ error: 'Email já cadastrado para esta empresa' });
+    if (err.code === 'P2002') return res.status(400).json({ error: 'Email jÃ¡ cadastrado para esta empresa' });
     next(err);
   }
 });
@@ -107,13 +105,13 @@ router.post('/register', async (req, res, next) => {
 router.get('/ativar', async (req, res, next) => {
   try {
     const { token } = req.query;
-    if (!token) return res.status(400).json({ error: 'Token inválido' });
+    if (!token) return res.status(400).json({ error: 'Token invÃ¡lido' });
 
     const user = await prisma.user.findFirst({
       where: { activationToken: token, activationExpires: { gt: new Date() } },
     });
 
-    if (!user) return res.status(400).json({ error: 'Link de ativação inválido ou expirado' });
+    if (!user) return res.status(400).json({ error: 'Link de ativaÃ§Ã£o invÃ¡lido ou expirado' });
 
     const userAtivado = await prisma.user.update({
       where: { id: user.id },
@@ -138,14 +136,14 @@ router.post('/login', tenantMiddleware, validarLogin, ctrl.login);
 // Login super admin (sem tenant)
 router.post('/super-login', validarLogin, ctrl.login);
 
-// Dados do usuário logado
+// Dados do usuÃ¡rio logado
 router.get('/me', auth, ctrl.me);
 
-// Trocar própria senha
+// Trocar prÃ³pria senha
 router.put('/senha', auth, async (req, res, next) => {
   try {
     const { senhaAtual, novaSenha } = req.body;
-    if (!novaSenha || novaSenha.length < 6) return res.status(400).json({ error: 'Nova senha mínimo 6 caracteres' });
+    if (!novaSenha || novaSenha.length < 6) return res.status(400).json({ error: 'Nova senha mÃ­nimo 6 caracteres' });
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
     const ok = await bcrypt.compare(senhaAtual, user.senha);
@@ -157,32 +155,32 @@ router.put('/senha', auth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Atualizar perfil (nome + email) do usuário logado
+// Atualizar perfil (nome + email) do usuÃ¡rio logado
 router.put('/perfil', auth, async (req, res, next) => {
   try {
     const { nome, email } = req.body;
-    if (!nome || !email) return res.status(400).json({ error: 'Nome e email são obrigatórios' });
+    if (!nome || !email) return res.status(400).json({ error: 'Nome e email sÃ£o obrigatÃ³rios' });
 
     const existe = await prisma.user.findFirst({ where: { email, NOT: { id: req.user.id } } });
-    if (existe) return res.status(400).json({ error: 'Email já está em uso por outro usuário' });
+    if (existe) return res.status(400).json({ error: 'Email jÃ¡ estÃ¡ em uso por outro usuÃ¡rio' });
 
     const updated = await prisma.user.update({ where: { id: req.user.id }, data: { nome, email } });
     res.json({ message: 'Perfil atualizado com sucesso', user: { id: updated.id, nome: updated.nome, email: updated.email, role: updated.role } });
   } catch (err) { next(err); }
 });
 
-// Solicitar redefinição de senha
+// Solicitar redefiniÃ§Ã£o de senha
 router.post('/forgot-password', async (req, res, next) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email obrigatório' });
+    if (!email) return res.status(400).json({ error: 'Email obrigatÃ³rio' });
 
     // Suporta tenant (X-Tenant-Slug) ou super admin (sem header)
     const slug = req.headers['x-tenant-slug'];
     let tenantId = null;
     if (slug) {
       const tenant = await prisma.tenant.findUnique({ where: { slug } });
-      if (!tenant) return res.status(400).json({ error: 'Empresa não encontrada' });
+      if (!tenant) return res.status(400).json({ error: 'Empresa nÃ£o encontrada' });
       tenantId = tenant.id;
     }
 
@@ -190,9 +188,9 @@ router.post('/forgot-password', async (req, res, next) => {
       where: { email, tenantId: tenantId ?? null },
     });
 
-    // Resposta genérica para não revelar se o email existe
+    // Resposta genÃ©rica para nÃ£o revelar se o email existe
     if (!user || !user.ativo) {
-      return res.json({ message: 'Se o email estiver cadastrado, você receberá um link em instantes.' });
+      return res.json({ message: 'Se o email estiver cadastrado, vocÃª receberÃ¡ um link em instantes.' });
     }
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -208,7 +206,22 @@ router.post('/forgot-password', async (req, res, next) => {
 
     await enviarEmailRedefinicao({ para: user.email, nome: user.nome, link });
 
-    res.json({ message: 'Se o email estiver cadastrado, você receberá um link em instantes.' });
+    // Enviar tambÃ©m via WhatsApp (instÃ¢ncia global) se o usuÃ¡rio tiver nÃºmero
+    if (user.whatsapp) {
+      const evoBase = process.env.EVOLUTION_BASE_URL || 'https://api.divulgabr.com.br';
+      const evoInst = process.env.EVOLUTION_GLOBAL_INSTANCE;
+      const evoKey  = process.env.EVOLUTION_GLOBAL_APIKEY;
+      if (evoInst && evoKey) {
+        const waMsg = `ðŸ” *RedefiniÃ§Ã£o de senha â€” Agendix*\n\nClique no link para criar uma nova senha:\n${link}\n\n_Este link expira em 1 hora._`;
+        fetch(`${evoBase}/message/sendText/${evoInst}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: evoKey },
+          body: JSON.stringify({ number: user.whatsapp, text: waMsg }),
+        }).catch(() => {});
+      }
+    }
+
+    res.json({ message: 'Se o email estiver cadastrado, vocÃª receberÃ¡ um link em instantes.' });
   } catch (err) { next(err); }
 });
 
@@ -216,8 +229,8 @@ router.post('/forgot-password', async (req, res, next) => {
 router.post('/reset-password', async (req, res, next) => {
   try {
     const { token, novaSenha } = req.body;
-    if (!token || !novaSenha) return res.status(400).json({ error: 'Token e nova senha são obrigatórios' });
-    if (novaSenha.length < 6) return res.status(400).json({ error: 'Senha mínimo 6 caracteres' });
+    if (!token || !novaSenha) return res.status(400).json({ error: 'Token e nova senha sÃ£o obrigatÃ³rios' });
+    if (novaSenha.length < 6) return res.status(400).json({ error: 'Senha mÃ­nimo 6 caracteres' });
 
     const user = await prisma.user.findFirst({
       where: {
@@ -226,7 +239,7 @@ router.post('/reset-password', async (req, res, next) => {
       },
     });
 
-    if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
+    if (!user) return res.status(400).json({ error: 'Token invÃ¡lido ou expirado' });
 
     const hash = await bcrypt.hash(novaSenha, 10);
     await prisma.user.update({
@@ -234,8 +247,9 @@ router.post('/reset-password', async (req, res, next) => {
       data: { senha: hash, passwordResetToken: null, passwordResetExpires: null },
     });
 
-    res.json({ message: 'Senha redefinida com sucesso. Faça login com sua nova senha.' });
+    res.json({ message: 'Senha redefinida com sucesso. FaÃ§a login com sua nova senha.' });
   } catch (err) { next(err); }
 });
 
 module.exports = router;
+

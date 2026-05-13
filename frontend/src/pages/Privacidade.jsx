@@ -42,7 +42,7 @@ export default function Privacidade() {
         <p>Dados são mantidos enquanto a conta estiver ativa. Após o cancelamento, os dados são removidos em até 90 dias, salvo obrigação legal.</p>
 
         <h2>7. Contato do DPO</h2>
-        <p>Encarregado de Proteção de Dados: <strong>PREENCHA O NOME</strong> — <a href="mailto:suporte@divulgabr.com.br">suporte@divulgabr.com.br</a></p>
+        <p>Encarregado de Proteção de Dados: <strong>Rogério</strong> — <a href="mailto:suporte@divulgabr.com.br">suporte@divulgabr.com.br</a></p>
       </div>
     </div>
   );
