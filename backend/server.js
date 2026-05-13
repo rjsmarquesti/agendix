@@ -8,6 +8,9 @@ const { loginLimiter, agendamentoPublicoLimiter, n8nLimiter, apiGeralLimiter } =
 
 const app = express();
 
+// Necessário para o rate-limit funcionar corretamente atrás do proxy Traefik/EasyPanel
+app.set('trust proxy', 1);
+
 // CSP restritivo para rotas de API; desativado para o formulário público (agendar.html usa scripts inline)
 app.use((req, res, next) => {
   if (req.path === '/agendar.html' || req.path === '/sw.js' || req.path === '/manifest.json') {
