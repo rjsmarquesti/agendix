@@ -21,4 +21,6 @@ RUN mkdir -p uploads/logos backups
 EXPOSE 3000
 
 # Roda migrations + seed + servidor
-CMD ["sh", "-c", "npx prisma migrate deploy && node prisma/seed.js && node server.js"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+CMD ["/entrypoint.sh"]
