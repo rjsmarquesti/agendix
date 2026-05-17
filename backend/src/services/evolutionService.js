@@ -2,14 +2,23 @@ const EVOLUTION_BASE = process.env.EVOLUTION_BASE_URL || 'https://api.divulgabr.
 const GLOBAL_API_KEY = () => process.env.EVOLUTION_GLOBAL_API_KEY || '';
 
 async function evFetch(method, path, body, apiKey) {
-  const res = await fetch(`${EVOLUTION_BASE}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': apiKey || GLOBAL_API_KEY(),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+  let res;
+  try {
+    res = await fetch(`${EVOLUTION_BASE}${path}`, {
+      method,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiKey || GLOBAL_API_KEY(),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;

@@ -77,9 +77,16 @@ router.post('/agendar', resolverTenant, async (req, res, next) => {
     const telefoneNorm = telefone.replace(/\D/g, '');
     if (telefoneNorm.length < 10) return res.status(400).json({ error: 'Telefone inválido.' });
 
-    // Verificar limite de agendamentos/mês do plano
-    const mesAtual = new Date().toISOString().slice(0, 7);
-    const totalMes = await prisma.agendamento.count({ where: { tenantId: req.tenant.id, data: { startsWith: mesAtual } } });
+    // Verificar limite de agendamentos/mês do plano (timezone São Paulo)
+    const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const ano  = agora.getFullYear();
+    const mes  = String(agora.getMonth() + 1).padStart(2, '0');
+    const inicioDia1 = `${ano}-${mes}-01`;
+    const ultimoDia  = new Date(ano, agora.getMonth() + 1, 0).getDate();
+    const fimDia     = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`;
+    const totalMes = await prisma.agendamento.count({
+      where: { tenantId: req.tenant.id, data: { gte: inicioDia1, lte: fimDia } },
+    });
     const limiteAg = LIMITE_AGENDAMENTOS[req.tenant.plano] ?? 60;
     if (totalMes >= limiteAg) {
       return res.status(402).json({ error: 'Agendamentos do mês esgotados. Entre em contato com a empresa.' });

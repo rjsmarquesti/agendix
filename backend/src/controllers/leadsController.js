@@ -60,6 +60,7 @@ exports.nichos = async (req, res, next) => {
       select: { nicho: true, categoria: true },
       distinct: ['nicho', 'categoria'],
       orderBy: { nicho: 'asc' },
+      take: 200, // máximo 200 combinações nicho+categoria por tenant
     });
 
     const mapa = {};

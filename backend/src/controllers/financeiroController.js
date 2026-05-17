@@ -8,6 +8,9 @@ exports.listar = async (req, res, next) => {
     if (tipo)      where.tipo = tipo;
     if (status)    where.status = status;
     if (categoria) where.categoria = categoria;
+    if (dataInicio && dataFim && dataInicio > dataFim) {
+      return res.status(400).json({ error: '"dataInicio" não pode ser maior que "dataFim"' });
+    }
     if (dataInicio || dataFim) {
       where.data = {};
       if (dataInicio) where.data.gte = dataInicio;

@@ -1,8 +1,32 @@
 const router = require('express').Router();
+const { z }  = require('zod');
 const prisma = require('../lib/prisma');
 const parseEndereco = require('../utils/parseEndereco');
 const { handleMessage }    = require('../services/agentService');
 const { handleBotMessage } = require('../services/botAgendamentoService');
+
+const leadImportSchema = z.object({
+  nome_empresa:    z.string().max(255).optional(),
+  nome:            z.string().max(255).optional(),
+  telefone_e164:   z.string().max(30).optional(),
+  telefone:        z.string().max(30).optional(),
+  website:         z.string().url().max(500).optional().or(z.literal('')),
+  facebook:        z.string().max(500).optional(),
+  instagram:       z.string().max(500).optional(),
+  telegram:        z.string().max(100).optional(),
+  especialidades:  z.string().max(1000).optional(),
+  nicho:           z.string().max(100).optional(),
+  categoria:       z.string().max(100).optional(),
+  estado:          z.string().max(2).optional(),
+  cidade:          z.string().max(100).optional(),
+  bairro:          z.string().max(100).optional(),
+  cep:             z.string().max(9).optional(),
+  logradouro:      z.string().max(200).optional(),
+  endereco:        z.string().max(300).optional(),
+  rating:          z.union([z.string(), z.number()]).optional(),
+  reviews:         z.union([z.string(), z.number()]).optional(),
+  reviewsCount:    z.union([z.string(), z.number()]).optional(),
+}).passthrough();
 
 async function apiTokenAuth(req, res, next) {
   // Token exclusivamente via header — query param loga em access logs de proxy/CDN
@@ -37,44 +61,53 @@ router.post('/gmaps', apiTokenAuth, async (req, res) => {
 
   for (const item of lista) {
     try {
-      const nome = (item.nome_empresa || item.nome || '').trim();
+      // Valida e sanitiza cada item antes de processar
+      const parsed = leadImportSchema.safeParse(item);
+      if (!parsed.success) {
+        erros.push({ item: item.nome_empresa || item.nome || '?', erro: 'formato inválido' });
+        ignorados++;
+        continue;
+      }
+      const safeItem = parsed.data;
+
+      const nome = (safeItem.nome_empresa || safeItem.nome || '').trim();
       if (!nome) {
         erros.push({ item: '(sem nome)', erro: 'nome_empresa ausente' });
         continue;
       }
 
-      const addr = parseEndereco(item.endereco);
-      const estado    = (item.estado    || addr.estado    || '').toUpperCase().slice(0, 2) || null;
-      const cidade    = item.cidade    || addr.cidade    || null;
-      const bairro    = item.bairro    || addr.bairro    || null;
-      const cep       = item.cep       || addr.cep       || null;
-      const logradouro = item.logradouro || addr.logradouro || null;
-      const nicho     = (item.nicho || nichoDefault) || null;
+      const addr = parseEndereco(safeItem.endereco);
+      const estado    = (safeItem.estado    || addr.estado    || '').toUpperCase().slice(0, 2) || null;
+      const cidade    = safeItem.cidade    || addr.cidade    || null;
+      const bairro    = safeItem.bairro    || addr.bairro    || null;
+      const cep       = safeItem.cep       || addr.cep       || null;
+      const logradouro = safeItem.logradouro || addr.logradouro || null;
+      const nicho     = (safeItem.nicho || nichoDefault) || null;
 
       // Normaliza rating (pode vir como "4,5" ou "4.5")
-      const ratingRaw = item.rating ? String(item.rating).replace(',', '.') : null;
+      const ratingRaw = safeItem.rating ? String(safeItem.rating).replace(',', '.') : null;
       const rating = ratingRaw ? Number(ratingRaw) || null : null;
 
       // Normaliza reviews (pode vir como "1.234" com ponto de milhar)
-      const reviewsRaw = item.reviews || item.reviewsCount || 0;
+      const reviewsRaw = safeItem.reviews || safeItem.reviewsCount || 0;
       const reviewsCount = Number(String(reviewsRaw).replace(/\D/g, '')) || 0;
 
       await prisma.lead.create({
         data: {
           tenantId,
           nome,
-          telefone:       item.telefone_e164 || item.telefone || null,
-          website:        item.website        || null,
-          facebook:       item.facebook       || null,
-          instagram:      item.instagram      || null,
-          telegram:       item.telegram       || null,
-          especialidades: item.especialidades || null,
+          telefone:       safeItem.telefone_e164 || safeItem.telefone || null,
+          website:        safeItem.website        || null,
+          facebook:       safeItem.facebook       || null,
+          instagram:      safeItem.instagram      || null,
+          telegram:       safeItem.telegram       || null,
+          especialidades: safeItem.especialidades || null,
           origem:         'Google Maps Extrator',
           status:         'novo',
           priority:       'normal',
           fonte:          'google_maps',
           nicho,
-          categoria:      item.categoria      || null,
+          categoria:      safeItem.categoria      || null,
           cep,
           logradouro,
           cidade,
@@ -88,7 +121,7 @@ router.post('/gmaps', apiTokenAuth, async (req, res) => {
       inseridos++;
     } catch (e) {
       if (e.code === 'P2002') { ignorados++; }
-      else { erros.push({ item: item.nome_empresa || item.nome || '?', erro: e.message }); }
+      else { erros.push({ item: safeItem?.nome_empresa || safeItem?.nome || '?', erro: e.message }); }
     }
   }
 

@@ -143,6 +143,9 @@ model Lead {
 
   @@unique([placeId, tenantId])
   @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, telefone])
+  @@index([tenantId, email])
   @@index([nicho])
   @@index([estado])
   @@index([municipio])
@@ -176,6 +179,7 @@ model Agendamento {
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
   @@index([tenantId, data])
+  @@index([tenantId, status])
   @@index([data, status])
   @@index([lembreteEnviado, status])
   @@map("agendamentos")

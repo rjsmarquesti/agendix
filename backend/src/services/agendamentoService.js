@@ -11,9 +11,16 @@ const INCLUDE_LEAD = {
  * Lança erro com status 402 se o limite foi atingido.
  */
 async function verificarLimiteMensal(tenantId, plano) {
-  const mesAtual = new Date().toISOString().slice(0, 7);
+  // Usa data local de São Paulo para evitar bug de virada de mês em UTC
+  const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const ano  = agora.getFullYear();
+  const mes  = String(agora.getMonth() + 1).padStart(2, '0');
+  const inicioDia1 = `${ano}-${mes}-01`;
+  const ultimoDia  = new Date(ano, agora.getMonth() + 1, 0).getDate();
+  const fimDia     = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`;
+
   const totalMes = await prisma.agendamento.count({
-    where: { tenantId, data: { startsWith: mesAtual } },
+    where: { tenantId, data: { gte: inicioDia1, lte: fimDia } },
   });
   const limite = LIMITE_AGENDAMENTOS[plano] ?? 50;
   if (totalMes >= limite) {

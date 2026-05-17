@@ -7,30 +7,49 @@ const TTL_MS = 30 * 60 * 1000; // 30 minutos
 
 // ─── Envio Evolution API ─────────────────────────────────────────────────────
 
-function evolutionPost(tenant, path, payload) {
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function evolutionPost(tenant, path, payload, tentativas = 3) {
   const instance = tenant.evolutionInstance;
   const apiKey   = tenant.evolutionApiKey;
   const baseUrl  = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';
-  if (!instance || !apiKey) return Promise.resolve({ ok: false });
+  if (!instance || !apiKey) return { ok: false };
 
   const body = JSON.stringify(payload);
   const url  = new URL(`${baseUrl}${path}/${instance}`);
 
-  return new Promise(resolve => {
-    const req = https.request({
-      hostname: url.hostname,
-      path:     url.pathname,
-      method:   'POST',
-      headers: { apikey: apiKey, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-    }, res => {
-      let raw = '';
-      res.on('data', d => { raw += d; });
-      res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: raw }));
+  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
+    const resultado = await new Promise(resolve => {
+      const req = https.request({
+        hostname: url.hostname,
+        path:     url.pathname,
+        method:   'POST',
+        timeout:  10000, // 10s timeout por tentativa
+        headers: { apikey: apiKey, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      }, res => {
+        let raw = '';
+        res.on('data', d => { raw += d; });
+        res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: raw }));
+      });
+      req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 408 }); });
+      req.on('error', () => resolve({ ok: false }));
+      req.write(body);
+      req.end();
     });
-    req.on('error', () => resolve({ ok: false }));
-    req.write(body);
-    req.end();
-  });
+
+    if (resultado.ok) return resultado;
+
+    // Não retentar em erros de payload (4xx exceto 429)
+    if (resultado.status >= 400 && resultado.status < 500 && resultado.status !== 429) {
+      return resultado;
+    }
+
+    if (tentativa < tentativas) {
+      await sleep(500 * Math.pow(2, tentativa - 1)); // 500ms, 1s, 2s
+    }
+  }
+
+  return { ok: false };
 }
 
 async function sendWA(tenant, phone, text) {
