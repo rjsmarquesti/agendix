@@ -89,9 +89,25 @@ exports.atualizar = async (req, res, next) => {
     const existe = await prisma.agendamento.findFirst({ where: { id: Number(req.params.id), tenantId: req.user.tenantId } });
     if (!existe) return res.status(404).json({ error: 'Agendamento não encontrado' });
 
+    // Re-valida double-booking se data ou hora mudaram
+    const novaData = data || existe.data;
+    const novaHora = hora || existe.hora;
+    if ((data && data !== existe.data) || (hora && hora !== existe.hora)) {
+      const conflito = await prisma.agendamento.findFirst({
+        where: {
+          tenantId: req.user.tenantId,
+          data: novaData,
+          hora: novaHora,
+          status: { in: ['marcado', 'confirmado'] },
+          id: { not: existe.id },
+        },
+      });
+      if (conflito) return res.status(409).json({ error: 'Horário já reservado. Escolha outro.' });
+    }
+
     const agendamento = await prisma.agendamento.update({
-      where: { id: Number(req.params.id), tenantId: req.user.tenantId },
-      data: { leadId: Number(lead_id), data, hora, tipo, status, observacoes },
+      where: { id: existe.id, tenantId: req.user.tenantId },
+      data: { leadId: Number(lead_id), data: novaData, hora: novaHora, tipo, status, observacoes },
       include: incluirLead,
     });
     if (status === 'confirmado' && existe.status !== 'confirmado') {

@@ -155,7 +155,7 @@ exports.atualizar = async (req, res, next) => {
     if (!existe) return res.status(404).json({ error: 'Lead não encontrado' });
 
     const lead = await prisma.lead.update({
-      where: { id: Number(req.params.id) },
+      where: { id: existe.id, tenantId: req.user.tenantId },
       data: montarDadosLead({ ...existe, ...req.body }),
     });
 
@@ -173,7 +173,7 @@ exports.deletar = async (req, res, next) => {
     });
     if (!existe) return res.status(404).json({ error: 'Lead não encontrado' });
 
-    await prisma.lead.delete({ where: { id: Number(req.params.id) } });
+    await prisma.lead.delete({ where: { id: existe.id, tenantId: req.user.tenantId } });
     res.json({ message: 'Lead removido' });
   } catch (err) { next(err); }
 };

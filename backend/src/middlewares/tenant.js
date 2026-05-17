@@ -14,6 +14,11 @@ module.exports = async (req, res, next) => {
 
     if (!slug) return res.status(400).json({ error: 'Tenant não identificado' });
 
+    // Valida formato do slug — apenas letras minúsculas, números e hífens
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+      return res.status(400).json({ error: 'Tenant inválido' });
+    }
+
     const tenant = await prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) return res.status(404).json({ error: 'Empresa não encontrada' });
     if (!tenant.ativo) return res.status(403).json({ error: 'Empresa inativa' });

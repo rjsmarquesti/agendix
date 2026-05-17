@@ -5,8 +5,9 @@ const { handleMessage }    = require('../services/agentService');
 const { handleBotMessage } = require('../services/botAgendamentoService');
 
 async function apiTokenAuth(req, res, next) {
-  const token = req.headers['x-api-token'] || req.query.token;
-  if (!token) return res.status(401).json({ error: 'Token obrigatório (header X-API-Token ou ?token=)' });
+  // Token exclusivamente via header — query param loga em access logs de proxy/CDN
+  const token = req.headers['x-api-token'];
+  if (!token) return res.status(401).json({ error: 'Token obrigatório (header X-API-Token)' });
   const tenant = await prisma.tenant.findFirst({ where: { apiToken: token, ativo: true } });
   if (!tenant) return res.status(401).json({ error: 'Token inválido ou empresa inativa' });
   req.tenant = tenant;
@@ -95,13 +96,24 @@ router.post('/gmaps', apiTokenAuth, async (req, res) => {
 });
 
 // POST /api/webhook/agente/:slug
-// Recebe eventos da Evolution API — sem JWT, validado por slug
+// Recebe eventos da Evolution API — validado por slug + token da instância
 router.post('/agente/:slug', async (req, res) => {
+  // Valida formato do slug antes de consultar o banco
+  if (!/^[a-z0-9-]+$/.test(req.params.slug)) {
+    return res.status(400).json({ error: 'Slug inválido' });
+  }
+
   res.json({ ok: true }); // responde imediatamente para a Evolution API não retentar
 
   try {
     const tenant = await prisma.tenant.findFirst({ where: { slug: req.params.slug, ativo: true } });
     if (!tenant) return;
+
+    // Valida token da instância Evolution (se configurado no tenant)
+    if (tenant.evolutionApiKey) {
+      const apikey = req.headers['apikey'] || req.headers['x-api-key'];
+      if (!apikey || apikey !== tenant.evolutionApiKey) return;
+    }
 
     const event = req.body?.event;
     if (event !== 'messages.upsert') return;

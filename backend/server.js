@@ -18,7 +18,16 @@ app.use((req, res, next) => {
   }
   return helmet()(req, res, next);
 });
-app.use(cors({ exposedHeaders: ['X-Tenant-Slug', 'X-Correlation-Id'] }));
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000').split(',').map(o => o.trim());
+app.use(cors({
+  origin: (origin, cb) => {
+    // Permite requisições sem origin (mobile apps, curl, Postman, webhooks server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origem não permitida — ${origin}`));
+  },
+  credentials: true,
+  exposedHeaders: ['X-Tenant-Slug', 'X-Correlation-Id'],
+}));
 // Webhook MP precisa de body raw para validar assinatura HMAC
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());

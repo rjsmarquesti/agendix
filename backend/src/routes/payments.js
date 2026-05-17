@@ -223,24 +223,29 @@ router.post('/webhook', async (req, res) => {
 
         await prisma.tenant.update({ where: { id: tenantId }, data: updateData });
 
-        // Grava receita no financeiro admin ao autorizar pagamento
+        // Grava receita no financeiro admin ao autorizar pagamento — idempotente por referencia
         const planoParaReceita = updateData.planoDowngradePendente === null
           ? tenantAtual?.planoDowngradePendente ?? planName
           : planName;
         if (sub.status === 'authorized' && planoParaReceita) {
-          const valor = PRECO_PLANO[planoParaReceita] ?? 0;
-          await prisma.adminLancamento.create({
-            data: {
-              tipo: 'receita',
-              categoria: 'assinatura',
-              descricao: `Assinatura ${planoParaReceita} — ${tenantAtual?.nome || `Tenant #${tenantId}`}`,
-              valor,
-              data: new Date(),
-              status: 'pago',
-              referencia: data.id,
-              tenantId,
-            },
+          const jaRegistrada = await prisma.adminLancamento.findFirst({
+            where: { referencia: data.id, categoria: 'assinatura' },
           });
+          if (!jaRegistrada) {
+            const valor = PRECO_PLANO[planoParaReceita] ?? 0;
+            await prisma.adminLancamento.create({
+              data: {
+                tipo: 'receita',
+                categoria: 'assinatura',
+                descricao: `Assinatura ${planoParaReceita} — ${tenantAtual?.nome || `Tenant #${tenantId}`}`,
+                valor,
+                data: new Date(),
+                status: 'pago',
+                referencia: data.id,
+                tenantId,
+              },
+            });
+          }
         }
       }
     }
