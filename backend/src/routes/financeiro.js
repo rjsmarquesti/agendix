@@ -5,7 +5,7 @@ const { MODULO_FINANCEIRO } = require('../config/planos');
 
 function requireFinanceiro(req, res, next) {
   if (!MODULO_FINANCEIRO[req.tenant.plano]) {
-    return res.status(402).json({ error: 'Módulo financeiro disponível a partir do plano Pro.', upgrade: true });
+    return res.status(403).json({ error: 'Módulo financeiro disponível a partir do plano Pro.', upgrade: true });
   }
   next();
 }
@@ -13,7 +13,7 @@ function requireFinanceiro(req, res, next) {
 // Dashboard completo e relatórios só para Business
 function requireFinanceiroCompleto(req, res, next) {
   if (MODULO_FINANCEIRO[req.tenant.plano] !== 'completo') {
-    return res.status(402).json({ error: 'Recurso disponível apenas no plano Business.', upgrade: true, nivelAtual: MODULO_FINANCEIRO[req.tenant.plano] });
+    return res.status(403).json({ error: 'Recurso disponível apenas no plano Business.', upgrade: true, nivelAtual: MODULO_FINANCEIRO[req.tenant.plano] });
   }
   next();
 }

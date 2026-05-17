@@ -155,7 +155,7 @@ router.get('/agendamentos', apiTokenAuth, async (req, res, next) => {
 router.post('/agendamentos', apiTokenAuth, async (req, res, next) => {
   try {
     if (!BOT_WHATSAPP[req.tenant.plano]) {
-      return res.status(402).json({ error: 'Bot WhatsApp não disponível no plano atual. Faça upgrade.' });
+      return res.status(403).json({ error: 'Bot WhatsApp não disponível no plano atual. Faça upgrade.' });
     }
 
     const { lead_id, cliente_nome, cliente_telefone, data, hora, tipo, observacoes, servicoId } = req.body;
@@ -166,7 +166,7 @@ router.post('/agendamentos', apiTokenAuth, async (req, res, next) => {
     const totalMes = await prisma.agendamento.count({ where: { tenantId: req.tenant.id, data: { startsWith: mesAtual } } });
     const limiteAg = LIMITE_AGENDAMENTOS[req.tenant.plano] ?? 50;
     if (totalMes >= limiteAg) {
-      return res.status(402).json({ error: `Limite de ${limiteAg} agendamentos/mês atingido.` });
+      return res.status(403).json({ error: `Limite de ${limiteAg} agendamentos/mês atingido.` });
     }
 
     const svcId = servicoId ? parseInt(servicoId) : null;
@@ -262,7 +262,7 @@ router.get('/disponibilidade', apiTokenAuth, async (req, res, next) => {
 router.get('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
   try {
     if (!BOT_WHATSAPP[req.tenant.plano]) {
-      return res.status(402).json({ error: 'Bot WhatsApp não disponível no plano atual.' });
+      return res.status(403).json({ error: 'Bot WhatsApp não disponível no plano atual.' });
     }
     const telefone = req.params.telefone.replace(/\D/g, '');
     const conversa = await prisma.conversaWhatsapp.findUnique({
@@ -287,7 +287,7 @@ router.get('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
 router.put('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
   try {
     if (!BOT_WHATSAPP[req.tenant.plano]) {
-      return res.status(402).json({ error: 'Bot WhatsApp não disponível no plano atual.' });
+      return res.status(403).json({ error: 'Bot WhatsApp não disponível no plano atual.' });
     }
     const telefone = req.params.telefone.replace(/\D/g, '');
     const { estado, dadosJson } = req.body;
@@ -307,7 +307,7 @@ router.put('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
 router.delete('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
   try {
     if (!BOT_WHATSAPP[req.tenant.plano]) {
-      return res.status(402).json({ error: 'Bot WhatsApp não disponível no plano atual.' });
+      return res.status(403).json({ error: 'Bot WhatsApp não disponível no plano atual.' });
     }
     const telefone = req.params.telefone.replace(/\D/g, '');
     await prisma.conversaWhatsapp.deleteMany({

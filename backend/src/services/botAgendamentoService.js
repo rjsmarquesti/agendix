@@ -7,14 +7,14 @@ const TTL_MS = 30 * 60 * 1000; // 30 minutos
 
 // ─── Envio Evolution API ─────────────────────────────────────────────────────
 
-async function sendWA(tenant, phone, text) {
+function evolutionPost(tenant, path, payload) {
   const instance = tenant.evolutionInstance;
   const apiKey   = tenant.evolutionApiKey;
   const baseUrl  = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';
-  if (!instance || !apiKey) return;
+  if (!instance || !apiKey) return Promise.resolve({ ok: false });
 
-  const body = JSON.stringify({ number: phone, text });
-  const url  = new URL(`${baseUrl}/message/sendText/${instance}`);
+  const body = JSON.stringify(payload);
+  const url  = new URL(`${baseUrl}${path}/${instance}`);
 
   return new Promise(resolve => {
     const req = https.request({
@@ -22,11 +22,44 @@ async function sendWA(tenant, phone, text) {
       path:     url.pathname,
       method:   'POST',
       headers: { apikey: apiKey, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-    }, res => { res.resume(); res.on('end', resolve); });
-    req.on('error', resolve);
+    }, res => {
+      let raw = '';
+      res.on('data', d => { raw += d; });
+      res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: raw }));
+    });
+    req.on('error', () => resolve({ ok: false }));
     req.write(body);
     req.end();
   });
+}
+
+async function sendWA(tenant, phone, text) {
+  return evolutionPost(tenant, '/message/sendText', { number: phone, text });
+}
+
+async function sendWAList(tenant, phone, slots, data) {
+  const emojis = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟',
+                  '1️⃣1️⃣','1️⃣2️⃣','1️⃣3️⃣','1️⃣4️⃣','1️⃣5️⃣','1️⃣6️⃣','1️⃣7️⃣','1️⃣8️⃣','1️⃣9️⃣','2️⃣0️⃣',
+                  '2️⃣1️⃣','2️⃣2️⃣','2️⃣3️⃣','2️⃣4️⃣','2️⃣5️⃣','2️⃣6️⃣','2️⃣7️⃣','2️⃣8️⃣','2️⃣9️⃣','3️⃣0️⃣','3️⃣1️⃣'];
+
+  const result = await evolutionPost(tenant, '/message/sendList', {
+    number: phone,
+    title: `📅 Horários — ${formatDataBR(data)}`,
+    description: 'Toque em um horário para selecioná-lo:',
+    buttonText: 'Ver horários',
+    footerText: 'AgendaBot',
+    sections: [{
+      title: 'Disponíveis',
+      rows: slots.map(s => ({ title: s, rowId: s })),
+    }],
+  });
+
+  // Fallback para texto se sendList falhar (versão Evolution API sem suporte ou erro de formato)
+  if (!result.ok) {
+    console.error('[sendWAList] Evolution API rejeitou sendList — status:', result.status, '— body:', result.body);
+    const lista = slots.map((s, i) => `${emojis[i] || (i + 1) + '.'} ${s}`).join('\n');
+    await sendWA(tenant, phone, `📅 Horários disponíveis para *${formatDataBR(data)}*:\n\n${lista}\n\nDigite o número ou o horário desejado.`);
+  }
 }
 
 // ─── Conversa (CRUD) ─────────────────────────────────────────────────────────
@@ -184,10 +217,6 @@ function msgEscolhaData(servicoNome) {
   return `Ótimo! *${servicoNome}* selecionado. 📅\n\nQual data você prefere?\n(ex: amanhã, 15/06, 20/06/2026)`;
 }
 
-function msgSlotsDisponiveis(slots, data) {
-  const lista = slots.map((s, i) => `${i + 1}. ${s}`).join('\n');
-  return `Horários disponíveis para *${formatDataBR(data)}*:\n\n${lista}\n\nDigite o número ou o horário desejado.`;
-}
 
 function msgPedirNome() {
   return 'Perfeito! 😊 Qual o seu nome completo?';
@@ -273,7 +302,7 @@ async function handleAguardandoData(tenant, phone, text, conversa) {
 
   const novosDados = { ...dados, data: dataISO, slots };
   await saveConversa(tenant.id, phone, 'aguardando_slot', novosDados);
-  await sendWA(tenant, phone, msgSlotsDisponiveis(slots, dataISO));
+  await sendWAList(tenant, phone, slots, dataISO);
 }
 
 async function handleAguardandoSlot(tenant, phone, text, conversa) {
@@ -282,7 +311,7 @@ async function handleAguardandoSlot(tenant, phone, text, conversa) {
 
   const slotEscolhido = parseSlot(text, slots);
   if (!slotEscolhido) {
-    await sendWA(tenant, phone, `Horário não encontrado. Digite o número da lista ou o horário (ex: 09:00).\n\n${msgSlotsDisponiveis(slots, dados.data)}`);
+    await sendWAList(tenant, phone, slots, dados.data);
     return;
   }
 

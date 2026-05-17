@@ -1,4 +1,4 @@
-# Anúncios por Nicho — Agendix
+﻿# Anúncios por Nicho — Agendix
 
 ---
 
@@ -144,10 +144,10 @@ O Agendix resolve isso:
 
 Mais de 2.400 profissionais já usam.
 
-👇 Teste grátis por 14 dias — sem cartão
+👇 Teste grátis por 30 dias — sem cartão
 ```
 **Título (headline):** `Esteticista: sua agenda cheia sem responder WhatsApp`  
-**Descrição:** `14 dias grátis. Configura em 5 minutos.`  
+**Descrição:** `30 dias grátis. Configura em 5 minutos.`  
 **CTA:** Saiba mais  
 **URL:** `/estetica?utm_source=meta&utm_medium=pago&utm_campaign=estetica`
 
@@ -169,10 +169,10 @@ O Agendix dá à sua clínica de estética:
 🤖 Bot que confirma horários automaticamente
 📊 Controle financeiro por procedimento
 
-Teste 14 dias grátis 👇
+Teste 30 dias grátis 👇
 ```
 **Título:** `+35% faturamento com agenda automática`  
-**Descrição:** `Para esteticistas. Sem cartão. 14 dias grátis.`  
+**Descrição:** `Para esteticistas. Sem cartão. 30 dias grátis.`  
 **CTA:** Saiba mais  
 
 ---
@@ -184,7 +184,7 @@ Teste 14 dias grátis 👇
 ```
 O bot do Agendix responde, verifica horário e confirma o agendamento — enquanto você está atendendo.
 
-14 dias grátis 👆
+30 dias grátis 👆
 ```
 **CTA:** Arraste para cima / Saiba mais
 
@@ -208,7 +208,7 @@ Títulos (cadastre todos, o Google escolhe a combinação):
 ```
 Agenda Online para Esteticistas
 Bot WhatsApp para Clínica Estética
-Sistema de Agendamento — 14 Dias Grátis
+Sistema de Agendamento — 30 dias Grátis
 Clínica de Estética Organizada
 Reduza Faltas com Lembretes Automáticos
 Agendix para Esteticistas
@@ -217,7 +217,7 @@ Agenda que Funciona no Celular
 
 Descrições:
 ```
-Clientes agendam pelo link, bot WhatsApp confirma, lembretes automáticos reduzem faltas. Teste grátis 14 dias.
+Clientes agendam pelo link, bot WhatsApp confirma, lembretes automáticos reduzem faltas. Teste grátis 30 dias.
 Configure em 5 minutos. Sem cartão. Mais de 2.400 profissionais de beleza já usam o Agendix.
 ```
 
@@ -259,10 +259,10 @@ O Agendix organiza tudo:
 📲 Link do seu salão pra colocar no Instagram
 📊 Controle de receita por serviço
 
-Mais de 2.400 negócios já usam. Teste grátis 14 dias.
+Mais de 2.400 negócios já usam. Teste grátis 30 dias.
 ```
 **Título:** `Salão de Beleza: fim da agenda bagunçada`  
-**Descrição:** `Organiza todos os profissionais. 14 dias grátis, sem cartão.`  
+**Descrição:** `Organiza todos os profissionais. 30 dias grátis, sem cartão.`  
 **CTA:** Saiba mais  
 **URL:** `/salao?utm_source=meta&utm_medium=pago&utm_campaign=salao`
 
@@ -282,10 +282,10 @@ Se o seu salão tem mais de 1 profissional, você precisa ver o Agendix.
 ✅ Lembretes que reduzem faltas
 ✅ Link exclusivo do seu salão
 
-14 dias grátis 👇
+30 dias grátis 👇
 ```
 **Título:** `Organize a agenda de todo o seu salão`  
-**Descrição:** `Multi-profissional. Bot WhatsApp. 14 dias grátis.`
+**Descrição:** `Multi-profissional. Bot WhatsApp. 30 dias grátis.`
 
 ---
 
@@ -295,7 +295,7 @@ Se o seu salão tem mais de 1 profissional, você precisa ver o Agendix.
 ```
 Bot WhatsApp do Agendix responde, verifica horário e confirma — sem você tocar no celular.
 
-👆 14 dias grátis
+👆 30 dias grátis
 ```
 
 ---
@@ -317,14 +317,14 @@ Sistema para Salão de Beleza
 Agenda Online — Salão e Barbearia
 Bot WhatsApp para Salão — Grátis
 Organiza Todos os Profissionais
-14 Dias Grátis — Sem Cartão
+30 dias Grátis — Sem Cartão
 Agendix para Salão de Beleza
 ```
 
 **Descrições:**
 ```
 Agenda por profissional, bot WhatsApp automático e link do salão para o Instagram. Configure em 5 minutos.
-Mais de 2.400 salões e barbearias usam o Agendix. Teste grátis 14 dias, sem cartão de crédito.
+Mais de 2.400 salões e barbearias usam o Agendix. Teste grátis 30 dias, sem cartão de crédito.
 ```
 
 ---
@@ -364,10 +364,10 @@ O Agendix para advogados:
 
 Profissional, discreto e fácil de usar.
 
-14 dias grátis 👇
+30 dias grátis 👇
 ```
 **Título:** `Advogado: agenda de consultas sem secretária o dia todo`  
-**Descrição:** `Clientes agendam sozinhos. LGPD. 14 dias grátis.`  
+**Descrição:** `Clientes agendam sozinhos. LGPD. 30 dias grátis.`  
 **CTA:** Saiba mais  
 **URL:** `/advocacia?utm_source=meta&utm_medium=pago&utm_campaign=advocacia`
 
@@ -385,10 +385,10 @@ O Agendix dá ao seu escritório:
 ✅ Controle de honorários por cliente
 ✅ Gestão de toda a equipe — sócios, associados e estagiários
 
-14 dias grátis — sem cartão
+30 dias grátis — sem cartão
 ```
 **Título:** `Escritório mais produtivo com agenda automática`  
-**Descrição:** `Para advogados e escritórios. LGPD. Teste 14 dias.`
+**Descrição:** `Para advogados e escritórios. LGPD. Teste 30 dias.`
 
 ---
 
@@ -409,7 +409,7 @@ Agenda de Consultas para Advogados
 Sistema para Escritório de Advocacia
 Clientes Agendam Sozinhos — LGPD
 Gestão de Consultas Jurídicas
-14 Dias Grátis — Experimente
+30 dias Grátis — Experimente
 Agendix para Advogados
 Reduza Faltas em Consultas
 ```
@@ -417,7 +417,7 @@ Reduza Faltas em Consultas
 **Descrições:**
 ```
 Clientes marcam consulta pelo link, recebem lembrete automático e você só aparece na hora certa. LGPD compliant.
-Agenda profissional para advogados e escritórios. Controle de honorários. Configure em 5 minutos. 14 dias grátis.
+Agenda profissional para advogados e escritórios. Controle de honorários. Configure em 5 minutos. 30 dias grátis.
 ```
 
 ---
@@ -458,10 +458,10 @@ Para psicólogos e psicanalistas:
 
 Discreto. Simples. Funciona no celular.
 
-14 dias grátis 👇
+30 dias grátis 👇
 ```
 **Título:** `Psicólogo: reduza faltas com lembretes automáticos`  
-**Descrição:** `Agenda de sessões online. LGPD. 14 dias grátis.`  
+**Descrição:** `Agenda de sessões online. LGPD. 30 dias grátis.`  
 **CTA:** Saiba mais  
 **URL:** `/psicologia?utm_source=meta&utm_medium=pago&utm_campaign=psicologia`
 
@@ -481,10 +481,10 @@ O Agendix dá ao seu consultório um link profissional de agendamento. O pacient
 ✅ Dados com proteção total — LGPD
 ✅ Funciona como um app, sem instalar nada
 
-14 dias grátis — sem cartão
+30 dias grátis — sem cartão
 ```
 **Título:** `Consultório profissional com agenda online`  
-**Descrição:** `Para psicólogos. LGPD. Sem cartão. 14 dias grátis.`
+**Descrição:** `Para psicólogos. LGPD. Sem cartão. 30 dias grátis.`
 
 ---
 
@@ -505,14 +505,14 @@ Agenda de Sessões para Psicólogos
 Sistema para Consultório de Psicologia
 Reduza Faltas com Lembretes Automáticos
 Agenda Online — LGPD e Sigilo
-14 Dias Grátis — Psicólogos
+30 dias Grátis — Psicólogos
 Agendix para Psicólogos
 Presencial e Online Integrados
 ```
 
 **Descrições:**
 ```
-Pacientes agendam sessões pelo link, recebem lembrete automático e você reduz faltas. LGPD. 14 dias grátis.
+Pacientes agendam sessões pelo link, recebem lembrete automático e você reduz faltas. LGPD. 30 dias grátis.
 Para psicólogos e psicanalistas. Sigilo, LGPD, agenda presencial e online integradas. Configure em 5 minutos.
 ```
 
@@ -553,10 +553,10 @@ Com o Agendix sua ótica:
 
 75% dos clientes que fazem o exame saem com óculos novos.
 
-14 dias grátis 👇
+30 dias grátis 👇
 ```
 **Título:** `Ótica: agende exames grátis e converta em vendas`  
-**Descrição:** `Bot WhatsApp + agenda online. 14 dias grátis.`  
+**Descrição:** `Bot WhatsApp + agenda online. 30 dias grátis.`  
 **CTA:** Saiba mais  
 **URL:** `/otica?utm_source=meta&utm_medium=pago&utm_campaign=otica`
 
@@ -576,10 +576,10 @@ O Agendix guarda a data do último exame e te avisa quando o cliente está no pr
 ✅ Bot WhatsApp que agenda automaticamente
 ✅ Lembretes de retorno para clientes antigos
 
-14 dias grátis — sem cartão
+30 dias grátis — sem cartão
 ```
 **Título:** `Ótica: traga clientes antigos de volta automaticamente`  
-**Descrição:** `CRM + agenda online + bot WA. 14 dias grátis.`
+**Descrição:** `CRM + agenda online + bot WA. 30 dias grátis.`
 
 ---
 
@@ -589,7 +589,7 @@ O Agendix guarda a data do último exame e te avisa quando o cliente está no pr
 ```
 O Agendix agenda o exame automaticamente. Você só aparece para atender — e vender óculos.
 
-👆 14 dias grátis
+👆 30 dias grátis
 ```
 
 ---
@@ -607,7 +607,7 @@ exame de vista agendamento online
 
 **Títulos:**
 ```
-Sistema para Ótica — 14 Dias Grátis
+Sistema para Ótica — 30 dias Grátis
 Agende Exames de Vista Online
 Bot WhatsApp para Ótica
 CRM para Ótica e Optometrista
@@ -619,7 +619,7 @@ Mais Clientes com Exame Grátis
 **Descrições:**
 ```
 Clientes agendam exame grátis pelo link, bot WhatsApp confirma, você vende óculos. Configure em 5 minutos.
-Histórico de grau, data do exame e alertas de retorno. Mais de 2.400 negócios usam o Agendix. 14 dias grátis.
+Histórico de grau, data do exame e alertas de retorno. Mais de 2.400 negócios usam o Agendix. 30 dias grátis.
 ```
 
 ---
@@ -742,7 +742,7 @@ Métricas para olhar:
 | Ótica | R$ 25 | R$ 20 | R$ 1.350 |
 | **Total** | | | **~R$ 6.450/mês** |
 
-> **Recomendação:** não suba os 5 nichos ao mesmo tempo. Comece com 2 (esteticista + ótica — maior potencial de conversão rápida), rode por 14 dias, analise qual converte melhor e aí expande.
+> **Recomendação:** não suba os 5 nichos ao mesmo tempo. Comece com 2 (esteticista + ótica — maior potencial de conversão rápida), rode por 30 dias, analise qual converte melhor e aí expande.
 
 ---
 

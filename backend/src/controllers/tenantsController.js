@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
-const { provisionarWorkflows, removerWorkflows } = require('../services/n8nProvisioningService');
+const { provisionarWorkflows, removerWorkflows, desativarWorkflows, ativarWorkflows } = require('../services/n8nProvisioningService');
 const { createInstance, deleteInstance } = require('../services/evolutionService');
 const audit = require('../lib/audit');
 
@@ -80,15 +80,62 @@ exports.criar = async (req, res, next) => {
 
 exports.atualizar = async (req, res, next) => {
   try {
-    const { nome, slug, logo, corPrimaria, plano, modulos, ativo, planoStatus, planoVencimento } = req.body;
-    const tenant = await prisma.tenant.update({
-      where: { id: Number(req.params.id) },
-      data: {
-        nome, slug, logo: logo || null, corPrimaria, plano, modulos, ativo,
-        planoStatus: planoStatus || undefined,
-        planoVencimento: planoVencimento ? new Date(planoVencimento) : undefined,
-      },
+    const { nome, slug, logo, corPrimaria, plano, modulos, ativo, planoStatus, planoVencimento, n8nAtivo } = req.body;
+    const id = Number(req.params.id);
+
+    const tenantAntes = await prisma.tenant.findUnique({
+      where: { id },
+      select: { n8nAtivo: true, n8nWorkflowWaId: true, n8nWorkflowNotifId: true, slug: true, nome: true },
     });
+
+    // Monta objeto de update apenas com campos presentes no body
+    const updateData = {};
+    if (nome       !== undefined) updateData.nome        = nome;
+    if (slug       !== undefined) updateData.slug        = slug;
+    if (logo       !== undefined) updateData.logo        = logo || null;
+    if (corPrimaria!== undefined) updateData.corPrimaria = corPrimaria;
+    if (plano      !== undefined) updateData.plano       = plano;
+    if (modulos    !== undefined) updateData.modulos     = modulos;
+    if (ativo      !== undefined) updateData.ativo       = ativo;
+    if (planoStatus!== undefined) updateData.planoStatus = planoStatus;
+    if (planoVencimento !== undefined) {
+      const d = planoVencimento ? new Date(planoVencimento) : null;
+      updateData.planoVencimento = d && !isNaN(d.getTime()) ? d : null;
+    }
+    if (n8nAtivo   !== undefined) updateData.n8nAtivo   = Boolean(n8nAtivo);
+
+    const tenant = await prisma.tenant.update({ where: { id }, data: updateData });
+
+    // Provisionamento automático sempre que n8nAtivo=true e ainda sem workflows
+    const semWorkflows = !tenantAntes?.n8nWorkflowWaId && !tenantAntes?.n8nWorkflowNotifId;
+    const ativandoN8n  = n8nAtivo !== undefined && Boolean(n8nAtivo) === true;
+    const desativandoN8n = n8nAtivo !== undefined && Boolean(n8nAtivo) === false;
+
+    if (ativandoN8n && semWorkflows && process.env.N8N_BASE_URL && process.env.N8N_API_KEY) {
+      try {
+        const { waId, notifId, webhookUrl } = await provisionarWorkflows(tenant);
+        await prisma.tenant.update({
+          where: { id },
+          data: { n8nWorkflowWaId: waId, n8nWorkflowNotifId: notifId, n8nWebhookUrl: webhookUrl },
+        });
+        tenant.n8nWorkflowWaId    = waId;
+        tenant.n8nWorkflowNotifId = notifId;
+        tenant.n8nWebhookUrl      = webhookUrl;
+      } catch (errProv) {
+        console.error('[n8n] Falha ao provisionar automaticamente:', errProv.message);
+        tenant._n8nError = errProv.message;
+      }
+    }
+
+    // Ativar/desativar workflows no n8n conforme toggle
+    if (process.env.N8N_BASE_URL && process.env.N8N_API_KEY) {
+      if (ativandoN8n && !semWorkflows) {
+        ativarWorkflows(tenant).catch(e => console.error('[n8n] Falha ao ativar workflows:', e.message));
+      } else if (desativandoN8n) {
+        desativarWorkflows(tenant).catch(e => console.error('[n8n] Falha ao desativar workflows:', e.message));
+      }
+    }
+
     res.json({ tenant });
   } catch (err) {
     if (err.code === 'P2002') return res.status(400).json({ error: 'Slug já em uso' });
@@ -108,7 +155,11 @@ exports.deletar = async (req, res, next) => {
       }
     }
     if (tenant?.evolutionInstance) {
-      deleteInstance(tenant.evolutionInstance, tenant.evolutionApiKey).catch(() => {});
+      try {
+        await deleteInstance(tenant.evolutionInstance, tenant.evolutionApiKey);
+      } catch (err) {
+        console.error(`[evolution] Falha ao deletar instância de ${tenant.slug}:`, err.message);
+      }
     }
     await prisma.tenant.delete({ where: { id } });
     audit.log('tenant_deletado', { entidade: 'tenant', entidadeId: id, userId: req.user?.id, ip: req.ip, detalhes: { nome: tenant?.nome, slug: tenant?.slug } });
@@ -142,6 +193,8 @@ exports.criarEvolution = async (req, res, next) => {
   try {
     const tenant = await prisma.tenant.findUnique({ where: { id: Number(req.params.id) } });
     if (!tenant) return res.status(404).json({ error: 'Empresa não encontrada' });
+    // Garante que instância anterior seja removida antes de criar (evita conflito no Evolution API)
+    await deleteInstance(tenant.slug, tenant.evolutionApiKey).catch(() => {});
     const result = await createInstance(tenant.slug);
     const apiKey = result?.hash?.apikey || result?.apikey || null;
     const updated = await prisma.tenant.update({

@@ -98,14 +98,16 @@ export default function Login() {
         headers: { 'Content-Type': 'application/json', ...(form.slug.trim() ? { 'X-Tenant-Slug': form.slug.trim() } : {}) },
         body: JSON.stringify({ email: form.email, senha: form.senha }),
       });
-      const data = await res.json();
+      let data;
+      try { data = await res.json(); } catch { data = { error: `Erro ${res.status} — resposta inválida do servidor` }; }
       if (!res.ok && (res.status === 400 || res.status === 404) && !form.slug.trim()) {
         const res2 = await fetch('/api/auth/super-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: form.email, senha: form.senha }),
         });
-        const data2 = await res2.json();
+        let data2;
+        try { data2 = await res2.json(); } catch { data2 = { error: `Erro ${res2.status} — resposta inválida do servidor` }; }
         if (!res2.ok) throw new Error(data2.error || 'Email ou senha incorretos');
         login(data2); navigate('/'); return;
       }

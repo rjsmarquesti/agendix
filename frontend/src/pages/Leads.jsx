@@ -30,44 +30,97 @@ const EMPTY_FORM = {
   facebook:'', instagram:'', telegram:'', especialidades:'',
 };
 
-function buildLeadsPrintHTML(items, { busca, filtroStatus, filtroNicho, total }, tenantNome) {
+function printHeader(tenant, titulo, meta) {
+  const cor    = tenant?.corPrimaria || '#2563eb';
+  const nome   = tenant?.nome || 'CRM';
+  const logo   = tenant?.logo || '';
+  const inicial = nome[0]?.toUpperCase() || 'C';
+  const data   = new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' });
+  const logoHtml = logo
+    ? `<img src="${logo}" alt="logo" style="height:52px;width:52px;object-fit:contain;border-radius:8px;border:1px solid #e5e7eb;padding:3px;background:#fff;">`
+    : `<div style="height:52px;width:52px;border-radius:8px;background:${cor};display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:800;flex-shrink:0;">${inicial}</div>`;
+  return `
+    <div style="print-color-adjust:exact;-webkit-print-color-adjust:exact;border-top:4px solid ${cor};padding-top:16px;margin-bottom:20px;">
+      <table width="100%" style="border-collapse:collapse;">
+        <tr>
+          <td style="vertical-align:middle;width:60px;">${logoHtml}</td>
+          <td style="vertical-align:middle;padding-left:14px;">
+            <div style="font-size:20px;font-weight:800;color:#111;letter-spacing:-0.3px;">${nome}</div>
+            <div style="font-size:13px;font-weight:700;color:${cor};margin-top:2px;">${titulo}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:3px;">${meta}</div>
+          </td>
+          <td style="vertical-align:top;text-align:right;white-space:nowrap;">
+            <div style="font-size:10px;color:#9ca3af;">Emitido em</div>
+            <div style="font-size:11px;font-weight:600;color:#6b7280;">${data}</div>
+          </td>
+        </tr>
+      </table>
+      <div style="height:1px;background:${cor};opacity:0.2;margin-top:14px;"></div>
+    </div>`;
+}
+
+function printFooter() {
+  return `
+    <div style="margin-top:24px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;">
+      <span>Gerado por <strong>Agendix</strong></span>
+      <span>${new Date().toLocaleString('pt-BR')}</span>
+    </div>`;
+}
+
+const STATUS_BADGE_STYLE = {
+  novo:         'background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;',
+  contato:      'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;',
+  qualificado:  'background:#fef9c3;color:#a16207;border:1px solid #fef08a;',
+  proposta:     'background:#f3e8ff;color:#7e22ce;border:1px solid #e9d5ff;',
+  agendado:     'background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;',
+  convertido:   'background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;',
+  perdido:      'background:#fee2e2;color:#dc2626;border:1px solid #fecaca;',
+};
+
+function buildLeadsPrintHTML(items, { busca, filtroStatus, filtroNicho, total }, tenant) {
   const ativos = [
     busca        && `Busca: "${busca}"`,
     filtroStatus && `Status: ${STATUS_LABEL[filtroStatus] || filtroStatus}`,
     filtroNicho  && `Nicho: ${filtroNicho}`,
-  ].filter(Boolean).join(' · ') || 'Sem filtros ativos';
+  ].filter(Boolean).join(' · ') || 'Todos os registros';
 
-  const rows = items.map((l, i) => `
-    <tr style="border-bottom:1px solid #e5e7eb;">
-      <td style="padding:6px 8px;">${i + 1}</td>
-      <td style="padding:6px 8px;"><strong>${l.nome}</strong>${l.nicho ? `<br><small style="color:#6b7280;">${l.nicho}${l.categoria ? ' · ' + l.categoria : ''}</small>` : ''}</td>
-      <td style="padding:6px 8px;">${l.telefone || '-'}</td>
-      <td style="padding:6px 8px;">${[l.cidade || l.municipio, l.estado].filter(Boolean).join(' / ') || '-'}</td>
-      <td style="padding:6px 8px;">${STATUS_LABEL[l.status] || l.status || '-'}</td>
-      <td style="padding:6px 8px;">${l.priority || 'normal'}</td>
-      <td style="padding:6px 8px;">${FONTE_LABEL[l.fonte] || l.fonte || '-'}</td>
-    </tr>`).join('');
+  const rows = items.map((l, i) => {
+    const statusStyle = STATUS_BADGE_STYLE[l.status] || STATUS_BADGE_STYLE.novo;
+    const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
+    return `
+    <tr style="background:${bg};">
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;color:#9ca3af;font-size:10px;">${i + 1}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;">
+        <strong style="color:#111;">${l.nome}</strong>
+        ${l.nicho ? `<div style="color:#6b7280;font-size:10px;margin-top:1px;">${l.nicho}${l.categoria ? ' · ' + l.categoria : ''}</div>` : ''}
+      </td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;white-space:nowrap;">${l.telefone || '-'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;">${[l.cidade || l.municipio, l.estado].filter(Boolean).join(' / ') || '-'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;">
+        <span style="padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;${statusStyle}">${STATUS_LABEL[l.status] || l.status || '-'}</span>
+      </td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;text-transform:capitalize;">${l.priority || 'normal'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;">${FONTE_LABEL[l.fonte] || l.fonte || '-'}</td>
+    </tr>`;
+  }).join('');
 
-  return `<div style="font-family:sans-serif;color:#111;font-size:12px;">
-    <div style="border-bottom:2px solid #e5e7eb;padding-bottom:10px;margin-bottom:14px;">
-      <div style="font-weight:700;font-size:17px;">${tenantNome || 'CRM'}</div>
-      <div style="font-weight:600;font-size:13px;margin-top:2px;">Relatório de Leads</div>
-      <div style="color:#6b7280;font-size:11px;margin-top:2px;">
-        ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })} · ${items.length} de ${total} lead(s) · ${ativos}
-      </div>
-    </div>
+  return `<div style="font-family:'Segoe UI',Arial,sans-serif;color:#111;font-size:12px;line-height:1.4;">
+    ${printHeader(tenant, 'Relatório de Leads', `${items.length} de ${total} lead(s) · ${ativos}`)}
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
-      <thead><tr style="background:#f9fafb;text-align:left;">
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">#</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Nome / Nicho</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Telefone</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Localização</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Status</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Prior.</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Fonte</th>
-      </tr></thead>
+      <thead>
+        <tr style="background:#f9fafb;">
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">#</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Nome / Nicho</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Telefone</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Localização</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Status</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Prior.</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Fonte</th>
+        </tr>
+      </thead>
       <tbody>${rows}</tbody>
     </table>
+    ${printFooter()}
   </div>`;
 }
 
@@ -484,7 +537,7 @@ export default function Leads() {
     const frame = document.createElement('div');
     frame.id = '__print_frame__';
     frame.className = 'print-only';
-    frame.innerHTML = buildLeadsPrintHTML(itensParaImprimir, { busca, filtroStatus, filtroNicho, total }, tenant?.nome);
+    frame.innerHTML = buildLeadsPrintHTML(itensParaImprimir, { busca, filtroStatus, filtroNicho, total }, tenant);
     document.body.appendChild(frame);
 
     window.print();
@@ -515,15 +568,9 @@ export default function Leads() {
         </div>
       )}
 
-      {/* Header de impressão (só visível no PDF) */}
+      {/* Header de impressão (window.print sem seleção) */}
       <div className="print-only" ref={printHeaderRef}>
-        <div style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: 12, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>{tenant?.nome || 'CRM Divulga BR'}</div>
-          <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>Relatório de Leads</div>
-          <div style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
-            Emitido em {new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })} · Total: {total} lead(s)
-          </div>
-        </div>
+        <div dangerouslySetInnerHTML={{ __html: printHeader(tenant, 'Relatório de Leads', `${total} lead(s) · Todos os registros`) }} />
       </div>
 
       {/* Barra de ações */}

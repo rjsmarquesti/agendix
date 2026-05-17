@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual do Usuário — Agendix</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #1e293b; background: #f8fafc; line-height: 1.6; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 2rem; font-weight: 800; color: #2563eb; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 1rem; margin-bottom: 40px; }
+  h2 { font-size: 1.2rem; font-weight: 700; color: #1e293b; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
+  h3 { font-size: 0.95rem; font-weight: 700; color: #2563eb; margin: 20px 0 8px; }
+  p { margin-bottom: 10px; color: #334155; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; color: #334155; }
+  li { margin-bottom: 5px; }
+  .step { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: #2563eb; color: #fff; border-radius: 50%; font-size: 0.78rem; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
+  .step-title { font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; margin-bottom: 6px; }
+  .note { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.9rem; color: #1e40af; }
+  .warn { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.9rem; color: #92400e; }
+  .toc { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 40px; }
+  .toc h4 { font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+  .toc a { color: #2563eb; text-decoration: none; font-size: 0.9rem; display: block; padding: 2px 0; }
+  .toc a:hover { text-decoration: underline; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin-right: 4px; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-yellow { background: #fef9c3; color: #a16207; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+  .badge-gray { background: #f1f5f9; color: #475569; }
+  @media print { body { background: #fff; } .wrap { padding: 20px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Agendix</h1>
+  <p class="subtitle">Manual do Usuário — Perfil: <strong>Atendente</strong></p>
+
+  <div class="toc">
+    <h4>Índice</h4>
+    <a href="#acesso">1. Acesso e login</a>
+    <a href="#dashboard">2. Dashboard</a>
+    <a href="#leads">3. Leads — consultar e atualizar</a>
+    <a href="#agendamentos">4. Agendamentos — criar e gerenciar</a>
+    <a href="#agenda-hoje">5. Agenda Hoje</a>
+  </div>
+
+  <!-- 1. ACESSO -->
+  <h2 id="acesso">1. Acesso e login</h2>
+
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Abra o navegador e acesse o sistema</div>
+    <p>Endereço fornecido pelo administrador da sua empresa.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Digite e-mail e senha</div>
+    <p>Use as credenciais criadas pelo administrador. Clique em <strong>Entrar</strong>.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Esqueceu a senha?</div>
+    <p>Clique em <em>"Esqueci minha senha"</em>, informe seu e-mail e siga o link enviado para redefinir.</p>
+  </div>
+  <div class="note">A sessão dura 7 dias. Após esse período você será redirecionado para o login automaticamente.</div>
+
+  <!-- 2. DASHBOARD -->
+  <h2 id="dashboard">2. Dashboard</h2>
+  <p>Tela inicial após o login. Mostra um resumo rápido:</p>
+  <ul>
+    <li><strong>Total de leads</strong> cadastrados.</li>
+    <li><strong>Agendamentos hoje</strong> — quantos atendimentos estão marcados para o dia.</li>
+    <li><strong>Agendamentos do mês</strong> — total do mês corrente.</li>
+    <li><strong>Confirmados</strong> — agendamentos já confirmados.</li>
+  </ul>
+  <p>Use o dashboard para ter uma visão rápida antes de começar o dia.</p>
+
+  <!-- 3. LEADS -->
+  <h2 id="leads">3. Leads — consultar e atualizar</h2>
+  <p>Leads são os contatos cadastrados no sistema. Acesse pelo menu lateral em <strong>Leads</strong>.</p>
+
+  <h3>Buscar um lead</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Use a caixa de busca no topo da lista</div>
+    <p>Pesquise por nome, telefone ou e-mail.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Use os filtros laterais se necessário</div>
+    <ul>
+      <li><strong>Status</strong> — filtra por etapa do funil.</li>
+      <li><strong>Nicho</strong> — filtra por segmento.</li>
+    </ul>
+  </div>
+
+  <h3>Adicionar novo lead</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>+ Novo Lead</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Preencha os dados principais</div>
+    <ul>
+      <li><strong>Nome</strong> (obrigatório)</li>
+      <li>Telefone e e-mail</li>
+      <li>Status inicial (geralmente <em>Novo</em>)</li>
+      <li>Observações relevantes</li>
+    </ul>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Clique em <strong>Salvar</strong></div>
+  </div>
+
+  <h3>Atualizar status de um lead</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Localize o lead na lista</div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Clique no ícone de lápis (editar)</div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Altere o campo <strong>Status</strong> e clique em <strong>Salvar</strong></div>
+  </div>
+
+  <p>Significado dos status:</p>
+  <ul>
+    <li><span class="badge badge-gray">Novo</span> Sem contato ainda.</li>
+    <li><span class="badge badge-blue">Contato</span> Primeiro contato realizado.</li>
+    <li><span class="badge badge-blue">Qualificado</span> Tem perfil para o serviço.</li>
+    <li><span class="badge badge-yellow">Proposta</span> Proposta enviada.</li>
+    <li><span class="badge badge-green">Agendado</span> Possui agendamento marcado.</li>
+    <li><span class="badge badge-green">Convertido</span> Virou cliente.</li>
+    <li><span class="badge badge-red">Perdido</span> Não houve conversão.</li>
+  </ul>
+
+  <div class="warn">Não exclua leads sem autorização do administrador — a exclusão remove também todos os agendamentos vinculados.</div>
+
+  <!-- 4. AGENDAMENTOS -->
+  <h2 id="agendamentos">4. Agendamentos — criar e gerenciar</h2>
+  <p>Controle da agenda de atendimentos. Acesse pelo menu lateral em <strong>Agendamentos</strong>.</p>
+
+  <h3>Criar agendamento</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>+ Novo Agendamento</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Selecione o lead</div>
+    <p>Digite o nome do cliente no campo de busca e selecione o lead correto. Se o cliente não tiver cadastro, crie o lead primeiro (veja seção 3).</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Informe data e horário</div>
+    <p>Escolha a data e digite o horário (ex.: 14:30). O sistema não bloqueia horários já ocupados nesta tela — verifique a disponibilidade antes.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">4</span>Preencha os demais campos (opcional)</div>
+    <ul>
+      <li><strong>Serviço</strong> — tipo de atendimento.</li>
+      <li><strong>Tipo</strong> — campo livre (ex.: "1ª consulta", "retorno").</li>
+      <li><strong>Observações</strong> — anotações internas.</li>
+    </ul>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">5</span>Clique em <strong>Salvar</strong></div>
+  </div>
+
+  <h3>Atualizar status do agendamento</h3>
+  <p>Mantenha o status atualizado para que a agenda reflita a realidade:</p>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Localize o agendamento na lista</div>
+    <p>Use os filtros de data ou status para encontrar rapidamente.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Clique no ícone de lápis</div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Altere o <strong>Status</strong> e clique em <strong>Salvar</strong></div>
+  </div>
+
+  <ul>
+    <li><span class="badge badge-blue">Marcado</span> Agendamento criado, aguardando confirmação.</li>
+    <li><span class="badge badge-green">Confirmado</span> Cliente confirmou presença.</li>
+    <li><span class="badge badge-red">Cancelado</span> Atendimento cancelado.</li>
+    <li><span class="badge badge-gray">Realizado</span> Atendimento concluído.</li>
+  </ul>
+
+  <h3>Visualizar em calendário</h3>
+  <p>Clique no botão <strong>Calendário</strong> no canto superior direito para ver a agenda semanal em formato visual. Cada slot ocupado aparece colorido conforme o status.</p>
+
+  <h3>Filtrar agendamentos</h3>
+  <ul>
+    <li><strong>Data</strong> — ver apenas os agendamentos de um dia específico.</li>
+    <li><strong>Status</strong> — filtrar por Marcado, Confirmado, Cancelado ou Realizado.</li>
+    <li><strong>Canal</strong> — ver de onde veio o agendamento (Manual, Web ou WhatsApp).</li>
+  </ul>
+
+  <!-- 5. AGENDA HOJE -->
+  <h2 id="agenda-hoje">5. Agenda Hoje</h2>
+  <p>Visão simplificada com apenas os atendimentos do dia atual. Ideal para consultar rapidamente pelo celular durante o expediente.</p>
+  <ul>
+    <li>Lista os agendamentos em ordem de horário.</li>
+    <li>Mostra nome do cliente, horário, serviço e status.</li>
+    <li>Atualiza automaticamente quando a página é aberta.</li>
+  </ul>
+  <div class="note">Use a <strong>Agenda Hoje</strong> no dia a dia e os <strong>Agendamentos</strong> para consultas históricas e criação de novos agendamentos.</div>
+
+  <div class="note" style="margin-top:40px;">Dúvidas? Fale com o administrador da sua conta ou entre em contato com o suporte Agendix.</div>
+
+</div>
+</body>
+</html>

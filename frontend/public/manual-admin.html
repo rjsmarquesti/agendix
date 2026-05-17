@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual do Administrador — Agendix</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #1e293b; background: #f8fafc; line-height: 1.6; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 2rem; font-weight: 800; color: #2563eb; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 1rem; margin-bottom: 40px; }
+  h2 { font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
+  h3 { font-size: 1rem; font-weight: 700; color: #2563eb; margin: 24px 0 8px; }
+  p { margin-bottom: 10px; color: #334155; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; color: #334155; }
+  li { margin-bottom: 4px; }
+  .step { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: #2563eb; color: #fff; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
+  .step-title { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; margin-bottom: 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin-right: 4px; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-yellow { background: #fef9c3; color: #a16207; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+  .badge-gray { background: #f1f5f9; color: #475569; }
+  .note { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.9rem; color: #1e40af; }
+  .warn { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.9rem; color: #92400e; }
+  .toc { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 40px; }
+  .toc h4 { font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+  .toc a { color: #2563eb; text-decoration: none; font-size: 0.9rem; display: block; padding: 2px 0; }
+  .toc a:hover { text-decoration: underline; }
+  .toc-sub { padding-left: 16px; }
+  .tab-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .tab-pill { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 12px; font-size: 0.85rem; font-weight: 600; color: #475569; }
+  .tab-pill.active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.88rem; }
+  th { background: #f8fafc; padding: 8px 12px; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #475569; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+  @media print { body { background: #fff; } .wrap { padding: 20px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Agendix</h1>
+  <p class="subtitle">Manual do Administrador — versão 1.0 · Perfil: <strong>admin</strong></p>
+
+  <div class="toc">
+    <h4>Índice</h4>
+    <a href="#acesso">1. Acesso e login</a>
+    <a href="#dashboard">2. Dashboard</a>
+    <a href="#leads">3. Leads</a>
+    <a href="#agendamentos">4. Agendamentos</a>
+    <a href="#agenda-hoje">5. Agenda Hoje</a>
+    <a href="#servicos">6. Serviços</a>
+    <a href="#usuarios">7. Usuários</a>
+    <a href="#configuracoes">8. Configurações</a>
+    <div class="toc-sub">
+      <a href="#cfg-empresa">↳ 8.1 Empresa</a>
+      <a href="#cfg-agenda">↳ 8.2 Agenda</a>
+      <a href="#cfg-email">↳ 8.3 Email</a>
+      <a href="#cfg-integracao">↳ 8.4 Integração (WhatsApp)</a>
+      <a href="#cfg-n8n">↳ 8.5 Bot / n8n</a>
+      <a href="#cfg-agente">↳ 8.6 Agente IA</a>
+      <a href="#cfg-plano">↳ 8.7 Plano</a>
+      <a href="#cfg-dados">↳ 8.8 Dados (backup)</a>
+    </div>
+    <a href="#notificacoes">9. Notificações</a>
+    <a href="#link-publico">10. Link de agendamento público</a>
+  </div>
+
+  <!-- 1. ACESSO -->
+  <h2 id="acesso">1. Acesso e login</h2>
+
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Acessar o sistema</div>
+    <p>Abra o navegador e acesse <strong>https://agendix.divulgabr.com.br/login</strong>.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Inserir credenciais</div>
+    <p>Digite o e-mail e a senha fornecidos. Clique em <strong>Entrar</strong>.</p>
+    <p>Se esqueceu a senha, clique em <em>"Esqueci minha senha"</em> e informe o e-mail — você receberá um link de redefinição.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Primeiro acesso</div>
+    <p>Se recebeu um e-mail de ativação, clique no link antes de logar pela primeira vez. O link expira em 24 horas.</p>
+  </div>
+  <div class="note">A sessão dura 7 dias. Após esse período você será redirecionado para o login automaticamente.</div>
+
+  <!-- 2. DASHBOARD -->
+  <h2 id="dashboard">2. Dashboard</h2>
+  <p>Tela inicial após o login. Exibe um resumo rápido do negócio.</p>
+
+  <h3>Cards de resumo</h3>
+  <ul>
+    <li><strong>Total de Leads</strong> — número de contatos cadastrados.</li>
+    <li><strong>Agendamentos hoje</strong> — quantos atendimentos estão marcados para o dia atual.</li>
+    <li><strong>Agendamentos do mês</strong> — total do mês corrente.</li>
+    <li><strong>Confirmados</strong> — agendamentos com status "confirmado".</li>
+  </ul>
+
+  <h3>Banner de trial</h3>
+  <p>Se o plano estiver em período de teste, um banner amarelo aparece no topo indicando quantos dias restam. Nos últimos 3 dias o banner fica vermelho. Clique em <em>"Assinar agora"</em> para contratar um plano.</p>
+
+  <!-- 3. LEADS -->
+  <h2 id="leads">3. Leads</h2>
+  <p>Central de contatos e oportunidades comerciais. Acesse pelo menu lateral em <strong>Leads</strong>.</p>
+
+  <h3>Visualização</h3>
+  <p>A tela tem dois modos — alterne pelos botões no canto superior direito:</p>
+  <ul>
+    <li><strong>Lista</strong> — tabela com busca e filtros.</li>
+    <li><strong>Kanban</strong> — colunas por status (Novo → Contato → Qualificado → Proposta → Agendado → Convertido → Perdido).</li>
+  </ul>
+
+  <h3>Filtros disponíveis</h3>
+  <ul>
+    <li><strong>Busca</strong> — por nome, telefone ou e-mail.</li>
+    <li><strong>Status</strong> — filtra por etapa do funil.</li>
+    <li><strong>Nicho</strong> — filtra por segmento de mercado.</li>
+  </ul>
+
+  <h3>Adicionar lead</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>+ Novo Lead</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Preencha os dados</div>
+    <ul>
+      <li><strong>Nome</strong> (obrigatório)</li>
+      <li>Telefone, e-mail, website</li>
+      <li>Status e prioridade</li>
+      <li>Fonte: Manual, Google Maps, CSV ou API</li>
+      <li>Endereço (CEP com preenchimento automático)</li>
+      <li>Redes sociais: Facebook, Instagram, Telegram</li>
+      <li>Observações</li>
+    </ul>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Clique em <strong>Salvar</strong></div>
+  </div>
+
+  <h3>Editar lead</h3>
+  <p>Na lista, clique no ícone de lápis na linha do lead. O mesmo formulário abre em modo edição.</p>
+
+  <h3>Excluir lead</h3>
+  <p>Clique no ícone de lixeira. Uma confirmação será solicitada. <strong>A exclusão apaga também todos os agendamentos vinculados ao lead.</strong></p>
+
+  <h3>Imprimir / exportar lista</h3>
+  <p>Com filtros aplicados, clique no ícone de impressora. Uma janela de impressão será aberta com o relatório formatado.</p>
+
+  <h3>Status dos leads</h3>
+  <table>
+    <tr><th>Status</th><th>Significado</th></tr>
+    <tr><td><span class="badge badge-gray">Novo</span></td><td>Lead recém-cadastrado, sem contato ainda.</td></tr>
+    <tr><td><span class="badge badge-blue">Contato</span></td><td>Primeiro contato realizado.</td></tr>
+    <tr><td><span class="badge badge-blue">Qualificado</span></td><td>Lead tem perfil para o serviço.</td></tr>
+    <tr><td><span class="badge badge-yellow">Proposta</span></td><td>Proposta enviada, aguardando retorno.</td></tr>
+    <tr><td><span class="badge badge-green">Agendado</span></td><td>Possui agendamento marcado.</td></tr>
+    <tr><td><span class="badge badge-green">Convertido</span></td><td>Virou cliente.</td></tr>
+    <tr><td><span class="badge badge-red">Perdido</span></td><td>Não houve conversão.</td></tr>
+  </table>
+
+  <!-- 4. AGENDAMENTOS -->
+  <h2 id="agendamentos">4. Agendamentos</h2>
+  <p>Gerenciamento completo da agenda. Acesse pelo menu lateral em <strong>Agendamentos</strong>.</p>
+
+  <h3>Visualização</h3>
+  <ul>
+    <li><strong>Lista</strong> — tabela com filtros por data, status e canal.</li>
+    <li><strong>Calendário</strong> — visão semanal com slots por horário.</li>
+  </ul>
+
+  <h3>Filtros</h3>
+  <ul>
+    <li><strong>Data</strong> — filtra agendamentos de uma data específica.</li>
+    <li><strong>Status</strong> — Marcado, Confirmado, Cancelado, Realizado.</li>
+    <li><strong>Canal</strong> — Manual, Web (formulário público), WhatsApp (bot).</li>
+  </ul>
+
+  <h3>Criar agendamento</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>+ Novo Agendamento</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Preencha os dados</div>
+    <ul>
+      <li><strong>Lead</strong> — selecione ou busque um lead cadastrado (obrigatório).</li>
+      <li><strong>Data e Hora</strong> — escolha a data e o horário disponível.</li>
+      <li><strong>Serviço</strong> — opcional; vincula o agendamento a um serviço cadastrado.</li>
+      <li><strong>Tipo</strong> — campo livre (ex.: consulta, retorno, avaliação).</li>
+      <li><strong>Status</strong> — padrão: Marcado.</li>
+      <li><strong>Observações</strong> — anotações internas.</li>
+    </ul>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Clique em <strong>Salvar</strong></div>
+  </div>
+
+  <h3>Alterar status</h3>
+  <p>Na lista, clique no ícone de lápis e altere o campo <strong>Status</strong>. Os status disponíveis são:</p>
+  <table>
+    <tr><th>Status</th><th>Quando usar</th></tr>
+    <tr><td><span class="badge badge-blue">Marcado</span></td><td>Agendamento criado, não confirmado pelo cliente.</td></tr>
+    <tr><td><span class="badge badge-green">Confirmado</span></td><td>Cliente confirmou presença.</td></tr>
+    <tr><td><span class="badge badge-red">Cancelado</span></td><td>Cliente ou empresa cancelou.</td></tr>
+    <tr><td><span class="badge badge-gray">Realizado</span></td><td>Atendimento concluído.</td></tr>
+  </table>
+
+  <h3>Imprimir agenda</h3>
+  <p>Aplique os filtros desejados e clique no ícone de impressora para gerar o relatório.</p>
+
+  <!-- 5. AGENDA HOJE -->
+  <h2 id="agenda-hoje">5. Agenda Hoje</h2>
+  <p>Visão diária otimizada para mobile e tablets. Acesse pelo menu lateral em <strong>Agenda Hoje</strong>.</p>
+  <ul>
+    <li>Lista apenas os agendamentos do dia atual, em ordem cronológica.</li>
+    <li>Mostra nome do cliente, horário, serviço e status.</li>
+    <li>Ideal para consultar rapidamente durante o atendimento.</li>
+  </ul>
+
+  <!-- 6. SERVIÇOS -->
+  <h2 id="servicos">6. Serviços</h2>
+  <p>Cadastro dos serviços oferecidos pelo seu negócio. Acesse pelo menu lateral em <strong>Serviços</strong>.</p>
+  <div class="note">Apenas <strong>admin</strong> e <strong>super_admin</strong> têm acesso a esta tela.</div>
+
+  <h3>Adicionar serviço</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>+ Novo Serviço</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Preencha os campos</div>
+    <ul>
+      <li><strong>Nome</strong> (obrigatório) — ex.: Consulta, Avaliação.</li>
+      <li><strong>Descrição</strong> — texto opcional exibido no formulário público.</li>
+      <li><strong>Duração</strong> — em minutos (30, 45, 60, 90, 120).</li>
+      <li><strong>Preço</strong> — valor em reais (opcional, informativo).</li>
+      <li><strong>Ordem</strong> — define a sequência de exibição.</li>
+    </ul>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Clique em <strong>Salvar</strong></div>
+  </div>
+
+  <h3>Desativar serviço</h3>
+  <p>Serviços não podem ser excluídos se tiverem agendamentos vinculados. Use o toggle <strong>Ativo/Inativo</strong> para ocultá-lo sem perder o histórico.</p>
+
+  <!-- 7. USUÁRIOS -->
+  <h2 id="usuarios">7. Usuários</h2>
+  <p>Gerenciamento da equipe. Acesse pelo menu lateral em <strong>Usuários</strong>.</p>
+  <div class="note">Apenas <strong>admin</strong> têm acesso. O limite de usuários depende do plano contratado.</div>
+
+  <h3>Adicionar usuário</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>+ Novo Usuário</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Preencha os campos</div>
+    <ul>
+      <li><strong>Nome</strong></li>
+      <li><strong>E-mail</strong> — usado para login.</li>
+      <li><strong>Senha</strong> — mínimo 6 caracteres.</li>
+      <li><strong>Perfil</strong> — Admin ou Atendente (veja diferenças abaixo).</li>
+      <li><strong>WhatsApp</strong> — opcional, para notificações.</li>
+    </ul>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Clique em <strong>Salvar</strong></div>
+  </div>
+
+  <h3>Perfis de acesso</h3>
+  <table>
+    <tr><th>Perfil</th><th>Permissões</th></tr>
+    <tr><td><strong>Admin</strong></td><td>Acesso total: leads, agendamentos, serviços, usuários, configurações e financeiro.</td></tr>
+    <tr><td><strong>Atendente</strong></td><td>Acesso apenas a leads, agendamentos e agenda hoje. Não vê configurações nem usuários.</td></tr>
+  </table>
+
+  <h3>Alterar senha ou desativar</h3>
+  <p>Clique no ícone de lápis ao lado do usuário. Altere o campo desejado e salve.</p>
+
+  <!-- 8. CONFIGURAÇÕES -->
+  <h2 id="configuracoes">8. Configurações</h2>
+  <p>Acesse pelo menu lateral em <strong>Configurações</strong>. A tela possui 8 abas.</p>
+
+  <div class="tab-list">
+    <span class="tab-pill active">Empresa</span>
+    <span class="tab-pill">Agenda</span>
+    <span class="tab-pill">Email</span>
+    <span class="tab-pill">Integração</span>
+    <span class="tab-pill">Bot / n8n</span>
+    <span class="tab-pill">Agente IA</span>
+    <span class="tab-pill">Plano</span>
+    <span class="tab-pill">Dados</span>
+  </div>
+
+  <h3 id="cfg-empresa">8.1 Aba Empresa</h3>
+  <p>Informações básicas do seu negócio exibidas no sistema e no formulário público.</p>
+  <ul>
+    <li><strong>Nome da empresa</strong> — aparece no topo do painel.</li>
+    <li><strong>Logo</strong> — imagem até 2 MB (PNG, JPG). Exibida no formulário público.</li>
+    <li><strong>Cor primária</strong> — cor dos botões e destaques. Clique em uma das cores pré-definidas ou use o seletor.</li>
+    <li><strong>Nicho</strong> — rótulo do seu segmento (ex.: "exame de vista"). Usado nas mensagens automáticas do WhatsApp.</li>
+    <li><strong>Módulos ativos</strong> — ative ou desative Leads e/ou Agendamentos conforme o seu plano.</li>
+    <li><strong>Lembretes diretos</strong> — quando ativado, o sistema envia lembretes de agendamento diretamente pelo WhatsApp da empresa (sem n8n).</li>
+    <li><strong>WhatsApp responsável</strong> — número usado para lembretes diretos (formato: 5561999999999).</li>
+  </ul>
+  <p>Clique em <strong>Salvar configurações</strong> após qualquer alteração.</p>
+
+  <h3 id="cfg-agenda">8.2 Aba Agenda</h3>
+  <p>Define as regras de disponibilidade que controlam o formulário público e o bot WhatsApp.</p>
+  <ul>
+    <li><strong>Horário de funcionamento</strong> — início e fim do expediente.</li>
+    <li><strong>Duração do slot</strong> — tempo de cada atendimento (30 min a 2 horas).</li>
+    <li><strong>Dias úteis</strong> — marque os dias em que atende.</li>
+    <li><strong>Antecedência mínima</strong> — horas de antecedência necessárias para agendar.</li>
+    <li><strong>Antecedência máxima</strong> — dias no futuro até quando é possível agendar.</li>
+    <li><strong>WhatsApp do admin</strong> — número que recebe notificações de novos agendamentos.</li>
+  </ul>
+
+  <h4 style="margin:16px 0 8px;font-size:0.9rem;color:#475569;">Mensagens automáticas</h4>
+  <ul>
+    <li><strong>Confirmação (sistema)</strong> — texto exibido na tela de confirmação do formulário público.</li>
+    <li><strong>Confirmação WhatsApp</strong> — mensagem enviada ao cliente após agendar pelo bot. Use <code>{{nome}}</code>, <code>{{data}}</code>, <code>{{hora}}</code>, <code>{{servico}}</code>.</li>
+    <li><strong>Lembrete WhatsApp</strong> — mensagem de lembrete enviada antes do agendamento.</li>
+    <li><strong>Notificação admin</strong> — mensagem enviada ao número do admin quando um novo agendamento é criado.</li>
+  </ul>
+
+  <h4 style="margin:16px 0 8px;font-size:0.9rem;color:#475569;">Bloqueios de horário</h4>
+  <p>Impedem agendamentos em datas ou períodos específicos (feriados, folgas, etc.).</p>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>+ Adicionar Bloqueio</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Escolha o tipo</div>
+    <ul>
+      <li><strong>Dia inteiro</strong> — bloqueia a data completa.</li>
+      <li><strong>Horário específico</strong> — bloqueia apenas um intervalo (ex.: 12:00 às 13:00).</li>
+    </ul>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Informe a data, horários (se aplicável) e motivo. Clique em <strong>Bloquear</strong>.</div>
+  </div>
+  <p>Para remover um bloqueio, clique no ícone de lixeira ao lado dele.</p>
+
+  <h4 style="margin:16px 0 8px;font-size:0.9rem;color:#475569;">Resumo do dia por e-mail</h4>
+  <p>Envio automático diário com a lista de agendamentos do dia.</p>
+  <ul>
+    <li>Ative o toggle <strong>Resumo diário</strong>.</li>
+    <li>Defina o <strong>horário de envio</strong> (ex.: 07:00).</li>
+    <li>Ative também <strong>Enviar por e-mail</strong> se quiser receber no e-mail além do WhatsApp.</li>
+  </ul>
+
+  <h3 id="cfg-email">8.3 Aba Email</h3>
+  <p>Configure um servidor SMTP próprio para envio de e-mails (confirmações, lembretes, reset de senha).</p>
+  <ul>
+    <li><strong>Servidor SMTP</strong> — ex.: smtp.hostinger.com</li>
+    <li><strong>Porta</strong> — geralmente 465 (SSL) ou 587 (TLS).</li>
+    <li><strong>Usuário e senha</strong> — credenciais do seu e-mail.</li>
+    <li><strong>E-mail remetente</strong> — endereço que aparece como "De:".</li>
+  </ul>
+  <div class="warn">Se não configurar SMTP próprio, os e-mails serão enviados pelo servidor padrão do Agendix.</div>
+
+  <h3 id="cfg-integracao">8.4 Aba Integração (WhatsApp)</h3>
+  <p>Conecta o número de WhatsApp da empresa para envio de mensagens automáticas e bot de agendamento.</p>
+
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Preencha os dados da instância Evolution API</div>
+    <ul>
+      <li><strong>URL base</strong> — endereço do servidor Evolution API (fornecido pelo suporte).</li>
+      <li><strong>Nome da instância</strong> — identificador único do número.</li>
+      <li><strong>API Key</strong> — chave de autenticação.</li>
+    </ul>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Clique em <strong>Salvar</strong> e depois em <strong>Verificar status</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Se o status for "desconectado", clique em <strong>Gerar QR Code</strong></div>
+    <p>Abra o WhatsApp no celular → <em>Dispositivos conectados</em> → <em>Conectar dispositivo</em> → escaneie o QR Code exibido na tela.</p>
+    <p>O badge ficará verde (<strong>Conectado</strong>) automaticamente em até 30 segundos.</p>
+  </div>
+
+  <h3 id="cfg-n8n">8.5 Aba Bot / n8n</h3>
+  <p>Configuração do bot de agendamento via WhatsApp e dos fluxos de automação no n8n.</p>
+  <ul>
+    <li><strong>Webhook URL</strong> — endereço do webhook n8n para o bot de agendamento via WhatsApp.</li>
+    <li><strong>API Token</strong> — token gerado pelo sistema para autenticar chamadas do n8n. Clique em <strong>Gerar token</strong> para criar um novo.</li>
+  </ul>
+
+  <h4 style="margin:16px 0 8px;font-size:0.9rem;color:#475569;">Provisioning automático</h4>
+  <p>Cria automaticamente os workflows de WhatsApp e notificações no n8n para a sua conta.</p>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Confirme que a URL base do n8n e a API Key estão configuradas (entre em contato com o suporte se necessário).</div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Clique em <strong>Provisionar workflows</strong>.</div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Aguarde a confirmação. Os IDs dos workflows serão salvos automaticamente.</div>
+  </div>
+
+  <h3 id="cfg-agente">8.6 Aba Agente IA</h3>
+  <p>Configura o agente de inteligência artificial para atendimento automático via WhatsApp (planos Pro, Premium e Business).</p>
+  <ul>
+    <li><strong>Ativar agente</strong> — toggle para ligar/desligar o atendimento automático.</li>
+    <li><strong>Persona</strong> — nome do assistente (ex.: "Ana", "Recepcionista").</li>
+    <li><strong>Prompt base</strong> — instruções de comportamento do agente. Descreva como ele deve se apresentar, quais serviços oferece e como conduzir o atendimento.</li>
+    <li><strong>Horário de atendimento</strong> — o agente só responde nesse intervalo.</li>
+    <li><strong>Dias da semana</strong> — dias em que o agente está ativo.</li>
+    <li><strong>Mensagem fora do horário</strong> — texto enviado quando alguém escreve fora do horário configurado.</li>
+  </ul>
+  <p>Clique em <strong>Salvar configuração do agente</strong> após ajustar.</p>
+
+  <h3 id="cfg-plano">8.7 Aba Plano</h3>
+  <p>Exibe o plano atual e permite assinar ou cancelar a assinatura.</p>
+
+  <table>
+    <tr><th>Plano</th><th>Preço</th><th>Usuários</th><th>Agend./mês</th><th>Bot WA</th><th>Financeiro</th></tr>
+    <tr><td><strong>Básico</strong></td><td>R$ 37/mês</td><td>1</td><td>60</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Pro</strong></td><td>R$ 57/mês</td><td>5</td><td>300</td><td>✅</td><td>básico</td></tr>
+    <tr><td><strong>Premium</strong></td><td>R$ 97/mês</td><td>∞</td><td>∞</td><td>✅</td><td>básico</td></tr>
+    <tr><td><strong>Business</strong></td><td>R$ 127/mês</td><td>∞</td><td>∞</td><td>✅</td><td>completo</td></tr>
+  </table>
+
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>Assinar</strong> no plano desejado</div>
+    <p>Você será redirecionado para o Mercado Pago para concluir o pagamento.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Após o pagamento, volte ao sistema</div>
+    <p>O plano será atualizado automaticamente em até 1 minuto.</p>
+  </div>
+  <p>Para cancelar, clique em <strong>Cancelar assinatura</strong>. O acesso continua até o final do período pago.</p>
+
+  <h3 id="cfg-dados">8.8 Aba Dados (Backup)</h3>
+  <p>Exporta e importa todos os dados da sua conta em formato JSON.</p>
+
+  <h4 style="margin:16px 0 8px;font-size:0.9rem;color:#475569;">Exportar backup</h4>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>Exportar backup</strong></div>
+    <p>Um arquivo <code>.json</code> será baixado com todos os seus dados: leads, agendamentos, serviços e configurações.</p>
+  </div>
+  <div class="warn">Guarde o arquivo em local seguro. Ele contém todos os dados da sua conta.</div>
+
+  <h4 style="margin:16px 0 8px;font-size:0.9rem;color:#475569;">Importar backup</h4>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>Escolher arquivo</strong> e selecione o arquivo <code>.json</code> exportado anteriormente.</div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Clique em <strong>Restaurar backup</strong>.</div>
+  </div>
+  <div class="warn">A restauração substitui todos os dados atuais pelos do arquivo. Esta ação não pode ser desfeita.</div>
+
+  <!-- 9. NOTIFICAÇÕES -->
+  <h2 id="notificacoes">9. Notificações</h2>
+  <p>O sino no canto superior direito exibe alertas do sistema em tempo real.</p>
+  <ul>
+    <li><strong>Lembrete enviado</strong> — confirmação de que um lembrete de agendamento foi disparado.</li>
+    <li><strong>Lembrete falhou</strong> — alerta de falha no envio de lembrete (verifique a integração WhatsApp).</li>
+    <li><strong>Agendamentos do dia</strong> — resumo matinal dos atendimentos.</li>
+  </ul>
+  <p>Clique em uma notificação para marcá-la como lida. O número no badge indica notificações não lidas.</p>
+
+  <!-- 10. LINK PÚBLICO -->
+  <h2 id="link-publico">10. Link de agendamento público</h2>
+  <p>Cada conta possui uma página pública onde clientes podem agendar sem precisar fazer login.</p>
+  <p>O link segue o formato:</p>
+  <p style="background:#f1f5f9;padding:10px 16px;border-radius:8px;font-family:monospace;font-size:0.9rem;">
+    https://agendix.divulgabr.com.br/agendar/<strong>SEU-SLUG</strong>
+  </p>
+  <p>Encontre seu slug em <strong>Configurações → Empresa</strong>.</p>
+
+  <h3>Como funciona para o cliente</h3>
+  <ol>
+    <li>Cliente acessa o link e escolhe o <strong>serviço</strong> (se houver mais de um).</li>
+    <li>Escolhe a <strong>data</strong> disponível no calendário.</li>
+    <li>Escolhe o <strong>horário</strong>.</li>
+    <li>Informa <strong>nome e telefone</strong>.</li>
+    <li>Vê a <strong>confirmação</strong> na tela e recebe mensagem no WhatsApp (se bot configurado).</li>
+  </ol>
+
+  <h3>Onde divulgar o link</h3>
+  <ul>
+    <li>Bio do Instagram e WhatsApp</li>
+    <li>Site da empresa (botão ou iframe)</li>
+    <li>Assinatura de e-mail</li>
+    <li>Google Meu Negócio</li>
+  </ul>
+
+  <div class="note" style="margin-top:40px;">Dúvidas ou problemas? Entre em contato pelo WhatsApp do suporte Agendix ou envie e-mail para suporte@divulgabr.com.br.</div>
+
+</div>
+</body>
+</html>

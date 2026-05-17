@@ -24,7 +24,8 @@ app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(requestLogger);
 app.use(express.static(require('path').join(__dirname, 'public')));
-app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
+app.use('/uploads',     express.static(require('path').join(__dirname, 'uploads')));
+app.use('/api/uploads', express.static(require('path').join(__dirname, 'uploads')));
 
 // Rate limiting por grupo de rota
 app.use('/api/auth/login',             loginLimiter);

@@ -9,7 +9,14 @@ import Servicos     from './pages/Servicos';
 import Users        from './pages/Users';
 import Settings     from './pages/Settings';
 import Financeiro   from './pages/Financeiro';
-import AgendaHoje     from './pages/AgendaHoje';
+import Fichas       from './pages/Fichas';
+import Prontuarios  from './pages/Prontuarios';
+import Anamnese     from './pages/Anamnese';
+import Processos    from './pages/Processos';
+import Orcamentos   from './pages/Orcamentos';
+import Documentos   from './pages/Documentos';
+import AgendaHoje              from './pages/AgendaHoje';
+import CalendarioAgendamentos from './pages/CalendarioAgendamentos';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword  from './pages/ResetPassword';
 import Register       from './pages/Register';
@@ -72,8 +79,15 @@ export default function App() {
         <Route path="/servicos"     element={<PrivateRoute roles={['admin','super_admin']}><Servicos /></PrivateRoute>} />
         <Route path="/usuarios"     element={<PrivateRoute roles={['admin','super_admin']}><Users /></PrivateRoute>} />
         <Route path="/configuracoes"element={<PrivateRoute roles={['admin','super_admin']}><Settings /></PrivateRoute>} />
-        <Route path="/agenda-hoje"  element={<PrivateRoute><AgendaHoje /></PrivateRoute>} />
+        <Route path="/agenda-hoje"      element={<PrivateRoute><AgendaHoje /></PrivateRoute>} />
+        <Route path="/calendario"       element={<PrivateRoute><CalendarioAgendamentos /></PrivateRoute>} />
         <Route path="/financeiro"   element={<PrivateRoute roles={['admin','super_admin']}><Financeiro /></PrivateRoute>} />
+        <Route path="/fichas"       element={<PrivateRoute><Fichas /></PrivateRoute>} />
+        <Route path="/prontuarios"  element={<PrivateRoute><Prontuarios /></PrivateRoute>} />
+        <Route path="/anamnese"     element={<PrivateRoute><Anamnese /></PrivateRoute>} />
+        <Route path="/processos"    element={<PrivateRoute><Processos /></PrivateRoute>} />
+        <Route path="/orcamentos"   element={<PrivateRoute><Orcamentos /></PrivateRoute>} />
+        <Route path="/documentos"   element={<PrivateRoute><Documentos /></PrivateRoute>} />
 
         {/* Rotas super admin */}
         <Route path="/admin"                        element={<AdminRoute><AdminDashboard /></AdminRoute>} />

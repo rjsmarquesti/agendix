@@ -109,10 +109,31 @@ router.post('/agente/:slug', async (req, res) => {
     const msg = req.body?.data;
     if (!msg || msg.key?.fromMe) return; // ignora mensagens enviadas pelo próprio número
 
-    const phone = msg.key?.remoteJid?.replace('@s.whatsapp.net', '');
-    const text  = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+    const remoteJid = msg.key?.remoteJid || '';
+    if (remoteJid.endsWith('@g.us')) return; // ignora mensagens de grupo
+
+    const phone = remoteJid.replace('@s.whatsapp.net', '');
+    const text  = msg.message?.conversation
+      || msg.message?.extendedTextMessage?.text
+      || msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
 
     if (!phone || !text) return;
+
+    // Garante que qualquer contato WA vira lead (silencioso — não deve quebrar o bot)
+    const telefoneNorm = phone.replace(/\D/g, '');
+    prisma.lead.upsert({
+      where: { telefone_tenantId: { telefone: telefoneNorm, tenantId: tenant.id } },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        nome: msg.pushName || msg.notifyName || 'Cliente WhatsApp',
+        telefone: telefoneNorm,
+        fonte: 'api',
+        status: 'novo',
+        priority: 'normal',
+        origem: 'WhatsApp Bot',
+      },
+    }).catch(() => {});
 
     // Bot de agendamento tem prioridade; se não processar, cai no agente IA
     const handled = await handleBotMessage(tenant, phone, text);

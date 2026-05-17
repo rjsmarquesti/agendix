@@ -42,12 +42,30 @@ exports.criar = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { lead_id, data, hora, tipo, status, observacoes } = req.body;
+    const { lead_id, nome, telefone, email, data, hora, tipo, status, observacoes } = req.body;
+    const tenantId = req.user.tenantId;
 
-    const tenant = await prisma.tenant.findUnique({ where: { id: req.user.tenantId } });
+    let leadId = lead_id ? Number(lead_id) : null;
+
+    if (!leadId) {
+      if (!nome || !telefone) {
+        return res.status(400).json({ error: 'Informe lead_id ou nome + telefone.' });
+      }
+      const fone = telefone.replace(/\D/g, '');
+      let lead = await prisma.lead.findFirst({ where: { tenantId, telefone: fone } });
+      if (!lead) {
+        lead = await prisma.lead.create({
+          data: { tenantId, nome: nome.trim(), telefone: fone,
+                  email: email?.trim() || null, status: 'agendado', fonte: 'manual', origem: 'CRM' },
+        });
+      }
+      leadId = lead.id;
+    }
+
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
 
     const agendamento = await criarAgendamento(
-      { tenantId: req.user.tenantId, leadId: Number(lead_id), data, hora, tipo: tipo || 'reunião', status: status || 'marcado', observacoes },
+      { tenantId, leadId, data, hora, tipo: tipo || 'reunião', status: status || 'marcado', observacoes },
       tenant.plano,
       { incluir: incluirLead }
     );

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual do Sistema — Agendix Super Admin</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #1e293b; background: #f8fafc; line-height: 1.65; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2rem; font-weight: 800; color: #2563eb; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 1rem; margin-bottom: 40px; }
+  h2 { font-size: 1.2rem; font-weight: 700; color: #0f172a; margin: 48px 0 14px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+  h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #2563eb; color: #fff; border-radius: 8px; font-size: 0.8rem; font-weight: 800; flex-shrink: 0; }
+  h3 { font-size: 0.95rem; font-weight: 700; color: #2563eb; margin: 22px 0 8px; }
+  p { margin-bottom: 10px; color: #334155; font-size: 0.93rem; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; color: #334155; font-size: 0.93rem; }
+  li { margin-bottom: 5px; }
+  code { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 4px; font-size: 0.82rem; font-family: 'Cascadia Code', 'Fira Code', monospace; color: #0f172a; }
+  .step { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: #2563eb; color: #fff; border-radius: 50%; font-size: 0.78rem; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
+  .step-title { font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; margin-bottom: 6px; }
+  .note { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.88rem; color: #1e40af; }
+  .warn { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.88rem; color: #92400e; }
+  .danger { background: #fff1f2; border-left: 4px solid #f43f5e; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.88rem; color: #be123c; }
+  .toc { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 48px; columns: 2; column-gap: 40px; }
+  .toc h4 { font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; column-span: all; }
+  .toc a { color: #2563eb; text-decoration: none; font-size: 0.88rem; display: block; padding: 2px 0; }
+  .toc a:hover { text-decoration: underline; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.87rem; }
+  th { background: #f8fafc; padding: 9px 12px; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #475569; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-yellow { background: #fef9c3; color: #a16207; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+  .badge-gray { background: #f1f5f9; color: #475569; }
+  .badge-purple { background: #f3e8ff; color: #7e22ce; }
+  .arch { background: #0f172a; color: #e2e8f0; border-radius: 12px; padding: 20px 24px; font-family: monospace; font-size: 0.82rem; line-height: 1.7; margin: 16px 0; overflow-x: auto; }
+  .arch .c { color: #94a3b8; }
+  .arch .g { color: #4ade80; }
+  .arch .b { color: #60a5fa; }
+  .arch .y { color: #fbbf24; }
+  @media (max-width: 640px) { .toc { columns: 1; } }
+  @media print { body { background: #fff; } .wrap { padding: 20px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Agendix</h1>
+  <p class="subtitle">Manual Completo do Sistema — Perfil: <strong>Super Admin</strong> · versão 1.0</p>
+
+  <div class="toc">
+    <h4>Índice</h4>
+    <a href="#arquitetura">1. Arquitetura do sistema</a>
+    <a href="#planos">2. Planos e limites</a>
+    <a href="#clientes">3. Gestão de clientes (tenants)</a>
+    <a href="#whatsapp">4. WhatsApp — Evolution API</a>
+    <a href="#bot">5. Bot de agendamento</a>
+    <a href="#lembretes">6. Lembretes automáticos</a>
+    <a href="#n8n">7. Integração n8n (opcional)</a>
+    <a href="#financeiro">8. Módulo financeiro</a>
+    <a href="#backups">9. Backups</a>
+    <a href="#consumo">10. Consumo de recursos</a>
+    <a href="#logs">11. Logs de auditoria</a>
+    <a href="#deploy">12. Deploy (Docker + EasyPanel)</a>
+    <a href="#migracao">13. Migração do CRM Simples</a>
+    <a href="#troubleshooting">14. Troubleshooting</a>
+  </div>
+
+  <!-- 1. ARQUITETURA -->
+  <h2 id="arquitetura"><span class="num">1</span> Arquitetura do sistema</h2>
+
+  <div class="arch">
+<span class="c">┌─────────────────────────────────────────────────────────┐</span>
+<span class="c">│                     AGENDIX PLATFORM                    │</span>
+<span class="c">└─────────────────────────────────────────────────────────┘</span>
+
+<span class="b">Frontend</span>  React 18 + Vite + Tailwind CSS
+<span class="b">Backend</span>   Node.js 20 + Express + Prisma ORM
+<span class="b">Banco</span>     PostgreSQL 16 (Alpine)
+<span class="b">Deploy</span>    Docker Hub → EasyPanel
+
+<span class="c">Serviços externos:</span>
+<span class="g">Evolution API</span>  WhatsApp (envio de mensagens, QR Code)
+<span class="g">Mercado Pago</span>   Assinaturas recorrentes (PreApproval API)
+<span class="g">n8n</span>            Automação de workflows (opcional por tenant)
+<span class="g">Claude AI</span>      Agente IA de atendimento (Haiku)
+<span class="y">SMTP</span>           Hostinger smtp.hostinger.com:465 (e-mails)
+
+<span class="c">Imagens Docker Hub (user: rjsmarquesti):</span>
+  agendix-backend:&lt;tag&gt;
+  agendix-frontend:&lt;tag&gt;
+
+<span class="c">EasyPanel: projeto "desenvolvimento"</span>
+  agendix-backend   porta 3000
+  agendix-frontend  porta 80
+  agendix-db        PostgreSQL 16</div>
+
+  <h3>Multi-tenancy</h3>
+  <p>Cada empresa cliente é um <strong>Tenant</strong>. Todos os dados são isolados por <code>tenantId</code> — leads, agendamentos, usuários, configurações e financeiro são completamente separados entre tenants. O super admin tem visão global de todos.</p>
+
+  <h3>Autenticação</h3>
+  <ul>
+    <li><strong>Tenants</strong> — login em <code>/login</code>, JWT com expiração de 7 dias.</li>
+    <li><strong>Super admin</strong> — login isolado em <code>/admin/login</code>, mesmo mecanismo JWT mas com role <code>super_admin</code>.</li>
+    <li><strong>n8n / automações</strong> — autenticação por <code>X-API-Token</code> (por tenant) ou <code>X-Master-Token</code> (global).</li>
+  </ul>
+
+  <!-- 2. PLANOS -->
+  <h2 id="planos"><span class="num">2</span> Planos e limites</h2>
+
+  <table>
+    <tr><th>Plano</th><th>Preço</th><th>Usuários</th><th>Agend./mês</th><th>Bot WA</th><th>Financeiro</th></tr>
+    <tr><td><strong>Básico</strong></td><td>R$ 37/mês</td><td>1</td><td>60</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Pro</strong></td><td>R$ 57/mês</td><td>5</td><td>300</td><td>✅</td><td>básico</td></tr>
+    <tr><td><strong>Premium</strong></td><td>R$ 97/mês</td><td>∞</td><td>∞</td><td>✅</td><td>básico</td></tr>
+    <tr><td><strong>Business</strong></td><td>R$ 127/mês</td><td>∞</td><td>∞</td><td>✅</td><td>completo</td></tr>
+  </table>
+
+  <p>Os limites são aplicados no backend em <code>backend/src/config/planos.js</code>. Ao atingir o limite de agendamentos, a API retorna HTTP 402. O super admin pode trocar o plano de qualquer tenant diretamente na tabela de clientes (sem precisar abrir o modal de edição).</p>
+
+  <h3>Status do plano</h3>
+  <table>
+    <tr><th>Status</th><th>Significado</th></tr>
+    <tr><td><span class="badge badge-yellow">trial</span></td><td>Período de teste de 14 dias. Acesso completo ao plano. Após vencer, redireciona para <code>/trial-expirado</code>.</td></tr>
+    <tr><td><span class="badge badge-green">ativo</span></td><td>Assinatura paga e em dia.</td></tr>
+    <tr><td><span class="badge badge-red">inadimplente</span></td><td>Pagamento recusado pelo Mercado Pago.</td></tr>
+    <tr><td><span class="badge badge-red">cancelado</span></td><td>Assinatura cancelada pelo cliente ou pelo admin.</td></tr>
+    <tr><td><span class="badge badge-gray">inativo</span></td><td>Conta desativada manualmente pelo super admin.</td></tr>
+  </table>
+
+  <!-- 3. GESTÃO DE CLIENTES -->
+  <h2 id="clientes"><span class="num">3</span> Gestão de clientes (tenants)</h2>
+  <p>Acesse em <strong>/admin/clientes</strong>. É a tela central de operação do negócio.</p>
+
+  <h3>Criar novo tenant</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>+ Novo Cliente</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Preencha os dados obrigatórios</div>
+    <ul>
+      <li><strong>Nome</strong> — nome da empresa.</li>
+      <li><strong>Slug</strong> — identificador único (ex: <code>clinica-ana</code>). Usado na URL do agendamento público: <code>/agendar/clinica-ana</code>. Só letras minúsculas, números e hífens.</li>
+      <li><strong>Cor primária</strong> — cor do painel e do formulário público do tenant.</li>
+      <li><strong>Plano</strong> — plano inicial.</li>
+      <li><strong>Status</strong> — geralmente <code>trial</code> para novos clientes.</li>
+      <li><strong>Módulos</strong> — Leads e/ou Agendamentos.</li>
+    </ul>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Salvar</div>
+    <p>O sistema cria o tenant e automaticamente tenta criar uma instância Evolution API (se as variáveis de ambiente <code>EVOLUTION_BASE_URL</code> e <code>EVOLUTION_GLOBAL_API_KEY</code> estiverem configuradas).</p>
+  </div>
+
+  <h3>Ações disponíveis por tenant</h3>
+  <table>
+    <tr><th>Ação</th><th>Como</th><th>Observação</th></tr>
+    <tr><td>Trocar plano</td><td>Select inline na tabela</td><td>Efeito imediato, sem necessidade de reprocessar pagamento.</td></tr>
+    <tr><td>Ativar/Desativar</td><td>Badge colorido na coluna Status</td><td>Desativado bloqueia login de todos os usuários do tenant.</td></tr>
+    <tr><td>Criar instância WA</td><td>Botão WhatsApp na coluna WA</td><td>Cria instância na Evolution API. Se já existir, recria.</td></tr>
+    <tr><td>Ativar/Desativar n8n</td><td>Botão raio ⚡ na coluna Ações</td><td>Roxo = ativo. Controla visibilidade dos campos n8n no painel do tenant.</td></tr>
+    <tr><td>Editar dados</td><td>Botão lápis</td><td>Abre modal completo com todos os campos.</td></tr>
+    <tr><td>Ver detalhes</td><td>Botão olho</td><td>Modal de detalhe com usuários, IDs de workflows n8n, configuração WA.</td></tr>
+    <tr><td>Adicionar usuário</td><td>Botão + Usuário</td><td>Cria usuário admin ou atendente vinculado ao tenant.</td></tr>
+    <tr><td>Resetar senha</td><td>No modal de detalhe, ao lado de cada usuário</td><td>Define nova senha sem conhecer a anterior.</td></tr>
+    <tr><td>Remover tenant</td><td>Botão lixeira</td><td><strong>Irreversível.</strong> Remove o tenant e TODOS os dados: leads, agendamentos, usuários, configurações. Confirme com cautela.</td></tr>
+  </table>
+
+  <div class="danger">Nunca remova um tenant em produção sem antes fazer um backup. Use o Gestor de Backups para gerar e baixar o JSON antes de qualquer exclusão.</div>
+
+  <!-- 4. WHATSAPP -->
+  <h2 id="whatsapp"><span class="num">4</span> WhatsApp — Evolution API</h2>
+
+  <h3>Como funciona</h3>
+  <p>Cada tenant tem uma instância própria na Evolution API, identificada pelo <strong>slug</strong> do tenant. A instância é criada automaticamente ao cadastrar o tenant (se a variável <code>EVOLUTION_BASE_URL</code> estiver configurada).</p>
+
+  <h3>Credenciais por tenant</h3>
+  <ul>
+    <li><code>evolutionInstance</code> — nome da instância (igual ao slug).</li>
+    <li><code>evolutionApiKey</code> — chave gerada pela Evolution API no momento da criação.</li>
+    <li><code>evolutionBaseUrl</code> — URL base da Evolution API (<code>https://api.divulgabr.com.br</code>).</li>
+  </ul>
+
+  <h3>Conectar o número (QR Code)</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Tenant acessa Configurações → Integração</div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Clica em <strong>Verificar status</strong></div>
+    <p>Se aparecer "desconectado", clica em <strong>Gerar QR Code</strong>.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Escaneia o QR Code no WhatsApp</div>
+    <p>WhatsApp → Dispositivos conectados → Conectar dispositivo. O badge fica verde em até 30 segundos.</p>
+  </div>
+
+  <div class="warn">O QR Code expira em ~60 segundos. Se o tenant não conseguir escanear a tempo, clica novamente em "Gerar QR Code".</div>
+
+  <h3>Variáveis de ambiente necessárias (backend)</h3>
+  <ul>
+    <li><code>EVOLUTION_BASE_URL</code> — URL da Evolution API.</li>
+    <li><code>EVOLUTION_GLOBAL_API_KEY</code> — chave global para criar instâncias.</li>
+  </ul>
+
+  <!-- 5. BOT DE AGENDAMENTO -->
+  <h2 id="bot"><span class="num">5</span> Bot de agendamento via WhatsApp</h2>
+
+  <p>Existem <strong>duas formas</strong> de o cliente agendar pelo WhatsApp. São independentes — o tenant usa uma ou outra:</p>
+
+  <table>
+    <tr><th></th><th>Agente IA (interno)</th><th>Bot n8n (externo)</th></tr>
+    <tr><td><strong>Dependência</strong></td><td>Evolution API + Claude API</td><td>Evolution API + n8n</td></tr>
+    <tr><td><strong>Configuração</strong></td><td>Configurações → Agente IA</td><td>Configurações → Bot / n8n</td></tr>
+    <tr><td><strong>n8nAtivo</strong></td><td>Não exigido</td><td>Exigido (ativado pelo super admin)</td></tr>
+    <tr><td><strong>Custo extra</strong></td><td>Claude API (por token)</td><td>n8n self-hosted (já existe)</td></tr>
+    <tr><td><strong>Flexibilidade</strong></td><td>Alta (prompt customizável)</td><td>Média (fluxo fixo no workflow)</td></tr>
+  </table>
+
+  <h3>Agente IA — configuração</h3>
+  <p>O tenant configura em Configurações → <strong>Agente IA</strong>:</p>
+  <ul>
+    <li><strong>Persona</strong> — nome do assistente (ex: "Ana").</li>
+    <li><strong>Prompt base</strong> — instruções de comportamento. Quanto mais detalhado, melhor a qualidade do atendimento.</li>
+    <li><strong>Horário de atendimento</strong> — o agente só responde nesse intervalo.</li>
+    <li><strong>Mensagem fora do horário</strong> — enviada automaticamente se o cliente escrever fora do horário.</li>
+  </ul>
+  <div class="note">O Agente IA usa <strong>Claude Haiku</strong> — o modelo mais rápido e barato da Anthropic. O custo é baixo, mas depende da variável <code>ANTHROPIC_API_KEY</code> no backend.</div>
+
+  <h3>Bot n8n — ativação pelo super admin</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Em /admin/clientes, clique no botão raio ⚡ do tenant</div>
+    <p>Fica roxo quando ativo. Isso libera a aba "Bot / n8n" com campos de webhook e provisioning no painel do tenant.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>O tenant acessa Configurações → Bot / n8n e clica em <strong>Provisionar workflows</strong></div>
+    <p>O sistema cria dois workflows no n8n: bot de agendamento WA + notificações.</p>
+  </div>
+
+  <!-- 6. LEMBRETES -->
+  <h2 id="lembretes"><span class="num">6</span> Lembretes automáticos</h2>
+
+  <p>O backend possui um cron job interno (<code>notificacaoService.js</code>) que roda a cada hora e envia lembretes de agendamento diretamente pela Evolution API de cada tenant — <strong>sem depender do n8n</strong>.</p>
+
+  <h3>Como ativar por tenant</h3>
+  <p>O tenant acessa Configurações → <strong>Empresa</strong> e ativa o toggle <strong>"Lembretes automáticos diretos"</strong>. Requer instância Evolution conectada.</p>
+
+  <h3>Quando os lembretes são enviados</h3>
+  <table>
+    <tr><th>Momento</th><th>Campo marcado</th></tr>
+    <tr><td>1 dia antes do agendamento</td><td><code>lembrete1dEnviado = true</code></td></tr>
+    <tr><td>No dia do agendamento</td><td><code>lembreteDiaEnviado = true</code></td></tr>
+  </table>
+
+  <p>O template da mensagem é configurado pelo tenant em Configurações → Agenda → <strong>"Lembrete WhatsApp"</strong>. Variáveis disponíveis: <code>{{nome}}</code>, <code>{{data}}</code>, <code>{{hora}}</code>, <code>{{servico}}</code>.</p>
+
+  <h3>Resumo diário por e-mail/WA</h3>
+  <p>Um segundo cron roda a cada 30 minutos e verifica se algum tenant configurou o <strong>Resumo do dia</strong> (Configurações → Agenda). Se o horário configurado bater com o horário atual, envia a lista de agendamentos do dia por WhatsApp e/ou e-mail.</p>
+
+  <div class="note">Os lembretes só são enviados para agendamentos com status <strong>marcado</strong> ou <strong>confirmado</strong>. Agendamentos cancelados ou realizados são ignorados.</div>
+
+  <!-- 7. N8N -->
+  <h2 id="n8n"><span class="num">7</span> Integração n8n (opcional)</h2>
+
+  <p>O n8n é opcional no Agendix. Por padrão está desativado para todos os tenants. O super admin ativa individualmente conforme necessidade.</p>
+
+  <h3>Quando usar o n8n</h3>
+  <ul>
+    <li>Tenant prefere o bot de agendamento via fluxo fixo (sem IA generativa).</li>
+    <li>Tenant precisa de automações customizadas (CRM externo, planilhas, e-mail marketing).</li>
+    <li>Tenant não quer usar créditos de Claude API.</li>
+  </ul>
+
+  <h3>Variáveis de ambiente (backend)</h3>
+  <ul>
+    <li><code>N8N_BASE_URL</code> — URL do n8n self-hosted.</li>
+    <li><code>N8N_API_KEY</code> — chave da API do n8n.</li>
+    <li><code>CRM_BASE_URL</code> — URL pública do backend (usada nos workflows para callbacks).</li>
+    <li><code>MASTER_API_TOKEN</code> — token para a rota <code>/api/n8n/lembretes-globais</code>.</li>
+  </ul>
+
+  <h3>Rotas n8n disponíveis no backend</h3>
+  <table>
+    <tr><th>Rota</th><th>Auth</th><th>Descrição</th></tr>
+    <tr><td><code>GET /api/n8n/leads</code></td><td>X-API-Token</td><td>Lista leads do tenant</td></tr>
+    <tr><td><code>POST /api/n8n/leads</code></td><td>X-API-Token</td><td>Cria lead via automação</td></tr>
+    <tr><td><code>PATCH /api/n8n/leads/:id</code></td><td>X-API-Token</td><td>Atualiza lead</td></tr>
+    <tr><td><code>GET /api/n8n/agendamentos</code></td><td>X-API-Token</td><td>Lista agendamentos</td></tr>
+    <tr><td><code>POST /api/n8n/agendamentos</code></td><td>X-API-Token</td><td>Cria agendamento (bot WA)</td></tr>
+    <tr><td><code>PATCH /api/n8n/agendamentos/:id</code></td><td>X-API-Token</td><td>Atualiza status / marca lembrete</td></tr>
+    <tr><td><code>GET /api/n8n/disponibilidade</code></td><td>X-API-Token</td><td>Retorna slots disponíveis</td></tr>
+    <tr><td><code>GET/PUT/DELETE /api/n8n/conversas/:tel</code></td><td>X-API-Token</td><td>Estado da conversa WA (TTL 30min)</td></tr>
+    <tr><td><code>GET /api/n8n/settings</code></td><td>X-API-Token</td><td>Templates de mensagem + config Evolution</td></tr>
+    <tr><td><code>GET /api/n8n/lembretes-globais</code></td><td>X-Master-Token</td><td>Lembretes pendentes de TODOS os tenants</td></tr>
+    <tr><td><code>GET /api/n8n/tenant-by-slug/:slug</code></td><td>X-Master-Token</td><td>Resolve apiToken pelo slug</td></tr>
+  </table>
+
+  <!-- 8. FINANCEIRO -->
+  <h2 id="financeiro"><span class="num">8</span> Módulo financeiro</h2>
+
+  <h3>Financeiro dos tenants</h3>
+  <p>Tenants com plano <strong>Pro ou superior</strong> têm acesso ao módulo de lançamentos financeiros. O super admin <strong>não acessa</strong> os dados financeiros dos tenants — cada empresa gerencia seus próprios lançamentos.</p>
+
+  <h3>Financeiro da plataforma (AdminLancamento)</h3>
+  <p>Acessado em <strong>/admin/financeiro</strong>. Registra as receitas e despesas do negócio Agendix (não dos clientes).</p>
+  <ul>
+    <li><strong>Dashboard</strong> — MRR, receita, despesa, saldo e tabela de pagamentos por tenant.</li>
+    <li><strong>Lançamentos</strong> — CRUD de receitas e despesas da plataforma. Criados automaticamente quando o Mercado Pago processa um pagamento.</li>
+    <li><strong>Fluxo de caixa</strong> — gráfico de barras com os últimos 12 meses (receita vs. despesa).</li>
+  </ul>
+
+  <h3>Integração Mercado Pago</h3>
+  <p>Quando um tenant assina um plano:</p>
+  <ol>
+    <li>Frontend chama <code>POST /api/payments/assinar</code> com o plano desejado.</li>
+    <li>Backend cria uma assinatura PreApproval no MP e retorna o <code>init_point</code> (URL de pagamento).</li>
+    <li>Tenant é redirecionado para o MP para concluir o pagamento.</li>
+    <li>MP chama o webhook <code>POST /api/payments/webhook</code> com o resultado.</li>
+    <li>Backend atualiza <code>planoStatus</code> e cria um <code>AdminLancamento</code> de receita automaticamente.</li>
+  </ol>
+
+  <h3>Variáveis de ambiente (Mercado Pago)</h3>
+  <ul>
+    <li><code>MP_ACCESS_TOKEN</code></li>
+    <li><code>MP_PLAN_BASICO_ID</code>, <code>MP_PLAN_PRO_ID</code>, <code>MP_PLAN_PREMIUM_ID</code>, <code>MP_PLAN_BUSINESS_ID</code></li>
+    <li><code>MP_WEBHOOK_SECRET</code> — para validar a assinatura do webhook.</li>
+  </ul>
+
+  <!-- 9. BACKUPS -->
+  <h2 id="backups"><span class="num">9</span> Backups</h2>
+  <p>Acessado em <strong>/admin/backups</strong>. Permite criar, baixar, restaurar e excluir backups completos.</p>
+
+  <h3>Tipos de backup</h3>
+  <ul>
+    <li><strong>Admin</strong> — backup global de todos os tenants e dados da plataforma.</li>
+    <li><strong>Tenant</strong> — backup isolado de um tenant específico (leads, agendamentos, serviços, configurações, financeiro).</li>
+  </ul>
+
+  <h3>Criar backup</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>+ Novo Backup</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Escolha o tipo: Admin ou Tenant (selecione o tenant)</div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Aguarde a geração. O arquivo JSON é salvo no volume <code>agendix-backups</code> no servidor.</div>
+  </div>
+
+  <h3>Baixar backup</h3>
+  <p>Clique no botão de download na linha do backup. O arquivo é baixado via fetch autenticado com JWT — funciona mesmo que o arquivo esteja em volume privado do container.</p>
+
+  <h3>Restaurar backup</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Clique em <strong>Restaurar</strong> na linha do backup desejado</div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Confirme a operação</div>
+  </div>
+  <div class="danger">A restauração <strong>substitui todos os dados atuais</strong> pelo conteúdo do backup. Esta ação não pode ser desfeita. Faça um backup da versão atual antes de restaurar.</div>
+
+  <div class="note">Os arquivos de backup ficam no volume Docker <code>agendix-backups</code> (montado em <code>/app/backups</code> no container). Use Volume, nunca Bind Mount — o Bind Mount com path inexistente no host causa erro no EasyPanel.</div>
+
+  <!-- 10. CONSUMO -->
+  <h2 id="consumo"><span class="num">10</span> Consumo de recursos</h2>
+  <p>Acessado em <strong>/admin/consumo</strong>. Exibe barras de progresso por tenant mostrando o uso de agendamentos e usuários em relação ao limite do plano.</p>
+  <ul>
+    <li>Verde — dentro do limite.</li>
+    <li>Vermelho — no limite ou próximo. Considere sugerir upgrade de plano ao cliente.</li>
+    <li>Tenants com plano <strong>Premium</strong> ou <strong>Business</strong> não têm limite — aparecem como "ilimitado".</li>
+  </ul>
+
+  <!-- 11. LOGS -->
+  <h2 id="logs"><span class="num">11</span> Logs de auditoria</h2>
+  <p>Acessado em <strong>/admin/logs</strong>. Registra ações críticas do sistema.</p>
+
+  <h3>Ações registradas automaticamente</h3>
+  <table>
+    <tr><th>Ação</th><th>Quando ocorre</th></tr>
+    <tr><td><code>login</code></td><td>Todo login bem-sucedido de qualquer usuário</td></tr>
+    <tr><td><code>tenant_criado</code></td><td>Ao criar um novo tenant</td></tr>
+    <tr><td><code>tenant_deletado</code></td><td>Ao remover um tenant</td></tr>
+    <tr><td><code>backup_criado</code></td><td>Ao criar qualquer backup</td></tr>
+    <tr><td><code>backup_restaurado</code></td><td>Ao restaurar um backup</td></tr>
+  </table>
+
+  <h3>Filtros disponíveis</h3>
+  <ul>
+    <li>Por ação (<code>login</code>, <code>tenant_criado</code>, etc.)</li>
+    <li>Por tenant</li>
+    <li>Por período (data início / data fim)</li>
+  </ul>
+  <p>Clique em qualquer linha para expandir e ver os detalhes JSON completos do evento.</p>
+
+  <!-- 12. DEPLOY -->
+  <h2 id="deploy"><span class="num">12</span> Deploy (Docker + EasyPanel)</h2>
+
+  <h3>Fluxo de deploy</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Build das imagens localmente</div>
+    <code>docker build -t rjsmarquesti/agendix-backend:&lt;tag&gt; ./backend</code><br><br>
+    <code>docker build -t rjsmarquesti/agendix-frontend:&lt;tag&gt; ./frontend</code>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Push para o Docker Hub</div>
+    <code>docker push rjsmarquesti/agendix-backend:&lt;tag&gt;</code><br><br>
+    <code>docker push rjsmarquesti/agendix-frontend:&lt;tag&gt;</code>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Atualizar tag no EasyPanel e fazer redeploy</div>
+    <p>EasyPanel → projeto <code>desenvolvimento</code> → serviço → General → alterar tag → Deploy.</p>
+    <p><strong>Subir backend antes do frontend.</strong></p>
+  </div>
+
+  <h3>Migrations automáticas</h3>
+  <p>O Dockerfile CMD do backend executa <code>npx prisma migrate deploy</code> antes de iniciar o servidor. Toda migration nova é aplicada automaticamente no redeploy. Nunca altere o banco diretamente — use sempre migrations Prisma.</p>
+
+  <h3>Volumes no EasyPanel (backend)</h3>
+  <table>
+    <tr><th>Volume</th><th>Mountpoint no container</th><th>Finalidade</th></tr>
+    <tr><td><code>agendix-uploads</code></td><td><code>/app/uploads</code></td><td>Logos dos tenants</td></tr>
+    <tr><td><code>agendix-backups</code></td><td><code>/app/backups</code></td><td>Arquivos JSON de backup</td></tr>
+  </table>
+
+  <div class="warn">Use sempre <strong>Volume</strong> (não Bind Mount) para <code>backups</code>. Bind mount com path de host inexistente causa erro <em>"bind source path does not exist"</em> no EasyPanel.</div>
+
+  <h3>Credenciais padrão (seed)</h3>
+  <table>
+    <tr><th>Papel</th><th>E-mail</th><th>Senha</th></tr>
+    <tr><td>super_admin</td><td>suporte@divulgabr.com.br</td><td>An@Beatriz270172</td></tr>
+    <tr><td>admin demo</td><td>admin@crm.com</td><td>admin123</td></tr>
+  </table>
+  <div class="danger">Troque a senha do super_admin imediatamente após o primeiro deploy em produção.</div>
+
+  <!-- 13. MIGRAÇÃO -->
+  <h2 id="migracao"><span class="num">13</span> Migração do CRM Simples</h2>
+
+  <p>O script <code>migrate-crm-to-agendix.js</code> (em <code>C:\Users\Rogério\</code>) migra dados do CRM Simples (MySQL) para o Agendix (PostgreSQL).</p>
+
+  <h3>O que é migrado</h3>
+  <ul>
+    <li>Tenants (empresas)</li>
+    <li>Usuários — com hash de senha preservado (mesmo login/senha funcionam no Agendix)</li>
+    <li>Leads (1:1 — mesmos campos)</li>
+    <li>Serviços</li>
+    <li>Configurações de agenda</li>
+    <li>Bloqueios de horário</li>
+    <li>Agendamentos</li>
+  </ul>
+
+  <h3>O que NÃO é migrado</h3>
+  <ul>
+    <li><code>conversas_whatsapp</code> — estado volátil, descartado</li>
+    <li>Plano/assinatura MP — configurar manualmente após migração</li>
+    <li>n8n workflow IDs — re-provisionar pelo painel</li>
+    <li>Instâncias Evolution API — reconectar QR Code</li>
+  </ul>
+
+  <h3>Como executar (no terminal do container Agendix no EasyPanel)</h3>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Instalar dependências temporárias</div>
+    <code>cd /tmp && npm install mysql2 pg</code>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Copiar o script para /tmp e executar</div>
+    <code>CRM_DB_URL="mysql://..." AGENDIX_DB_URL="$DATABASE_URL" node /tmp/migrate.js</code>
+  </div>
+
+  <h3>Após a migração</h3>
+  <ol>
+    <li>Configurar plano de cada tenant em /admin/clientes.</li>
+    <li>Reconectar WhatsApp via QR Code para cada tenant.</li>
+    <li>Re-provisionar n8n (se necessário) pelo botão no modal de detalhe do tenant.</li>
+  </ol>
+
+  <!-- 14. TROUBLESHOOTING -->
+  <h2 id="troubleshooting"><span class="num">14</span> Troubleshooting</h2>
+
+  <table>
+    <tr><th>Problema</th><th>Causa mais provável</th><th>Solução</th></tr>
+    <tr>
+      <td>Tenant não consegue logar após migração</td>
+      <td>Hash de senha incompatível (improvável) ou e-mail duplicado</td>
+      <td>Resetar senha pelo painel /admin/clientes → modal detalhe</td>
+    </tr>
+    <tr>
+      <td>QR Code não aparece</td>
+      <td>Instância Evolution não criada ou sem conexão</td>
+      <td>Verificar variáveis <code>EVOLUTION_BASE_URL</code> e <code>EVOLUTION_GLOBAL_API_KEY</code>. Tentar recriar a instância pelo botão WA no admin.</td>
+    </tr>
+    <tr>
+      <td>Lembretes não são enviados</td>
+      <td><code>lembretesDiretosAtivo = false</code> ou Evolution desconectada</td>
+      <td>Ativar toggle em Configurações → Empresa. Verificar conexão WA do tenant.</td>
+    </tr>
+    <tr>
+      <td>Limite de agendamentos atingido (HTTP 402)</td>
+      <td>Tenant no limite do plano no mês corrente</td>
+      <td>Upgrade de plano pelo painel admin (select inline na tabela).</td>
+    </tr>
+    <tr>
+      <td>Backup falha ao baixar</td>
+      <td>Volume <code>agendix-backups</code> não montado</td>
+      <td>Verificar volumes no EasyPanel. Usar Volume, não Bind Mount.</td>
+    </tr>
+    <tr>
+      <td>n8n provisioning falha</td>
+      <td>Variáveis <code>N8N_BASE_URL</code> ou <code>N8N_API_KEY</code> ausentes</td>
+      <td>Adicionar as variáveis no EasyPanel → serviço backend → Environment.</td>
+    </tr>
+    <tr>
+      <td>Migration falha no redeploy</td>
+      <td>Conflito de migration ou banco inacessível</td>
+      <td>Verificar logs do container. Conectar no terminal e rodar <code>npx prisma migrate status</code>.</td>
+    </tr>
+    <tr>
+      <td>Agente IA não responde</td>
+      <td><code>ANTHROPIC_API_KEY</code> ausente ou Agente IA desativado</td>
+      <td>Verificar variável de ambiente. Confirmar que <code>ativo = true</code> na aba Agente IA do tenant.</td>
+    </tr>
+    <tr>
+      <td>Pagamento MP não atualiza plano</td>
+      <td>Webhook não chegou ou <code>MP_WEBHOOK_SECRET</code> incorreto</td>
+      <td>Verificar logs de auditoria. Confirmar URL do webhook configurada no painel do MP.</td>
+    </tr>
+  </table>
+
+  <div class="note" style="margin-top:48px;">Dúvidas técnicas: <strong>rjsmarques.ti@gmail.com</strong></div>
+
+</div>
+</body>
+</html>

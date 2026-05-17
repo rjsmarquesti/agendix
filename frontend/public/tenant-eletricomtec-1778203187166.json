@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "exportedAt": "2026-05-08T01:19:47.166Z",
+  "tenant": "eletricomtec",
+  "leads": [],
+  "agendamentos": [],
+  "servicos": [],
+  "config": {
+    "id": 3,
+    "tenantId": 3,
+    "horarioInicio": "08:00",
+    "horarioFim": "18:00",
+    "duracaoSlot": 60,
+    "diasUteis": "1,2,3,4,5",
+    "antecedenciaMin": 2,
+    "antecedenciaMax": 30,
+    "mensagemConfirmacao": null,
+    "mensagemWaConfirmacao": null,
+    "mensagemWaLembrete": null,
+    "mensagemWaAdmin": null,
+    "whatsappAdmin": null,
+    "ativo": true
+  },
+  "bloqueios": [],
+  "lancamentos": []
+}

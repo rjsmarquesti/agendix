@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 
-const PLANO_COLOR = { basico: 'bg-slate-700 text-slate-200', pro: 'bg-blue-900 text-blue-300', premium: 'bg-yellow-900 text-yellow-300' };
+const PLANO_COLOR = { basico: 'bg-slate-700 text-slate-200', pro: 'bg-blue-900 text-blue-300', premium: 'bg-yellow-900 text-yellow-300', business: 'bg-purple-900 text-purple-300' };
 
 export default function AdminDashboard() {
   const [tenants, setTenants] = useState([]);
@@ -18,7 +18,7 @@ export default function AdminDashboard() {
   const inativos   = tenants.filter(t => !t.ativo).length;
   const totalLeads = tenants.reduce((s, t) => s + (t._count?.leads || 0), 0);
 
-  const porPlano = ['basico', 'pro', 'premium'].map(p => ({
+  const porPlano = ['basico', 'pro', 'premium', 'business'].map(p => ({
     plano: p,
     count: tenants.filter(t => t.plano === p).length,
   }));

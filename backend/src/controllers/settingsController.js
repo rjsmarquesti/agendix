@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const prisma = require('../lib/prisma');
+const { modulosPorNicho, UNIVERSAIS } = require('../config/nichos');
 
 exports.get = async (req, res, next) => {
   try {
@@ -11,16 +12,37 @@ exports.get = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const { nome, logo, corPrimaria, modulos, n8nWebhookUrl, n8nApiKey, nichoLabel,
+    const { nome, logo, corPrimaria, modulos, nicho, n8nWebhookUrl, n8nApiKey, nichoLabel,
             evolutionInstance, evolutionApiKey, evolutionBaseUrl,
             lembretesDiretosAtivo,
             smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom } = req.body;
+
+    let modulosFinais = modulos;
+    let nichoLabelFinal = nichoLabel;
+
+    if (nicho !== undefined) {
+      nichoLabelFinal = nicho;
+      const tenantAtual = await prisma.tenant.findUnique({ where: { id: req.user.tenantId }, select: { modulos: true } });
+      const atual = JSON.parse(tenantAtual?.modulos || '[]');
+      // Preserva extras que não são universais nem do nicho anterior (ex: financeiro por plano)
+      const extras = atual.filter(m => !UNIVERSAIS.includes(m) && !modulosPorNicho('geral').includes(m) === false
+        ? !UNIVERSAIS.includes(m)
+        : false
+      );
+      const base = modulosPorNicho(nicho);
+      const naoUniversaisAtuais = atual.filter(m => !UNIVERSAIS.includes(m));
+      // Mantém módulos que já existiam e não são do mapeamento de nicho (ex: financeiro)
+      const todosNichosExtras = Object.values(require('../config/nichos').NICHOS).flatMap(n => n.modulosExtras);
+      const preservados = naoUniversaisAtuais.filter(m => !todosNichosExtras.includes(m));
+      modulosFinais = JSON.stringify([...new Set([...base, ...preservados])]);
+    }
+
     const tenant = await prisma.tenant.update({
       where: { id: req.user.tenantId },
       data: {
-        nome, logo, corPrimaria, modulos,
+        nome, logo, corPrimaria, modulos: modulosFinais,
         n8nWebhookUrl: n8nWebhookUrl || null, n8nApiKey: n8nApiKey || null,
-        nichoLabel: nichoLabel || null,
+        nichoLabel: nichoLabelFinal || null,
         evolutionInstance: evolutionInstance || null,
         evolutionApiKey: evolutionApiKey || null,
         evolutionBaseUrl: evolutionBaseUrl || null,

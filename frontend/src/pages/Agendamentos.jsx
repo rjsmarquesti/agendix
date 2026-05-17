@@ -10,7 +10,8 @@ import { useAuth } from '../context/AuthContext';
 const STATUS_OPTIONS = ['marcado', 'confirmado', 'cancelado', 'realizado'];
 const CANAL_OPTIONS  = ['manual', 'web', 'whatsapp'];
 const hoje = new Date().toISOString().split('T')[0];
-const EMPTY_FORM = { lead_id: '', data: hoje, hora: '', tipo: '', status: 'marcado', observacoes: '' };
+const EMPTY_FORM      = { lead_id: '', data: hoje, hora: '', tipo: '', status: 'marcado', observacoes: '' };
+const EMPTY_CRIAR     = { nome: '', telefone: '', email: '', data: hoje, hora: '', tipo: '', status: 'marcado', observacoes: '' };
 
 // Badge de canal de origem
 const CANAL_STYLE = {
@@ -28,87 +29,203 @@ function BadgeCanal({ canal }) {
   );
 }
 
-function buildAgendPrintHTML(items, { filtroData, filtroStatus, filtroCanal }, tenantNome) {
+function printHeader(tenant, titulo, meta) {
+  const cor    = tenant?.corPrimaria || '#2563eb';
+  const nome   = tenant?.nome || 'CRM';
+  const logo   = tenant?.logo || '';
+  const inicial = nome[0]?.toUpperCase() || 'C';
+  const data   = new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' });
+
+  const logoHtml = logo
+    ? `<img src="${logo}" alt="logo" style="height:52px;width:52px;object-fit:contain;border-radius:8px;border:1px solid #e5e7eb;padding:3px;background:#fff;">`
+    : `<div style="height:52px;width:52px;border-radius:8px;background:${cor};display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:800;flex-shrink:0;">${inicial}</div>`;
+
+  return `
+    <div style="print-color-adjust:exact;-webkit-print-color-adjust:exact;border-top:4px solid ${cor};padding-top:16px;margin-bottom:20px;">
+      <table width="100%" style="border-collapse:collapse;">
+        <tr>
+          <td style="vertical-align:middle;width:60px;">${logoHtml}</td>
+          <td style="vertical-align:middle;padding-left:14px;">
+            <div style="font-size:20px;font-weight:800;color:#111;letter-spacing:-0.3px;">${nome}</div>
+            <div style="font-size:13px;font-weight:700;color:${cor};margin-top:2px;">${titulo}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:3px;">${meta}</div>
+          </td>
+          <td style="vertical-align:top;text-align:right;white-space:nowrap;">
+            <div style="font-size:10px;color:#9ca3af;">Emitido em</div>
+            <div style="font-size:11px;font-weight:600;color:#6b7280;">${data}</div>
+          </td>
+        </tr>
+      </table>
+      <div style="height:1px;background:${cor};opacity:0.2;margin-top:14px;"></div>
+    </div>`;
+}
+
+function printFooter() {
+  return `
+    <div style="margin-top:24px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;">
+      <span>Gerado por <strong>Agendix</strong></span>
+      <span>${new Date().toLocaleString('pt-BR')}</span>
+    </div>`;
+}
+
+const STATUS_BADGE_STYLE = {
+  marcado:    'background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;',
+  confirmado: 'background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;',
+  cancelado:  'background:#fee2e2;color:#dc2626;border:1px solid #fecaca;',
+  realizado:  'background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;',
+};
+
+function buildAgendPrintHTML(items, { filtroData, filtroStatus, filtroCanal }, tenant) {
   const ativos = [
     filtroData   && `Data: ${filtroData.split('-').reverse().join('/')}`,
     filtroStatus && `Status: ${filtroStatus}`,
     filtroCanal  && `Canal: ${filtroCanal}`,
-  ].filter(Boolean).join(' · ') || 'Sem filtros ativos';
+  ].filter(Boolean).join(' · ') || 'Todos os registros';
 
-  const rows = items.map((a, i) => `
-    <tr style="border-bottom:1px solid #e5e7eb;">
-      <td style="padding:6px 8px;">${i + 1}</td>
-      <td style="padding:6px 8px;"><strong>${a.lead?.nome || '-'}</strong>${a.lead?.telefone ? `<br><small style="color:#6b7280;">${a.lead.telefone}</small>` : ''}</td>
-      <td style="padding:6px 8px;">${a.data ? a.data.split('-').reverse().join('/') : '-'}</td>
-      <td style="padding:6px 8px;font-weight:600;color:#2563eb;">${a.hora || '-'}</td>
-      <td style="padding:6px 8px;">${a.tipo || '-'}</td>
-      <td style="padding:6px 8px;">${a.status || '-'}</td>
-      <td style="padding:6px 8px;">${a.canalOrigem || 'manual'}</td>
-      <td style="padding:6px 8px;max-width:180px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${a.observacoes || '-'}</td>
-    </tr>`).join('');
+  const rows = items.map((a, i) => {
+    const statusStyle = STATUS_BADGE_STYLE[a.status] || STATUS_BADGE_STYLE.marcado;
+    const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
+    return `
+    <tr style="background:${bg};">
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;color:#9ca3af;font-size:10px;">${i + 1}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;">
+        <strong style="color:#111;">${a.lead?.nome || '-'}</strong>
+        ${a.lead?.telefone ? `<div style="color:#6b7280;font-size:10px;margin-top:1px;">${a.lead.telefone}</div>` : ''}
+      </td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;white-space:nowrap;">${a.data ? a.data.split('-').reverse().join('/') : '-'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;font-weight:700;color:${tenant?.corPrimaria||'#2563eb'};white-space:nowrap;">${a.hora || '-'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;">${a.tipo || '-'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;">
+        <span style="padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;${statusStyle}">${a.status || '-'}</span>
+      </td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;">${a.canalOrigem || 'manual'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;max-width:160px;">${a.observacoes || '-'}</td>
+    </tr>`;
+  }).join('');
 
-  return `<div style="font-family:sans-serif;color:#111;font-size:12px;">
-    <div style="border-bottom:2px solid #e5e7eb;padding-bottom:10px;margin-bottom:14px;">
-      <div style="font-weight:700;font-size:17px;">${tenantNome || 'CRM'}</div>
-      <div style="font-weight:600;font-size:13px;margin-top:2px;">Agenda de Atendimentos</div>
-      <div style="color:#6b7280;font-size:11px;margin-top:2px;">
-        ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })} · ${items.length} agendamento(s) · ${ativos}
-      </div>
-    </div>
+  return `<div style="font-family:'Segoe UI',Arial,sans-serif;color:#111;font-size:12px;line-height:1.4;">
+    ${printHeader(tenant, 'Agenda de Atendimentos', `${items.length} agendamento(s) · ${ativos}`)}
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
-      <thead><tr style="background:#f9fafb;text-align:left;">
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">#</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Lead / Telefone</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Data</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Hora</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Tipo</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Status</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Canal</th>
-        <th style="padding:6px 8px;border-bottom:2px solid #e5e7eb;">Observações</th>
-      </tr></thead>
+      <thead>
+        <tr style="background:#f9fafb;">
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">#</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Lead / Telefone</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Data</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Hora</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Tipo</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Status</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Canal</th>
+          <th style="padding:8px;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:left;">Observações</th>
+        </tr>
+      </thead>
       <tbody>${rows}</tbody>
     </table>
+    ${printFooter()}
   </div>`;
 }
 
-function AgendForm({ form, setForm, leads, onSubmit, loading }) {
-  const inp = (id, label, type, extra = {}) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input type={type} value={form[id]} onChange={e => setForm(f => ({ ...f, [id]: e.target.value }))}
-        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" {...extra} />
-    </div>
-  );
-
+// Formulário de CRIAÇÃO — usa nome+telefone (backend cria lead automaticamente)
+function AgendFormCriar({ form, setForm, onSubmit, loading }) {
+  const cls = "w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100";
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
+          <input type="text" required value={form.nome} placeholder="Nome do cliente"
+            onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className={cls} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone *</label>
+          <input type="tel" required value={form.telefone} placeholder="(xx) xxxxx-xxxx"
+            onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} className={cls} />
+        </div>
+      </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lead *</label>
-        <select required value={form.lead_id} onChange={e => setForm(f => ({ ...f, lead_id: e.target.value }))}
-          className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-          <option value="">Selecionar lead...</option>
-          {leads.map(l => <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` · ${l.telefone}` : ''}</option>)}
-        </select>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+        <input type="email" value={form.email} placeholder="Opcional"
+          onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={cls} />
       </div>
       <div className="grid grid-cols-2 gap-4">
-        {inp('data', 'Data *', 'date', { required: true })}
-        {inp('hora', 'Hora *', 'time', { required: true })}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
+          <input type="date" required value={form.data}
+            onChange={e => setForm(f => ({ ...f, data: e.target.value }))} className={cls} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hora *</label>
+          <input type="time" required value={form.hora}
+            onChange={e => setForm(f => ({ ...f, hora: e.target.value }))} className={cls} />
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {inp('tipo', 'Tipo', 'text', { placeholder: 'Consulta, Reunião...' })}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
+          <input type="text" value={form.tipo} placeholder="Consulta, Reunião..."
+            onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} className={cls} />
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-            className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={cls}>
             {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
           </select>
         </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
-        <textarea rows={3} value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
-          className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
-          placeholder="Detalhes do agendamento..." />
+        <textarea rows={3} value={form.observacoes} placeholder="Detalhes do agendamento..."
+          onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
+          className={cls + ' resize-none'} />
+      </div>
+      <div className="flex justify-end pt-2">
+        <button type="submit" disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl transition text-sm">
+          {loading ? 'Salvando...' : 'Salvar Agendamento'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Formulário de EDIÇÃO — usa lead_id (lead já existente)
+function AgendForm({ form, setForm, leads, onSubmit, loading }) {
+  const cls = "w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100";
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lead *</label>
+        <select required value={form.lead_id} onChange={e => setForm(f => ({ ...f, lead_id: e.target.value }))} className={cls}>
+          <option value="">Selecionar lead...</option>
+          {leads.map(l => <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` · ${l.telefone}` : ''}</option>)}
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
+          <input type="date" required value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} className={cls} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hora *</label>
+          <input type="time" required value={form.hora} onChange={e => setForm(f => ({ ...f, hora: e.target.value }))} className={cls} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
+          <input type="text" value={form.tipo} placeholder="Consulta, Reunião..." onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} className={cls} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={cls}>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
+        <textarea rows={3} value={form.observacoes} placeholder="Detalhes do agendamento..."
+          onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
+          className={cls + ' resize-none'} />
       </div>
       <div className="flex justify-end pt-2">
         <button type="submit" disabled={loading}
@@ -209,7 +326,7 @@ export default function Agendamentos() {
   }, []);
 
   function openCreate() {
-    setForm({ ...EMPTY_FORM, data: filtroData || hoje });
+    setForm({ ...EMPTY_CRIAR, data: filtroData || hoje });
     setEditId(null);
     setModalOpen(true);
   }
@@ -274,7 +391,7 @@ export default function Agendamentos() {
     const frame = document.createElement('div');
     frame.id = '__print_frame__';
     frame.className = 'print-only';
-    frame.innerHTML = buildAgendPrintHTML(itensParaImprimir, { filtroData, filtroStatus, filtroCanal }, tenant?.nome);
+    frame.innerHTML = buildAgendPrintHTML(itensParaImprimir, { filtroData, filtroStatus, filtroCanal }, tenant);
     document.body.appendChild(frame);
 
     window.print();
@@ -300,15 +417,10 @@ export default function Agendamentos() {
   return (
     <Layout title="Agendamentos" subtitle="Controle sua agenda de atendimentos">
 
-      {/* Header de impressão */}
+      {/* Header de impressão (window.print sem seleção) */}
       <div className="print-only" ref={printHeaderRef}>
-        <div style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: 12, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>{tenant?.nome || 'CRM Divulga BR'}</div>
-          <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>Agenda de Atendimentos</div>
-          <div style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
-            {filtroData ? `Data: ${formatDate(filtroData)}` : 'Todos os períodos'} · Emitido em {new Date().toLocaleDateString('pt-BR')}
-          </div>
-        </div>
+        <div dangerouslySetInnerHTML={{ __html: printHeader(tenant, 'Agenda de Atendimentos',
+          `${items.length} agendamento(s) · ${filtroData ? `Data: ${formatDate(filtroData)}` : 'Todos os períodos'}`) }} />
       </div>
 
       {/* Toggle de visualização */}
@@ -550,7 +662,10 @@ export default function Agendamentos() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)}
         title={editId ? 'Editar Agendamento' : 'Novo Agendamento'}>
-        <AgendForm form={form} setForm={setForm} leads={leads} onSubmit={handleSubmit} loading={loading} />
+        {editId
+          ? <AgendForm form={form} setForm={setForm} leads={leads} onSubmit={handleSubmit} loading={loading} />
+          : <AgendFormCriar form={form} setForm={setForm} onSubmit={handleSubmit} loading={loading} />
+        }
       </Modal>
     </Layout>
   );

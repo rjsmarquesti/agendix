@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 function requireAgenteIa(req, res, next) {
   const plano = req.tenant?.plano;
   if (!AGENTE_IA[plano]) {
-    return res.status(402).json({ error: 'Módulo Agente IA disponível apenas nos planos Premium e Business.' });
+    return res.status(403).json({ error: 'Módulo Agente IA disponível apenas nos planos Premium e Business.' });
   }
   next();
 }

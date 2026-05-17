@@ -5,10 +5,17 @@ import Modal from '../../components/Modal';
 import { api } from '../../services/api';
 
 const PLANO_COLOR  = { basico: 'bg-slate-700 text-slate-300', pro: 'bg-blue-900 text-blue-300', premium: 'bg-yellow-900 text-yellow-300', business: 'bg-purple-900 text-purple-300' };
-const STATUS_COLOR = { trial: 'bg-slate-700 text-slate-300', ativo: 'bg-green-900 text-green-300', inadimplente: 'bg-red-900 text-red-300', cancelado: 'bg-red-950 text-red-400', inativo: 'bg-gray-700 text-gray-400' };
-const STATUS_LABEL = { trial: 'Trial', ativo: 'Ativo', inadimplente: 'Inadimplente', cancelado: 'Cancelado', inativo: 'Inativo' };
+const STATUS_COLOR = { trial: 'bg-slate-700 text-slate-300', ativo: 'bg-green-900 text-green-300', inadimplente: 'bg-red-900 text-red-300', cancelado: 'bg-red-950 text-red-400', inativo: 'bg-gray-700 text-gray-400', aguardando_pagamento: 'bg-yellow-900 text-yellow-300' };
+const STATUS_LABEL = { trial: 'Trial', ativo: 'Ativo', inadimplente: 'Inadimplente', cancelado: 'Cancelado', inativo: 'Inativo', aguardando_pagamento: 'Aguardando pgto.' };
 const CORES = ['#2563eb','#7c3aed','#db2777','#dc2626','#ea580c','#16a34a','#0891b2','#1e293b'];
 const MODULOS = [{ id: 'leads', label: 'Leads' }, { id: 'agendamentos', label: 'Agendamentos' }];
+const ORDEM_PLANO = { basico: 0, pro: 1, premium: 2, business: 3 };
+const PLANOS_INFO = [
+  { value: 'basico',   label: 'Básico',   preco: 'R$ 37/mês' },
+  { value: 'pro',      label: 'Pro',       preco: 'R$ 57/mês' },
+  { value: 'premium',  label: 'Premium',   preco: 'R$ 97/mês' },
+  { value: 'business', label: 'Business',  preco: 'R$ 127/mês' },
+];
 
 const EMPTY_TENANT = { nome: '', slug: '', logo: '', corPrimaria: '#2563eb', plano: 'basico', planoStatus: 'trial', planoVencimento: '', modulos: ['leads','agendamentos'], ativo: true };
 const EMPTY_USER   = { nome: '', email: '', senha: '', role: 'admin' };
@@ -25,6 +32,14 @@ export default function AdminClientes() {
   const [senhaUserId, setSUID]    = useState(null);
   const [loading, setLoading]     = useState(false);
   const [evoLoading, setEvoLoading]   = useState(null); // id do tenant em criação Evolution
+  const [tenantPlano, setTenantPlano] = useState(null); // tenant sendo alterado de plano
+  const [novoPlanoSel, setNovoPlanoSel] = useState(''); // plano selecionado no modal
+  const [planoLoading, setPlanoLoading] = useState(false);
+  const [waTenant, setWaTenant]       = useState(null); // tenant aberto no modal WA
+  const [waAdminStatus, setWaAdminStatus] = useState(null);
+  const [waAdminQrcode, setWaAdminQrcode] = useState(null);
+  const [waAdminLoading, setWaAdminLoading] = useState(false);
+  const waAdminPollRef = useState(null);
 
   const load = useCallback(async () => {
     try { const d = await api.get('/admin/tenants'); setTenants(d.tenants); }
@@ -59,6 +74,26 @@ export default function AdminClientes() {
       toast.success(t.ativo ? 'Cliente desativado' : 'Cliente ativado');
       load();
     } catch (err) { toast.error(err.message); }
+  }
+
+  async function toggleN8n(t) {
+    try {
+      const res = await api.put(`/admin/tenants/${t.id}`, { n8nAtivo: !t.n8nAtivo });
+      if (res?.tenant?._n8nError) {
+        toast.error(`n8n ativado mas falha ao provisionar: ${res.tenant._n8nError}`);
+      } else {
+        toast.success(t.n8nAtivo ? 'Bot n8n desativado' : 'Bot n8n ativado e workflows criados!');
+      }
+      load();
+    } catch (err) { toast.error(err.message); }
+  }
+
+  async function reprovisionarN8n(t) {
+    try {
+      await api.post(`/admin/tenants/${t.id}/provision-n8n`);
+      toast.success('Workflows n8n recriados com sucesso!');
+      load();
+    } catch (err) { toast.error(`Falha ao re-provisionar: ${err.message}`); }
   }
 
   async function deletarTenant(t) {
@@ -101,6 +136,61 @@ export default function AdminClientes() {
     finally { setEvoLoading(null); }
   }
 
+  // ── WhatsApp Admin Modal ─────────────────────────────────────────────────
+  function fecharWaModal() {
+    if (waAdminPollRef[0]) { clearInterval(waAdminPollRef[0]); waAdminPollRef[0] = null; }
+    setWaTenant(null); setWaAdminStatus(null); setWaAdminQrcode(null);
+  }
+
+  async function abrirWaModal(t) {
+    setWaTenant(t); setWaAdminStatus(null); setWaAdminQrcode(null);
+    try {
+      const d = await api.get(`/admin/tenants/${t.id}/whatsapp/status`);
+      setWaAdminStatus(d.status);
+    } catch { setWaAdminStatus('error'); }
+  }
+
+  async function verificarStatusWaAdmin(tenantId) {
+    try {
+      const d = await api.get(`/admin/tenants/${tenantId}/whatsapp/status`);
+      setWaAdminStatus(d.status);
+      if (d.status === 'open') {
+        setWaAdminQrcode(null);
+        if (waAdminPollRef[0]) { clearInterval(waAdminPollRef[0]); waAdminPollRef[0] = null; }
+      }
+    } catch { /* silencioso */ }
+  }
+
+  async function conectarWaAdmin() {
+    if (!waTenant) return;
+    setWaAdminLoading(true);
+    try {
+      const statusD = await api.get(`/admin/tenants/${waTenant.id}/whatsapp/status`);
+      if (statusD.status === 'open') { toast.success('WhatsApp já conectado!'); setWaAdminStatus('open'); return; }
+      const d = await api.get(`/admin/tenants/${waTenant.id}/whatsapp/qrcode`);
+      if (d.qrcode) {
+        setWaAdminQrcode(d.qrcode);
+        if (waAdminPollRef[0]) clearInterval(waAdminPollRef[0]);
+        waAdminPollRef[0] = setInterval(() => verificarStatusWaAdmin(waTenant.id), 5000);
+      } else {
+        toast.error('QR Code não disponível.');
+      }
+    } catch (err) { toast.error(err.message); }
+    finally { setWaAdminLoading(false); }
+  }
+
+  async function desconectarWaAdmin() {
+    if (!waTenant || !confirm('Desconectar WhatsApp deste tenant?')) return;
+    setWaAdminLoading(true);
+    try {
+      await api.post(`/admin/tenants/${waTenant.id}/whatsapp/disconnect`);
+      setWaAdminStatus('close'); setWaAdminQrcode(null);
+      if (waAdminPollRef[0]) { clearInterval(waAdminPollRef[0]); waAdminPollRef[0] = null; }
+      toast.success('WhatsApp desconectado.');
+    } catch (err) { toast.error(err.message); }
+    finally { setWaAdminLoading(false); }
+  }
+
   // ── Senha ────────────────────────────────────────────────────────────────
   function abrirSenha(userId, tenantId) { setSUID({ userId, tenantId }); setFS(EMPTY_SENHA); setModal('senha'); }
 
@@ -113,6 +203,49 @@ export default function AdminClientes() {
       toast.success('Senha atualizada!'); setModal(null);
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
+  }
+
+  // ── Mudar Plano ──────────────────────────────────────────────────────────
+  function abrirMudarPlano(t) {
+    setTenantPlano(t);
+    setNovoPlanoSel(t.plano);
+    setModal('mudar-plano');
+  }
+
+  async function confirmarMudarPlano() {
+    if (!tenantPlano || novoPlanoSel === tenantPlano.plano) return;
+    setPlanoLoading(true);
+    try {
+      const result = await api.post('/payments/mudar-plano', {
+        tenantId: tenantPlano.id,
+        plano: novoPlanoSel,
+      });
+      if (result.tipo === 'upgrade' && result.checkout_url) {
+        window.open(result.checkout_url, '_blank');
+        toast.success('Checkout de upgrade aberto em nova aba');
+      } else {
+        const dataFmt = result.data
+          ? new Date(result.data).toLocaleDateString('pt-BR')
+          : 'fim do ciclo';
+        toast.success(`Downgrade para ${novoPlanoSel} agendado para ${dataFmt}`);
+      }
+      setModal(null);
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setPlanoLoading(false);
+    }
+  }
+
+  async function cancelarDowngrade(t) {
+    try {
+      await api.delete(`/payments/downgrade-cancelar/${t.id}`);
+      toast.success('Downgrade cancelado');
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -181,21 +314,17 @@ export default function AdminClientes() {
                 </span>
               </div>
               <div className="flex items-center gap-2 mb-3 flex-wrap">
-                <select
-                  value={t.plano}
-                  onChange={async e => {
-                    const novoPlano = e.target.value;
-                    try { await api.put(`/admin/tenants/${t.id}`, { plano: novoPlano }); load(); }
-                    catch (err) { toast.error(err.message); }
-                  }}
-                  className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer border-0 outline-none ${PLANO_COLOR[t.plano]}`}
-                >
-                  <option value="basico">Básico</option>
-                  <option value="pro">Pro</option>
-                  <option value="premium">Premium</option>
-                  <option value="business">Business</option>
-                </select>
+                <button onClick={() => abrirMudarPlano(t)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-semibold ${PLANO_COLOR[t.plano]}`}>
+                  {PLANOS_INFO.find(p => p.value === t.plano)?.label || t.plano}
+                </button>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_COLOR[t.planoStatus] || STATUS_COLOR.trial}`}>{STATUS_LABEL[t.planoStatus] || 'Trial'}</span>
+                {t.planoDowngradePendente && (
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-yellow-900/60 text-yellow-300">
+                    ↓ {PLANOS_INFO.find(p => p.value === t.planoDowngradePendente)?.label}
+                    {t.planoDowngradeData && ` em ${new Date(t.planoDowngradeData).toLocaleDateString('pt-BR')}`}
+                  </span>
+                )}
                 <span className="text-slate-400 text-xs">{t._count?.leads || 0} leads</span>
                 <span className="text-slate-400 text-xs">· {t._count?.users || 0} usuários</span>
               </div>
@@ -203,9 +332,13 @@ export default function AdminClientes() {
                 <button onClick={() => abrirDetalhe(t)} className="flex-1 text-slate-400 hover:text-white text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">Ver</button>
                 <button onClick={() => abrirEditar(t)} className="flex-1 text-blue-400 hover:text-blue-300 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">Editar</button>
                 <button onClick={() => abrirUsuario(t)} className="flex-1 text-green-400 hover:text-green-300 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">+ Usuário</button>
-                <button onClick={() => criarEvolution(t)} disabled={evoLoading === t.id}
+                <button onClick={() => t.evolutionInstance ? abrirWaModal(t) : criarEvolution(t)} disabled={evoLoading === t.id}
                   className={`flex-1 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center disabled:opacity-40 ${t.evolutionInstance ? 'text-green-400' : 'text-slate-400'}`}>
                   {evoLoading === t.id ? '...' : t.evolutionInstance ? 'WA ✓' : 'WA'}
+                </button>
+                <button onClick={() => toggleN8n(t)}
+                  className={`flex-1 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center ${t.n8nAtivo ? 'text-purple-400' : 'text-slate-500'}`}>
+                  {t.n8nAtivo ? 'n8n ✓' : 'n8n'}
                 </button>
                 <button onClick={() => deletarTenant(t)} className="flex-1 text-red-500 hover:text-red-400 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">Remover</button>
               </div>
@@ -252,21 +385,17 @@ export default function AdminClientes() {
                   <td className="px-6 py-4 text-slate-400 text-sm font-mono">{t.slug}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
-                      <select
-                        value={t.plano}
-                        onChange={async e => {
-                          const novoPlano = e.target.value;
-                          try { await api.put(`/admin/tenants/${t.id}`, { plano: novoPlano }); load(); }
-                          catch (err) { toast.error(err.message); }
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer border-0 outline-none w-fit ${PLANO_COLOR[t.plano]}`}
-                      >
-                        <option value="basico">Básico</option>
-                        <option value="pro">Pro</option>
-                        <option value="premium">Premium</option>
-                        <option value="business">Business</option>
-                      </select>
+                      <button onClick={() => abrirMudarPlano(t)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold w-fit hover:opacity-80 transition-opacity ${PLANO_COLOR[t.plano]}`}>
+                        {PLANOS_INFO.find(p => p.value === t.plano)?.label || t.plano}
+                      </button>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold w-fit ${STATUS_COLOR[t.planoStatus] || STATUS_COLOR.trial}`}>{STATUS_LABEL[t.planoStatus] || 'Trial'}</span>
+                      {t.planoDowngradePendente && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-900/60 text-yellow-300 w-fit">
+                          ↓ {PLANOS_INFO.find(p => p.value === t.planoDowngradePendente)?.label}
+                          {t.planoDowngradeData && ` ${new Date(t.planoDowngradeData).toLocaleDateString('pt-BR')}`}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-300 text-sm">{t._count?.leads || 0}</td>
@@ -279,10 +408,11 @@ export default function AdminClientes() {
                   </td>
                   <td className="px-6 py-4 no-print">
                     {t.evolutionInstance ? (
-                      <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-900/60 text-green-400 rounded-full text-xs font-semibold w-fit">
+                      <button onClick={() => abrirWaModal(t)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-green-900/60 hover:bg-green-900 text-green-400 rounded-full text-xs font-semibold transition w-fit">
                         <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
-                        Instância OK
-                      </span>
+                        Gerenciar WA
+                      </button>
                     ) : (
                       <button onClick={() => criarEvolution(t)} disabled={evoLoading === t.id}
                         className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-700 hover:bg-green-900/60 text-slate-400 hover:text-green-400 rounded-full text-xs font-semibold transition disabled:opacity-40">
@@ -290,7 +420,7 @@ export default function AdminClientes() {
                           ? <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
                           : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                         }
-                        {evoLoading === t.id ? 'Criando...' : 'Criar'}
+                        {evoLoading === t.id ? 'Criando...' : 'Criar WA'}
                       </button>
                     )}
                   </td>
@@ -308,6 +438,16 @@ export default function AdminClientes() {
                         className="text-green-400 hover:text-green-300 hover:bg-slate-700 p-2 rounded-lg transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
                       </button>
+                      <button onClick={() => toggleN8n(t)} title={t.n8nAtivo ? 'Desativar Bot n8n' : 'Ativar Bot n8n'}
+                        className={`p-2 rounded-lg transition-colors hover:bg-slate-700 ${t.n8nAtivo ? 'text-purple-400 hover:text-purple-300' : 'text-slate-500 hover:text-slate-300'}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                      </button>
+                      {t.n8nAtivo && (!t.n8nWorkflowWaId || !t.n8nWorkflowNotifId) && (
+                        <button onClick={() => reprovisionarN8n(t)} title="Re-provisionar workflows n8n"
+                          className="p-2 rounded-lg transition-colors hover:bg-slate-700 text-yellow-400 hover:text-yellow-300">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </button>
+                      )}
                       <button onClick={() => deletarTenant(t)} title="Remover"
                         className="text-red-500 hover:text-red-400 hover:bg-slate-700 p-2 rounded-lg transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -352,7 +492,7 @@ export default function AdminClientes() {
                     const file = e.target.files[0]; if (!file) return;
                     const fd = new FormData(); fd.append('logo', file);
                     try {
-                      const d = await api.post('/settings/upload-logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                      const d = await api.upload('/settings/upload-logo', fd);
                       setFT(f => ({ ...f, logo: d.url }));
                       toast.success('Logo enviada!');
                     } catch (err) { toast.error(err.message); }
@@ -501,6 +641,120 @@ export default function AdminClientes() {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* ── Modal: Mudar Plano ── */}
+      <Modal isOpen={modal === 'mudar-plano'} onClose={() => setModal(null)}
+        title={`Mudar plano — ${tenantPlano?.nome}`}>
+        {tenantPlano && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">Plano atual: <strong>{PLANOS_INFO.find(p => p.value === tenantPlano.plano)?.label}</strong></p>
+            <div className="grid grid-cols-1 gap-2">
+              {PLANOS_INFO.map(p => {
+                const nivel = ORDEM_PLANO[p.value];
+                const nivelAtual = ORDEM_PLANO[tenantPlano.plano];
+                const isAtual = p.value === tenantPlano.plano;
+                const isUpgrade = nivel > nivelAtual;
+                const isDowngrade = nivel < nivelAtual;
+                return (
+                  <button key={p.value} type="button"
+                    onClick={() => setNovoPlanoSel(p.value)}
+                    disabled={isAtual}
+                    className={`flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition
+                      ${novoPlanoSel === p.value && !isAtual ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'}
+                      ${isAtual ? 'opacity-40 cursor-not-allowed' : 'hover:border-blue-300 cursor-pointer'}`}>
+                    <span className="font-medium text-gray-800">{p.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">{p.preco}</span>
+                      {isUpgrade && <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-semibold">Upgrade</span>}
+                      {isDowngrade && <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full font-semibold">Downgrade</span>}
+                      {isAtual && <span className="text-xs px-2 py-0.5 bg-slate-200 text-slate-600 rounded-full font-semibold">Atual</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {novoPlanoSel !== tenantPlano.plano && ORDEM_PLANO[novoPlanoSel] > ORDEM_PLANO[tenantPlano.plano] && (
+              <p className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">
+                O checkout do Mercado Pago será aberto em nova aba para o cliente autorizar o pagamento.
+              </p>
+            )}
+            {novoPlanoSel !== tenantPlano.plano && ORDEM_PLANO[novoPlanoSel] < ORDEM_PLANO[tenantPlano.plano] && (
+              <p className="text-xs text-yellow-700 bg-yellow-50 rounded-lg px-3 py-2">
+                O cliente mantém o plano atual até o fim do ciclo. O downgrade será aplicado automaticamente na próxima renovação.
+                {tenantPlano.planoDowngradePendente && (
+                  <span className="block mt-1 font-semibold">Já existe um downgrade pendente para {PLANOS_INFO.find(p => p.value === tenantPlano.planoDowngradePendente)?.label}. Ele será substituído.</span>
+                )}
+              </p>
+            )}
+            <div className="flex justify-between items-center pt-2">
+              {tenantPlano.planoDowngradePendente && (
+                <button type="button" onClick={() => { cancelarDowngrade(tenantPlano); setModal(null); }}
+                  className="text-xs text-red-500 hover:text-red-700 underline">
+                  Cancelar downgrade pendente
+                </button>
+              )}
+              <div className="flex gap-2 ml-auto">
+                <button type="button" onClick={() => setModal(null)}
+                  className="px-4 py-2 rounded-xl text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
+                  Cancelar
+                </button>
+                <button type="button"
+                  onClick={confirmarMudarPlano}
+                  disabled={planoLoading || novoPlanoSel === tenantPlano.plano}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-xl text-sm transition disabled:opacity-60">
+                  {planoLoading ? 'Processando...' : ORDEM_PLANO[novoPlanoSel] > ORDEM_PLANO[tenantPlano.plano] ? 'Ir para Checkout' : 'Agendar Downgrade'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Modal: WhatsApp ── */}
+      <Modal isOpen={!!waTenant} onClose={fecharWaModal} title={`WhatsApp — ${waTenant?.nome || ''}`}>
+        <div className="space-y-4">
+          {/* Status */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-300">Instância: <span className="font-mono text-slate-400">{waTenant?.evolutionInstance}</span></span>
+            {waAdminStatus === 'open' ? (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/60 text-green-400 rounded-full text-xs font-semibold">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />Conectado
+              </span>
+            ) : waAdminStatus === 'not_configured' ? (
+              <span className="px-3 py-1.5 bg-slate-700 text-slate-400 rounded-full text-xs font-semibold">Não configurado</span>
+            ) : waAdminStatus === null ? (
+              <span className="px-3 py-1.5 bg-slate-700 text-slate-400 rounded-full text-xs font-semibold animate-pulse">Verificando...</span>
+            ) : (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-900/60 text-yellow-400 rounded-full text-xs font-semibold">
+                <span className="w-2 h-2 bg-yellow-400 rounded-full" />Desconectado
+              </span>
+            )}
+          </div>
+
+          {/* QR Code */}
+          {waAdminQrcode ? (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <img src={waAdminQrcode} alt="QR Code WhatsApp" className="w-52 h-52 rounded-xl border-4 border-green-500" />
+              <p className="text-sm text-slate-400 text-center">Abra o WhatsApp → Aparelhos conectados → Conectar aparelho</p>
+              <p className="text-xs text-slate-500 animate-pulse">Aguardando conexão...</p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 flex-wrap pt-2">
+              <button onClick={conectarWaAdmin} disabled={waAdminLoading || waAdminStatus === 'not_configured'}
+                className="flex items-center gap-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                {waAdminLoading ? 'Carregando...' : waAdminStatus === 'open' ? 'Reconectar' : 'Conectar WhatsApp'}
+              </button>
+              {waAdminStatus === 'open' && (
+                <button onClick={desconectarWaAdmin} disabled={waAdminLoading}
+                  className="flex items-center gap-2 border border-red-700 text-red-400 hover:bg-red-900/20 disabled:opacity-50 font-semibold px-5 py-2.5 rounded-xl text-sm transition">
+                  Desconectar
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </Modal>
 
       {/* ── Modal: Trocar Senha ── */}

@@ -32,6 +32,7 @@ model Tenant {
   n8nWorkflowWaId       String?  @map("n8n_workflow_wa_id")
   n8nWorkflowNotifId    String?  @map("n8n_workflow_notif_id")
   lembretesDiretosAtivo  Boolean  @default(false) @map("lembretes_diretos_ativo")
+  n8nAtivo               Boolean  @default(false) @map("n8n_ativo")
   whatsappResponsavel    String?  @map("whatsapp_responsavel")
   smtpHost   String?  @map("smtp_host")
   smtpPort   Int?     @map("smtp_port")
@@ -41,6 +42,8 @@ model Tenant {
   trialEmailD3EnviadoEm  DateTime? @map("trial_email_d3_enviado_em")
   trialEmailD10EnviadoEm DateTime? @map("trial_email_d10_enviado_em")
   trialEmailD13EnviadoEm DateTime? @map("trial_email_d13_enviado_em")
+  planoDowngradePendente Plano?    @map("plano_downgrade_pendente")
+  planoDowngradeData     DateTime? @map("plano_downgrade_data")
   createdAt              DateTime @default(now()) @map("created_at")
 
   users              User[]

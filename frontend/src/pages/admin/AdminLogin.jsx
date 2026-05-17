@@ -77,7 +77,7 @@ export default function AdminLogin() {
           <Link to="/admin/esqueci-senha" className="text-slate-500 hover:text-slate-300 text-xs transition-colors">
             Esqueci minha senha
           </Link>
-          <p className="text-slate-700 text-xs">Divulga BR — CRM Divulga BR</p>
+          <p className="text-slate-700 text-xs">Divulga BR — Agendix Divulga BR</p>
         </div>
       </div>
     </div>

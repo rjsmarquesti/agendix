@@ -84,7 +84,7 @@ router.post('/register', async (req, res, next) => {
     const evoInst = process.env.EVOLUTION_GLOBAL_INSTANCE;
     if (evoKey && evoInst) {
       const waNum = whatsappNorm.startsWith('55') ? whatsappNorm : `55${whatsappNorm}`;
-      const waMsg = `OlÃ¡, *${nomeCompleto}*! ðŸ‘‹\n\nSua conta no *Agendix* foi criada com sucesso.\n\nClique no link abaixo para ativar sua conta e comeÃ§ar a usar:\n\n${linkAtivacao}\n\n_Este link expira em 24 horas._`;
+      const waMsg = `Olá, *${nomeCompleto}*! 👋\n\nSua conta no *Agendix* foi criada com sucesso.\n\nClique no link abaixo para ativar sua conta e começar a usar:\n\n${linkAtivacao}\n\n_Este link expira em 24 horas._`;
       fetch(`${evoBase}/message/sendText/${evoInst}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: evoKey },

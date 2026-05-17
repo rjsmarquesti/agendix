@@ -2,9 +2,18 @@ const router = require('express').Router();
 const ctrl = require('../controllers/settingsController');
 const auth = require('../middlewares/auth');
 const { requireRole } = auth;
-const { getConnectionState, getQRCode } = require('../services/evolutionService');
+const { NICHOS } = require('../config/nichos');
+const { getConnectionState, getQRCode, logoutInstance } = require('../services/evolutionService');
 const upload = require('../middlewares/upload');
 const prisma = require('../lib/prisma');
+
+router.get('/nichos', auth, (req, res) => {
+  res.json(Object.entries(NICHOS).map(([id, n]) => ({
+    id,
+    label: n.label,
+    modulosExtras: n.modulosExtras,
+  })));
+});
 
 router.get('/',            auth, requireRole('admin', 'super_admin'), ctrl.get);
 router.put('/',            auth, requireRole('admin', 'super_admin'), ctrl.update);
@@ -40,11 +49,43 @@ router.get('/whatsapp/qrcode', auth, requireRole('admin', 'super_admin'), async 
   }
 });
 
+// WhatsApp — desconectar (logout sem deletar instância)
+router.post('/whatsapp/disconnect', auth, requireRole('admin', 'super_admin'), async (req, res, next) => {
+  try {
+    const tenant = req.tenant;
+    if (!tenant.evolutionInstance) return res.status(400).json({ error: 'Instância não configurada' });
+    await logoutInstance(tenant.evolutionInstance, tenant.evolutionApiKey);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // Upload de logo
-router.post('/upload-logo', auth, requireRole('admin', 'super_admin'), upload.single('logo'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Arquivo inválido. Use jpg, png, webp ou svg até 2MB.' });
-  const url = `${process.env.APP_URL}/uploads/logos/${req.file.filename}`;
-  res.json({ url });
+router.post('/upload-logo', auth, requireRole('admin', 'super_admin'), (req, res) => {
+  upload.single('logo')(req, res, (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Arquivo muito grande. Máximo 2MB.' : `Erro: ${err.message}`;
+      return res.status(400).json({ error: msg });
+    }
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo recebido.' });
+
+    const nodePath = require('path');
+    const fs       = require('fs');
+    const ext      = nodePath.extname(req.file.originalname).toLowerCase() || '.png';
+    const mime     = req.file.mimetype?.toLowerCase() || '';
+    const allowedExts  = ['.jpg', '.jpeg', '.png', '.webp', '.svg'];
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+    if (!allowedExts.includes(ext) && !allowedMimes.includes(mime)) {
+      return res.status(400).json({ error: 'Use jpg, png, webp ou svg até 2MB.' });
+    }
+
+    const uploadDir = nodePath.join(__dirname, '../../uploads/logos');
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+    fs.writeFileSync(nodePath.join(uploadDir, filename), req.file.buffer);
+
+    const url = `${process.env.APP_URL}/api/uploads/logos/${filename}`;
+    res.json({ url });
+  });
 });
 
 // Backup — exportar todos os dados do tenant

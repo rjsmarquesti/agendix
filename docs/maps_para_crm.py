@@ -1,5 +1,5 @@
 """
-Google Maps → CRM Divulga BR
+Google Maps → Agendix Divulga BR
 ==============================
 Busca estabelecimentos no Google Places API e importa direto no CRM.
 
@@ -171,7 +171,7 @@ def enviar_crm(token, leads):
 
 # ─── MAIN ────────────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(description="Google Maps → CRM Divulga BR")
+    parser = argparse.ArgumentParser(description="Google Maps → Agendix Divulga BR")
     parser.add_argument("--nicho",    default="Restaurante",   help="Nicho a buscar")
     parser.add_argument("--cidade",   default="São Paulo",     help="Cidade")
     parser.add_argument("--estado",   default="SP",            help="UF (ex: SP)")

@@ -47,8 +47,28 @@ function buildWorkflow(template, slug, name) {
   return wf;
 }
 
+async function moverParaPasta(workflowId, folderId) {
+  // Tenta endpoint de transferência do n8n
+  const endpoints = [
+    { method: 'PUT',   path: `/workflows/${workflowId}/transfer`,        body: { destinationParentFolderId: folderId } },
+    { method: 'PATCH', path: `/workflows/${workflowId}`,                  body: { parentFolderId: folderId } },
+    { method: 'PUT',   path: `/workflows/${workflowId}/move`,             body: { folderId } },
+  ];
+  for (const ep of endpoints) {
+    try {
+      await n8nFetch(ep.method, ep.path, ep.body);
+      console.log(`[n8n] Workflow ${workflowId} movido para pasta ${folderId} via ${ep.method} ${ep.path}`);
+      return;
+    } catch (e) {
+      console.warn(`[n8n] ${ep.method} ${ep.path} falhou: ${e.message}`);
+    }
+  }
+}
+
 async function provisionarWorkflows(tenant) {
   const { slug, nome } = tenant;
+
+  const folderId = process.env.N8N_FOLDER_ID;
 
   // Workflow WhatsApp bot
   const waWf = buildWorkflow(waTemplate, slug, `CRM Agendamento WA — ${nome}`);
@@ -59,6 +79,7 @@ async function provisionarWorkflows(tenant) {
     settings: waWf.settings || { executionOrder: 'v1' },
   });
   await n8nFetch('POST', `/workflows/${waCreated.id}/activate`);
+  if (folderId) await moverParaPasta(waCreated.id, folderId);
 
   // Workflow Notificações
   const notifWf = buildWorkflow(notifTemplate, slug, `CRM Notificações — ${nome}`);
@@ -69,6 +90,7 @@ async function provisionarWorkflows(tenant) {
     settings: notifWf.settings || { executionOrder: 'v1' },
   });
   await n8nFetch('POST', `/workflows/${notifCreated.id}/activate`);
+  if (folderId) await moverParaPasta(notifCreated.id, folderId);
 
   const webhookUrl = `${N8N_BASE()}/webhook/agendamento-notificacoes-${slug}`;
 
@@ -77,6 +99,26 @@ async function provisionarWorkflows(tenant) {
     notifId: String(notifCreated.id),
     webhookUrl,
   };
+}
+
+async function desativarWorkflows(tenant) {
+  const ids = [tenant.n8nWorkflowWaId, tenant.n8nWorkflowNotifId].filter(Boolean);
+  for (const id of ids) {
+    try {
+      await n8nFetch('POST', `/workflows/${id}/deactivate`);
+    } catch (_) {
+      // ignora se já inativo ou não encontrado
+    }
+  }
+}
+
+async function ativarWorkflows(tenant) {
+  const ids = [tenant.n8nWorkflowWaId, tenant.n8nWorkflowNotifId].filter(Boolean);
+  for (const id of ids) {
+    try {
+      await n8nFetch('POST', `/workflows/${id}/activate`);
+    } catch (_) {}
+  }
 }
 
 async function removerWorkflows(tenant) {
@@ -92,4 +134,4 @@ async function removerWorkflows(tenant) {
   }
 }
 
-module.exports = { provisionarWorkflows, removerWorkflows };
+module.exports = { provisionarWorkflows, removerWorkflows, desativarWorkflows, ativarWorkflows };

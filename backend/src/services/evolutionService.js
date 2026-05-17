@@ -47,4 +47,8 @@ async function deleteInstance(slug, apiKey) {
   }
 }
 
-module.exports = { createInstance, getConnectionState, getQRCode, deleteInstance };
+async function logoutInstance(slug, apiKey) {
+  return evFetch('DELETE', `/instance/logout/${slug}`, null, apiKey);
+}
+
+module.exports = { createInstance, getConnectionState, getQRCode, deleteInstance, logoutInstance };
