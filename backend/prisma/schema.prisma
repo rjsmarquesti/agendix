@@ -80,6 +80,8 @@ model User {
   passwordResetExpires DateTime? @map("password_reset_expires")
   activationToken      String?  @map("activation_token")
   activationExpires    DateTime? @map("activation_expires")
+  totpSecret           String?  @map("totp_secret")
+  totpAtivo            Boolean  @default(false) @map("totp_ativo")
 
   @@unique([email, tenantId])
   @@map("users")

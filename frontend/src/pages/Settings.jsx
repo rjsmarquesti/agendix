@@ -225,9 +225,9 @@ export default function Settings() {
         agendaDiaEmailAtivo: c.agendaDiaEmailAtivo || false,
         agendaDiaHorario: c.agendaDiaHorario || '07:00',
       });
-    }).catch(() => {});
+    }).catch(e => console.error('[Settings] agenda:', e.message));
 
-    api.get('/settings/nichos').then(d => setNichos(d)).catch(() => {});
+    api.get('/settings/nichos').then(d => setNichos(d)).catch(e => console.error('[Settings] nichos:', e.message));
 
     carregarBloqueios();
     carregarAgente();
@@ -236,7 +236,7 @@ export default function Settings() {
     const mesAtual = new Date().toISOString().slice(0, 7);
     api.get(`/agendamentos?dataInicio=${mesAtual}-01&dataFim=${mesAtual}-31`).then(d => {
       setUsoMes(d.agendamentos?.length ?? 0);
-    }).catch(() => {});
+    }).catch(e => console.error('[Settings] uso-mes:', e.message));
   }, []);
 
   function toggleModulo(id) {

@@ -415,8 +415,8 @@ export default function Leads() {
 
   // ── carregar nichos e stats ao montar
   useEffect(() => {
-    api.get('/leads/nichos').then(d => setNichos(d.data || [])).catch(() => {});
-    api.get('/leads/stats').then(d => setStats(d)).catch(() => {});
+    api.get('/leads/nichos').then(d => setNichos(d.data || [])).catch(e => console.error('[Leads] nichos:', e.message));
+    api.get('/leads/stats').then(d => setStats(d)).catch(e => console.error('[Leads] stats:', e.message));
   }, []);
 
   // ── carregar leads (com debounce nos filtros texto)

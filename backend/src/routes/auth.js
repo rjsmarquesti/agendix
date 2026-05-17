@@ -251,5 +251,61 @@ router.post('/reset-password', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── 2FA TOTP (apenas super_admin) ───────────────────────────────────────────
+const { authenticator } = require('otplib');
+const QRCode = require('qrcode');
+
+// GET /auth/2fa/setup — gera secret + QR code para configurar no Google Authenticator
+router.get('/2fa/setup', auth, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'super_admin') return res.status(403).json({ error: 'Apenas super_admin pode configurar 2FA' });
+
+    const secret = authenticator.generateSecret();
+    const otpauth = authenticator.keyuri(req.user.email, 'Agendix Admin', secret);
+    const qrcode  = await QRCode.toDataURL(otpauth);
+
+    // Salva o secret (ainda não ativo — só ativa após confirmar o primeiro código)
+    await prisma.user.update({ where: { id: req.user.id }, data: { totpSecret: secret, totpAtivo: false } });
+
+    res.json({ secret, qrcode });
+  } catch (err) { next(err); }
+});
+
+// POST /auth/2fa/verify — confirma o primeiro código e ativa o 2FA
+router.post('/2fa/verify', auth, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'super_admin') return res.status(403).json({ error: 'Apenas super_admin pode configurar 2FA' });
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'Código obrigatório' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user.totpSecret) return res.status(400).json({ error: '2FA não configurado. Acesse /auth/2fa/setup primeiro.' });
+
+    const valid = authenticator.verify({ token: String(code).replace(/\s/g, ''), secret: user.totpSecret });
+    if (!valid) return res.status(400).json({ error: 'Código inválido' });
+
+    await prisma.user.update({ where: { id: req.user.id }, data: { totpAtivo: true } });
+    res.json({ ok: true, message: '2FA ativado com sucesso' });
+  } catch (err) { next(err); }
+});
+
+// POST /auth/2fa/disable — desativa o 2FA (requer código válido para confirmar)
+router.post('/2fa/disable', auth, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'super_admin') return res.status(403).json({ error: 'Apenas super_admin' });
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'Código obrigatório para desativar 2FA' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user.totpAtivo) return res.status(400).json({ error: '2FA não está ativo' });
+
+    const valid = authenticator.verify({ token: String(code).replace(/\s/g, ''), secret: user.totpSecret });
+    if (!valid) return res.status(400).json({ error: 'Código inválido' });
+
+    await prisma.user.update({ where: { id: req.user.id }, data: { totpSecret: null, totpAtivo: false } });
+    res.json({ ok: true, message: '2FA desativado' });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
 

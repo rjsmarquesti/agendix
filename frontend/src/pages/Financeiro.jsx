@@ -111,9 +111,9 @@ export default function Financeiro() {
   useEffect(() => { carregarDashboard(); }, [carregarDashboard]);
 
   useEffect(() => {
-    api.get('/financeiro/categorias').then(d => setCategorias(d.categorias || [])).catch(() => {});
-    api.get('/leads?limit=200').then(d => setLeads(d.leads || [])).catch(() => {});
-    api.get('/servicos').then(d => setServicos(d.servicos || [])).catch(() => {});
+    api.get('/financeiro/categorias').then(d => setCategorias(d.categorias || [])).catch(e => console.error('[Financeiro] categorias:', e.message));
+    api.get('/leads?limit=200').then(d => setLeads(d.leads || [])).catch(e => console.error('[Financeiro] leads:', e.message));
+    api.get('/servicos').then(d => setServicos(d.servicos || [])).catch(e => console.error('[Financeiro] servicos:', e.message));
   }, []);
 
   function abrirModal(item = null) {

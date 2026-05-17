@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { decryptTenant } = require('../lib/encrypt');
 
 module.exports = async (req, res, next) => {
   try {
@@ -19,7 +20,7 @@ module.exports = async (req, res, next) => {
       return res.status(400).json({ error: 'Tenant inválido' });
     }
 
-    const tenant = await prisma.tenant.findUnique({ where: { slug } });
+    const tenant = decryptTenant(await prisma.tenant.findUnique({ where: { slug } }));
     if (!tenant) return res.status(404).json({ error: 'Empresa não encontrada' });
     if (!tenant.ativo) return res.status(403).json({ error: 'Empresa inativa' });
     if (tenant.planoStatus === 'trial' && tenant.planoVencimento && new Date() > new Date(tenant.planoVencimento)) {

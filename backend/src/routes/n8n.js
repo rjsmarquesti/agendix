@@ -4,6 +4,7 @@
  */
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
+const { decryptTenant } = require('../lib/encrypt');
 const { getSlots } = require('../services/disponibilidadeService');
 const parseEndereco = require('../utils/parseEndereco');
 const { localDateStr } = require('../utils/dateUtils');
@@ -13,9 +14,9 @@ const { LIMITE_AGENDAMENTOS, BOT_WHATSAPP } = require('../config/planos');
 async function apiTokenAuth(req, res, next) {
   const token = req.headers['x-api-token'];
   if (!token) return res.status(401).json({ error: 'X-API-Token obrigatório' });
-  const tenant = await prisma.tenant.findFirst({ where: { apiToken: token, ativo: true } });
-  if (!tenant) return res.status(401).json({ error: 'Token inválido ou empresa inativa' });
-  req.tenant = tenant;
+  const raw = await prisma.tenant.findFirst({ where: { apiToken: token, ativo: true } });
+  if (!raw) return res.status(401).json({ error: 'Token inválido ou empresa inativa' });
+  req.tenant = decryptTenant(raw);
   next();
 }
 

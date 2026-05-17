@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
+const { authenticator } = require('otplib');
 const prisma = require('../lib/prisma');
 const audit = require('../lib/audit');
 
@@ -25,6 +26,14 @@ exports.login = async (req, res, next) => {
 
     const ok = await bcrypt.compare(senha, user.senha);
     if (!ok) return res.status(401).json({ error: 'Email ou senha incorretos' });
+
+    // 2FA obrigatório para super_admin se ativado
+    if (user.role === 'super_admin' && user.totpAtivo) {
+      const { totp } = req.body;
+      if (!totp) return res.status(403).json({ error: '2FA obrigatório', code: 'TOTP_REQUIRED' });
+      const totpValido = authenticator.verify({ token: String(totp).replace(/\s/g, ''), secret: user.totpSecret });
+      if (!totpValido) return res.status(403).json({ error: 'Código 2FA inválido', code: 'TOTP_INVALID' });
+    }
 
     const token = jwt.sign(
       { id: user.id, nome: user.nome, email: user.email, role: user.role, tenantId: user.tenantId },

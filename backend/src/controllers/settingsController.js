@@ -1,12 +1,14 @@
 const crypto = require('crypto');
 const prisma = require('../lib/prisma');
+const { encrypt, decrypt, decryptTenant } = require('../lib/encrypt');
 const { modulosPorNicho, UNIVERSAIS } = require('../config/nichos');
 
 exports.get = async (req, res, next) => {
   try {
-    const tenant = await prisma.tenant.findUnique({ where: { id: req.user.tenantId } });
-    if (!tenant) return res.status(404).json({ error: 'Empresa não encontrada' });
-    res.json({ tenant });
+    const raw = await prisma.tenant.findUnique({ where: { id: req.user.tenantId } });
+    if (!raw) return res.status(404).json({ error: 'Empresa não encontrada' });
+    // Descriptografa campos sensíveis antes de enviar ao frontend
+    res.json({ tenant: decryptTenant(raw) });
   } catch (err) { next(err); }
 };
 
@@ -37,24 +39,27 @@ exports.update = async (req, res, next) => {
       modulosFinais = JSON.stringify([...new Set([...base, ...preservados])]);
     }
 
-    const tenant = await prisma.tenant.update({
+    const raw = await prisma.tenant.update({
       where: { id: req.user.tenantId },
       data: {
         nome, logo, corPrimaria, modulos: modulosFinais,
-        n8nWebhookUrl: n8nWebhookUrl || null, n8nApiKey: n8nApiKey || null,
+        n8nWebhookUrl: n8nWebhookUrl || null,
+        // Criptografa campos sensíveis antes de persistir
+        n8nApiKey:        n8nApiKey       ? encrypt(n8nApiKey)       : null,
         nichoLabel: nichoLabelFinal || null,
         evolutionInstance: evolutionInstance || null,
-        evolutionApiKey: evolutionApiKey || null,
+        evolutionApiKey:  evolutionApiKey  ? encrypt(evolutionApiKey)  : null,
         evolutionBaseUrl: evolutionBaseUrl || null,
         lembretesDiretosAtivo: lembretesDiretosAtivo === true,
         smtpHost: smtpHost || null,
         smtpPort: smtpPort ? Number(smtpPort) : null,
         smtpUser: smtpUser || null,
-        smtpPass: smtpPass || null,
+        smtpPass:         smtpPass        ? encrypt(smtpPass)        : null,
         smtpFrom: smtpFrom || null,
       },
     });
-    res.json({ tenant });
+    // Retorna com valores descriptografados para o frontend atualizar o form
+    res.json({ tenant: decryptTenant(raw) });
   } catch (err) { next(err); }
 };
 

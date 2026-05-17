@@ -74,7 +74,7 @@ export default function AdminLogs() {
     ]).then(([t, a]) => {
       setTenants(t.tenants || []);
       setAcoes(a);
-    }).catch(() => {});
+    }).catch(e => console.error('[AdminLogs] init:', e.message));
   }, []);
 
   useEffect(() => { load(true); }, [fAcao, fTenant, fInicio, fFim]); // eslint-disable-line

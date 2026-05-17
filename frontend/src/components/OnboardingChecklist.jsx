@@ -46,7 +46,7 @@ export default function OnboardingChecklist() {
   useEffect(() => {
     api.get('/dashboard/onboarding')
       .then(setDados)
-      .catch(() => {});
+      .catch(e => console.error('[Onboarding]:', e.message));
   }, []);
 
   if (!dados || fechado) return null;

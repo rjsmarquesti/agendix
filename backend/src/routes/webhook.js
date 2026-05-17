@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { z }  = require('zod');
 const prisma = require('../lib/prisma');
+const { decryptTenant } = require('../lib/encrypt');
 const parseEndereco = require('../utils/parseEndereco');
 const { handleMessage }    = require('../services/agentService');
 const { handleBotMessage } = require('../services/botAgendamentoService');
@@ -32,9 +33,9 @@ async function apiTokenAuth(req, res, next) {
   // Token exclusivamente via header — query param loga em access logs de proxy/CDN
   const token = req.headers['x-api-token'];
   if (!token) return res.status(401).json({ error: 'Token obrigatório (header X-API-Token)' });
-  const tenant = await prisma.tenant.findFirst({ where: { apiToken: token, ativo: true } });
-  if (!tenant) return res.status(401).json({ error: 'Token inválido ou empresa inativa' });
-  req.tenant = tenant;
+  const raw = await prisma.tenant.findFirst({ where: { apiToken: token, ativo: true } });
+  if (!raw) return res.status(401).json({ error: 'Token inválido ou empresa inativa' });
+  req.tenant = decryptTenant(raw);
   next();
 }
 

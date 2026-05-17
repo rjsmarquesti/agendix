@@ -297,7 +297,7 @@ export default function Agendamentos() {
     api.get('/settings/agenda').then(d => {
       const c = d.config;
       setAgendaConfig({ horarioInicio: c.horarioInicio, horarioFim: c.horarioFim, diasUteis: c.diasUteis });
-    }).catch(() => {});
+    }).catch(e => console.error('[Agendamentos] agenda config:', e.message));
   }, []);
 
   const loadItems = useCallback(async () => {
@@ -322,7 +322,7 @@ export default function Agendamentos() {
   useEffect(() => {
     api.get('/leads', { limit: 200 })
       .then(d => setLeads(d.leads))
-      .catch(() => {});
+      .catch(e => console.error('[Agendamentos] leads:', e.message));
   }, []);
 
   function openCreate() {
