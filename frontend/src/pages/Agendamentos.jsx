@@ -125,10 +125,24 @@ function buildAgendPrintHTML(items, { filtroData, filtroStatus, filtroCanal }, t
 }
 
 // Formulário de CRIAÇÃO — usa nome+telefone (backend cria lead automaticamente)
-function AgendFormCriar({ form, setForm, onSubmit, loading }) {
+function AgendFormCriar({ form, setForm, leads, onSubmit, loading }) {
   const cls = "w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100";
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      {leads.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lead existente <span className="text-gray-400 font-normal">(opcional)</span></label>
+          <select className={cls}
+            value=""
+            onChange={e => {
+              const lead = leads.find(l => String(l.id) === e.target.value);
+              if (lead) setForm(f => ({ ...f, nome: lead.nome, telefone: lead.telefone || '', email: lead.email || '' }));
+            }}>
+            <option value="">Buscar lead cadastrado...</option>
+            {leads.map(l => <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` · ${l.telefone}` : ''}</option>)}
+          </select>
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
@@ -664,7 +678,7 @@ export default function Agendamentos() {
         title={editId ? 'Editar Agendamento' : 'Novo Agendamento'}>
         {editId
           ? <AgendForm form={form} setForm={setForm} leads={leads} onSubmit={handleSubmit} loading={loading} />
-          : <AgendFormCriar form={form} setForm={setForm} onSubmit={handleSubmit} loading={loading} />
+          : <AgendFormCriar form={form} setForm={setForm} leads={leads} onSubmit={handleSubmit} loading={loading} />
         }
       </Modal>
     </Layout>
