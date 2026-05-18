@@ -18,7 +18,7 @@ exports.login = async (req, res, next) => {
       where: tenantId
         ? { email, tenantId }
         : { email, role: 'super_admin' },
-      include: { tenant: { select: { nome: true, slug: true, corPrimaria: true, logo: true, modulos: true, plano: true, planoStatus: true, planoVencimento: true } } },
+      include: { tenant: { select: { nome: true, slug: true, corPrimaria: true, logo: true, modulos: true, plano: true, planoStatus: true, planoVencimento: true, cadastroCompleto: true } } },
     });
 
     if (!user) return res.status(401).json({ error: 'Email ou senha incorretos' });
@@ -51,7 +51,10 @@ exports.login = async (req, res, next) => {
     res.json({
       token,
       user: { id: user.id, nome: user.nome, email: user.email, role: user.role },
-      tenant: user.tenant,
+      tenant: user.tenant ? {
+        ...user.tenant,
+        modulos: typeof user.tenant.modulos === 'string' ? JSON.parse(user.tenant.modulos || '[]') : (user.tenant.modulos || []),
+      } : null,
     });
   } catch (err) { next(err); }
 };

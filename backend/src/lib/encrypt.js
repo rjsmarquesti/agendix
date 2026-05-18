@@ -67,6 +67,7 @@ function decryptTenant(tenant) {
   if (!tenant) return tenant;
   return {
     ...tenant,
+    modulos: typeof tenant.modulos === 'string' ? JSON.parse(tenant.modulos || '[]') : (tenant.modulos || []),
     evolutionApiKey: decrypt(tenant.evolutionApiKey),
     n8nApiKey:       decrypt(tenant.n8nApiKey),
     smtpPass:        decrypt(tenant.smtpPass),
