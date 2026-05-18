@@ -38,11 +38,15 @@ import AdminConsumo                from './pages/admin/AdminConsumo';
 import AdminLogs                   from './pages/admin/AdminLogs';
 import AdminUsuarios               from './pages/admin/AdminUsuarios';
 import AdminForgotPassword         from './pages/admin/AdminForgotPassword';
+const PLANOS_COM_FINANCEIRO = ['pro', 'premium', 'business'];
 
-function PrivateRoute({ children, roles }) {
-  const { token, user } = useAuth();
+function PrivateRoute({ children, roles, planos }) {
+  const { token, user, tenant } = useAuth();
   if (!token) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user?.role)) return <Navigate to="/" replace />;
+  if (planos && tenant && !planos.includes(tenant.plano)) {
+    return <Navigate to="/configuracoes" replace />;
+  }
   return children;
 }
 
@@ -81,7 +85,7 @@ export default function App() {
         <Route path="/configuracoes"element={<PrivateRoute roles={['admin','super_admin']}><Settings /></PrivateRoute>} />
         <Route path="/agenda-hoje"      element={<PrivateRoute><AgendaHoje /></PrivateRoute>} />
         <Route path="/calendario"       element={<PrivateRoute><CalendarioAgendamentos /></PrivateRoute>} />
-        <Route path="/financeiro"   element={<PrivateRoute roles={['admin','super_admin']}><Financeiro /></PrivateRoute>} />
+        <Route path="/financeiro"   element={<PrivateRoute roles={['admin','super_admin']} planos={PLANOS_COM_FINANCEIRO}><Financeiro /></PrivateRoute>} />
         <Route path="/fichas"       element={<PrivateRoute><Fichas /></PrivateRoute>} />
         <Route path="/prontuarios"  element={<PrivateRoute><Prontuarios /></PrivateRoute>} />
         <Route path="/anamnese"     element={<PrivateRoute><Anamnese /></PrivateRoute>} />
