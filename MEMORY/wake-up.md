@@ -2,7 +2,7 @@
 
 > Claude: leia este arquivo no início de cada sessão antes de qualquer ação.
 
-**Última sessão:** 2026-05-17 18:52
+**Última sessão:** 2026-05-20 21:25
 **Último deploy:** 2026-05-12 — backend:20260512a / frontend:20260512a
 
 ---

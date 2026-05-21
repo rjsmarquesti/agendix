@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agendix — Design System Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary:    #0C0C0F;
+  --bg-secondary:  #111116;
+  --bg-tertiary:   #18181F;
+  --bg-elevated:   #1E1E28;
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.18);
+  --accent-primary:   #00C97A;
+  --accent-hover:     #00E589;
+  --accent-muted:     rgba(0,201,122,0.12);
+  --accent-glow:      rgba(0,201,122,0.22);
+  --accent-amber:     #F5A623;
+  --accent-amber-muted: rgba(245,166,35,0.12);
+  --text-primary:   #F0F0F5;
+  --text-secondary: #9090A8;
+  --text-tertiary:  #5A5A72;
+  --text-inverse:   #0C0C0F;
+  --success: #00C97A;
+  --warning: #F5A623;
+  --error:   #FF4757;
+  --info:    #4A9EFF;
+  --gradient-card: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body:    'DM Sans', sans-serif;
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+  --radius-full: 9999px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Noise overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Layout */
+.layout { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  margin-bottom: 28px;
+}
+
+.logo-mark {
+  width: 28px;
+  height: 28px;
+  background: var(--accent-primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.logo-mark svg { width: 16px; height: 16px; }
+
+.logo-text {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.nav-section-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 8px;
+  margin-bottom: 6px;
+  margin-top: 20px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+
+.nav-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.nav-item.active {
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+  border-color: rgba(0,201,122,0.15);
+}
+
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.user-info:hover { background: var(--bg-tertiary); }
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, #00C97A, #00A8FF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-inverse);
+  flex-shrink: 0;
+}
+
+.user-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.user-role { font-size: 11px; color: var(--text-tertiary); }
+
+/* Main */
+.main { flex: 1; overflow: auto; }
+
+.page-header {
+  padding: 32px 40px 28px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.breadcrumb {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.page-title {
+  font-family: var(--font-body);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+}
+
+.page-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+
+.header-actions { display: flex; gap: 10px; align-items: center; padding-top: 20px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s cubic-bezier(0.16,1,0.3,1);
+  white-space: nowrap;
+}
+
+.btn svg { width: 15px; height: 15px; }
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 20px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+}
+.btn-secondary:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-strong);
+}
+
+/* Page content */
+.page-content { padding: 32px 40px; }
+
+/* KPI cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.kpi-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  background-image: var(--gradient-card);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  animation: fadeInUp 0.4s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.kpi-card:nth-child(1) { animation-delay: 0.05s; }
+.kpi-card:nth-child(2) { animation-delay: 0.10s; }
+.kpi-card:nth-child(3) { animation-delay: 0.15s; }
+.kpi-card:nth-child(4) { animation-delay: 0.20s; }
+
+.kpi-card:hover {
+  border-color: var(--border-default);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.kpi-card.featured {
+  border-top: 1px solid var(--accent-primary);
+  box-shadow: 0 -1px 0 0 var(--accent-primary), inset 0 1px 0 0 var(--accent-muted);
+}
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kpi-label svg { width: 13px; height: 13px; }
+
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.kpi-card.featured .kpi-value { color: var(--accent-primary); }
+
+.kpi-change {
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kpi-change.up { color: var(--success); }
+.kpi-change.down { color: var(--error); }
+.kpi-change svg { width: 12px; height: 12px; }
+
+/* Section heading */
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+
+/* Grid 2 col */
+.content-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+
+/* Appointments list */
+.appointments-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background-image: var(--gradient-card);
+  animation: fadeInUp 0.4s cubic-bezier(0.16,1,0.3,1) 0.25s both;
+}
+
+.appointments-header {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.appointment-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+
+.appointment-item:last-child { border-bottom: none; }
+.appointment-item:hover { background: var(--bg-tertiary); }
+
+.appointment-time {
+  text-align: center;
+  min-width: 50px;
+}
+
+.time-hour {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.time-period {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.appointment-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.appointment-info { flex: 1; min-width: 0; }
+
+.appointment-client {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appointment-service {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.badge svg { width: 10px; height: 10px; }
+.badge-success { background: rgba(0,201,122,0.12); color: #00C97A; }
+.badge-warning { background: rgba(245,166,35,0.12); color: #F5A623; }
+.badge-error   { background: rgba(255,71,87,0.12);  color: #FF4757; }
+.badge-neutral { background: rgba(144,144,168,0.10); color: var(--text-secondary); }
+
+/* Sidebar right */
+.side-panel { display: flex; flex-direction: column; gap: 20px; }
+
+/* Mini calendar */
+.calendar-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  background-image: var(--gradient-card);
+  animation: fadeInUp 0.4s cubic-bezier(0.16,1,0.3,1) 0.30s both;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.calendar-month {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.cal-nav-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.cal-nav-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.cal-nav-btn svg { width: 13px; height: 13px; }
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cal-day-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 4px 0 8px;
+}
+
+.cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  position: relative;
+}
+
+.cal-day:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.cal-day.today { color: var(--accent-primary); font-weight: 600; }
+.cal-day.selected {
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+  font-weight: 600;
+}
+
+.cal-day.has-events::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+
+.cal-day.selected::after { background: var(--text-inverse); }
+.cal-day.other-month { color: var(--text-tertiary); opacity: 0.4; }
+
+/* WhatsApp status */
+.whatsapp-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  background-image: var(--gradient-card);
+  animation: fadeInUp 0.4s cubic-bezier(0.16,1,0.3,1) 0.35s both;
+}
+
+.whatsapp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.whatsapp-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.wa-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--accent-amber-muted);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wa-icon svg { width: 14px; height: 14px; color: var(--accent-amber); }
+
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.wa-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.wa-stat-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+.wa-stat-label { font-size: 12.5px; color: var(--text-secondary); }
+.wa-stat-value { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+/* Form section */
+.form-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+  background-image: var(--gradient-card);
+  animation: fadeInUp 0.4s cubic-bezier(0.16,1,0.3,1) 0.4s both;
+  margin-top: 20px;
+}
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.input {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 10px 14px;
+  width: 100%;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.input::placeholder { color: var(--text-tertiary); }
+
+select.input { cursor: pointer; }
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* Typography showcase section */
+.type-showcase {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  background-image: var(--gradient-card);
+  margin-top: 20px;
+  animation: fadeInUp 0.4s cubic-bezier(0.16,1,0.3,1) 0.45s both;
+}
+
+.display-text {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.display-text em { font-style: italic; color: var(--accent-primary); }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 16 16" fill="none" stroke="#0C0C0F" stroke-width="2" stroke-linecap="round">
+          <rect x="2" y="2" width="5" height="5" rx="1"/>
+          <rect x="9" y="2" width="5" height="5" rx="1"/>
+          <rect x="2" y="9" width="5" height="5" rx="1"/>
+          <path d="M9 11.5h5M11.5 9v5"/>
+        </svg>
+      </div>
+      <span class="logo-text">Agendix</span>
+    </div>
+
+    <div class="nav-section-label">Principal</div>
+
+    <a class="nav-item active">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
+        <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+      </svg>
+      Dashboard
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <rect x="1" y="2" width="14" height="13" rx="2"/>
+        <path d="M1 6h14M5 1v2M11 1v2"/>
+      </svg>
+      Agendamentos
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6"/>
+      </svg>
+      Clientes
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M8 1v6l4 2"/><circle cx="8" cy="8" r="7"/>
+      </svg>
+      Horários
+    </a>
+
+    <div class="nav-section-label">Automação</div>
+
+    <a class="nav-item">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M14 5c0 5-6 9-6 9S2 10 2 5a6 6 0 0112 0z"/>
+        <circle cx="8" cy="5" r="2"/>
+      </svg>
+      WhatsApp
+      <span class="badge badge-warning" style="margin-left:auto;padding:2px 6px;font-size:10px;">4</span>
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M2 5h12M2 8h8M2 11h5"/><rect x="1" y="2" width="14" height="12" rx="2"/>
+      </svg>
+      Mensagens
+    </a>
+
+    <div class="nav-section-label">Conta</div>
+    <a class="nav-item">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <circle cx="8" cy="8" r="2.5"/>
+        <path d="M8 1v2M8 13v2M1 8h2M13 8h2M2.93 2.93l1.41 1.41M11.66 11.66l1.41 1.41M2.93 13.07l1.41-1.41M11.66 4.34l1.41-1.41"/>
+      </svg>
+      Configurações
+    </a>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="avatar">RS</div>
+        <div>
+          <div class="user-name">Rogério</div>
+          <div class="user-role">Administrador</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <div class="page-header">
+      <div>
+        <div class="breadcrumb">Dashboard</div>
+        <h1 class="page-title">Visão Geral</h1>
+        <p class="page-subtitle">Hoje, 20 de maio de 2026</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M8 1v6l4 2"/><circle cx="8" cy="8" r="7"/>
+          </svg>
+          Relatório
+        </button>
+        <button class="btn btn-primary">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M8 1v14M1 8h14"/>
+          </svg>
+          Novo Agendamento
+        </button>
+      </div>
+    </div>
+
+    <div class="page-content">
+
+      <!-- KPI grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card featured">
+          <div class="kpi-label">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <rect x="1" y="2" width="14" height="13" rx="2"/><path d="M1 6h14M5 1v2M11 1v2"/>
+            </svg>
+            Agendamentos Hoje
+          </div>
+          <div class="kpi-value">24</div>
+          <div class="kpi-change up">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M6 2v8M2 6l4-4 4 4"/>
+            </svg>
+            +18% vs ontem
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6"/>
+            </svg>
+            Clientes Ativos
+          </div>
+          <div class="kpi-value">312</div>
+          <div class="kpi-change up">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M6 2v8M2 6l4-4 4 4"/>
+            </svg>
+            +7 esta semana
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <path d="M1 11l4-4 3 3 3-3 4 4"/><path d="M1 15h14"/>
+            </svg>
+            Taxa de Confirmação
+          </div>
+          <div class="kpi-value">91%</div>
+          <div class="kpi-change up">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M6 2v8M2 6l4-4 4 4"/>
+            </svg>
+            +3pp este mês
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <path d="M14 5c0 5-6 9-6 9S2 10 2 5a6 6 0 0112 0z"/>
+            </svg>
+            Msgs WhatsApp Hoje
+          </div>
+          <div class="kpi-value">87</div>
+          <div class="kpi-change down">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M6 10V2M2 6l4 4 4-4"/>
+            </svg>
+            −5% vs ontem
+          </div>
+        </div>
+      </div>
+
+      <!-- Content grid -->
+      <div class="content-grid">
+        <!-- Appointments -->
+        <div>
+          <div class="section-heading">
+            <span class="section-title">Agendamentos de Hoje</span>
+            <button class="btn btn-secondary" style="padding:6px 14px;font-size:12.5px;">Ver todos</button>
+          </div>
+
+          <div class="appointments-card">
+            <div class="appointments-header">
+              <span style="font-size:13px;color:var(--text-secondary);">24 agendamentos · 3 pendentes</span>
+              <div class="badge badge-success">
+                <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="5" cy="5" r="4"/>
+                </svg>
+                Online
+              </div>
+            </div>
+
+            <!-- items -->
+            <div class="appointment-item">
+              <div class="appointment-time"><div class="time-hour">09:00</div><div class="time-period">AM</div></div>
+              <div class="appointment-divider"></div>
+              <div class="appointment-info">
+                <div class="appointment-client">Mariana Costa</div>
+                <div class="appointment-service">Corte + Escova • 60 min</div>
+              </div>
+              <span class="badge badge-success">Confirmado</span>
+            </div>
+
+            <div class="appointment-item">
+              <div class="appointment-time"><div class="time-hour">10:30</div><div class="time-period">AM</div></div>
+              <div class="appointment-divider"></div>
+              <div class="appointment-info">
+                <div class="appointment-client">Felipe Andrade</div>
+                <div class="appointment-service">Consulta Inicial • 45 min</div>
+              </div>
+              <span class="badge badge-warning">Pendente</span>
+            </div>
+
+            <div class="appointment-item">
+              <div class="appointment-time"><div class="time-hour">11:15</div><div class="time-period">AM</div></div>
+              <div class="appointment-divider"></div>
+              <div class="appointment-info">
+                <div class="appointment-client">Ana Paula Reis</div>
+                <div class="appointment-service">Manicure + Pedicure • 90 min</div>
+              </div>
+              <span class="badge badge-success">Confirmado</span>
+            </div>
+
+            <div class="appointment-item">
+              <div class="appointment-time"><div class="time-hour">14:00</div><div class="time-period">PM</div></div>
+              <div class="appointment-divider"></div>
+              <div class="appointment-info">
+                <div class="appointment-client">Roberto Teixeira</div>
+                <div class="appointment-service">Avaliação • 30 min</div>
+              </div>
+              <span class="badge badge-error">Cancelado</span>
+            </div>
+
+            <div class="appointment-item">
+              <div class="appointment-time"><div class="time-hour">16:30</div><div class="time-period">PM</div></div>
+              <div class="appointment-divider"></div>
+              <div class="appointment-info">
+                <div class="appointment-client">Juliana Ferreira</div>
+                <div class="appointment-service">Coloração • 120 min</div>
+              </div>
+              <span class="badge badge-neutral">Aguardando</span>
+            </div>
+          </div>
+
+          <!-- Form -->
+          <div class="form-section">
+            <div class="section-heading" style="margin-bottom:20px;">
+              <span class="section-title">Novo Agendamento</span>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="label">Nome do cliente</label>
+                <input class="input" type="text" placeholder="Ex: Maria Silva">
+              </div>
+              <div class="form-group">
+                <label class="label">WhatsApp</label>
+                <input class="input" type="tel" placeholder="(11) 99999-9999">
+              </div>
+              <div class="form-group">
+                <label class="label">Serviço</label>
+                <select class="input">
+                  <option value="">Selecione um serviço</option>
+                  <option>Corte de Cabelo</option>
+                  <option>Escova</option>
+                  <option>Coloração</option>
+                  <option>Manicure</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="label">Profissional</label>
+                <select class="input">
+                  <option>Camila Rocha</option>
+                  <option>Diego Alves</option>
+                  <option>Priya Santos</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="label">Data</label>
+                <input class="input" type="date" value="2026-05-21">
+              </div>
+              <div class="form-group">
+                <label class="label">Horário</label>
+                <select class="input">
+                  <option>09:00</option><option>09:30</option>
+                  <option>10:00</option><option>10:30</option>
+                  <option>11:00</option><option>14:00</option>
+                </select>
+              </div>
+              <div class="form-group full" style="flex-direction:row;justify-content:flex-end;gap:10px;margin-top:4px;">
+                <button class="btn btn-secondary">Cancelar</button>
+                <button class="btn btn-primary">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <path d="M13 4L6 11l-3-3"/>
+                  </svg>
+                  Confirmar Agendamento
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Side panel -->
+        <div class="side-panel">
+
+          <!-- Calendar -->
+          <div class="calendar-card">
+            <div class="calendar-nav">
+              <span class="calendar-month">Maio 2026</span>
+              <div style="display:flex;gap:4px;">
+                <button class="cal-nav-btn">
+                  <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <path d="M8 2L4 6l4 4"/>
+                  </svg>
+                </button>
+                <button class="cal-nav-btn">
+                  <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <path d="M4 2l4 4-4 4"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="calendar-grid">
+              <div class="cal-day-label">D</div><div class="cal-day-label">S</div>
+              <div class="cal-day-label">T</div><div class="cal-day-label">Q</div>
+              <div class="cal-day-label">Q</div><div class="cal-day-label">S</div>
+              <div class="cal-day-label">S</div>
+              <!-- Dias -->
+              <div class="cal-day other-month">27</div>
+              <div class="cal-day other-month">28</div>
+              <div class="cal-day other-month">29</div>
+              <div class="cal-day other-month">30</div>
+              <div class="cal-day has-events">1</div>
+              <div class="cal-day has-events">2</div>
+              <div class="cal-day">3</div>
+              <div class="cal-day">4</div>
+              <div class="cal-day has-events">5</div>
+              <div class="cal-day has-events">6</div>
+              <div class="cal-day has-events">7</div>
+              <div class="cal-day">8</div>
+              <div class="cal-day">9</div>
+              <div class="cal-day">10</div>
+              <div class="cal-day has-events">11</div>
+              <div class="cal-day has-events">12</div>
+              <div class="cal-day has-events">13</div>
+              <div class="cal-day has-events">14</div>
+              <div class="cal-day has-events">15</div>
+              <div class="cal-day has-events">16</div>
+              <div class="cal-day">17</div>
+              <div class="cal-day has-events">18</div>
+              <div class="cal-day has-events">19</div>
+              <div class="cal-day selected today">20</div>
+              <div class="cal-day has-events">21</div>
+              <div class="cal-day has-events">22</div>
+              <div class="cal-day">23</div>
+              <div class="cal-day">24</div>
+              <div class="cal-day">25</div>
+              <div class="cal-day has-events">26</div>
+              <div class="cal-day has-events">27</div>
+              <div class="cal-day has-events">28</div>
+              <div class="cal-day has-events">29</div>
+              <div class="cal-day">30</div>
+              <div class="cal-day">31</div>
+              <div class="cal-day other-month">1</div>
+            </div>
+          </div>
+
+          <!-- WhatsApp Status -->
+          <div class="whatsapp-card">
+            <div class="whatsapp-header">
+              <div class="whatsapp-title">
+                <div class="wa-icon">
+                  <svg viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0C3.582 0 0 3.582 0 8c0 1.41.369 2.731 1.013 3.875L0 16l4.243-1.113A7.954 7.954 0 008 16c4.418 0 8-3.582 8-8s-3.582-8-8-8zm3.896 11.28c-.164.46-.955.878-1.317.927-.336.046-.76.065-1.226-.077-.283-.088-.645-.205-1.109-.402-1.952-.843-3.228-2.813-3.326-2.944-.097-.13-.79-1.05-.79-2.001 0-.951.498-1.42.675-1.614.177-.194.386-.243.515-.243.13 0 .258.001.371.007.119.006.279-.045.436.333.161.384.547 1.334.595 1.431.048.097.08.21.016.338-.064.128-.096.208-.193.32-.096.113-.202.252-.289.339-.097.097-.198.2-.085.393.113.193.503.83 1.08 1.344.742.661 1.368.866 1.561.963.193.097.305.08.418-.048.113-.13.483-.564.613-.757.13-.193.258-.16.435-.097.177.064 1.128.532 1.322.629.193.097.322.145.37.226.048.08.048.468-.116.928z"/>
+                  </svg>
+                </div>
+                WhatsApp Bot
+              </div>
+              <span class="status-dot"></span>
+            </div>
+            <div class="wa-stat-row">
+              <span class="wa-stat-label">Mensagens enviadas</span>
+              <span class="wa-stat-value">87</span>
+            </div>
+            <div class="wa-stat-row">
+              <span class="wa-stat-label">Confirmações</span>
+              <span class="wa-stat-value" style="color:var(--success)">71</span>
+            </div>
+            <div class="wa-stat-row">
+              <span class="wa-stat-label">Sem resposta</span>
+              <span class="wa-stat-value" style="color:var(--warning)">12</span>
+            </div>
+            <div class="wa-stat-row">
+              <span class="wa-stat-label">Cancelamentos</span>
+              <span class="wa-stat-value" style="color:var(--error)">4</span>
+            </div>
+          </div>
+
+          <!-- Typography showcase -->
+          <div class="type-showcase">
+            <div class="kpi-label" style="margin-bottom:12px;">Design System</div>
+            <div class="display-text">Agendamentos <em>inteligentes</em></div>
+            <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;">
+              Tipografia Instrument Serif (display) + DM Sans (interface). Contraste elegante entre serif e sans que diferencia o produto.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

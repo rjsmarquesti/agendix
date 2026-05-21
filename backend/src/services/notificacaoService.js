@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
 const { executarAgendaDia } = require('./agendaDiaService');
+const { enfileirar } = require('./waQueue');
 
 function hoje() {
   return new Date().toISOString().split('T')[0];
@@ -24,23 +25,6 @@ function montarMensagem(template, agendamento) {
     .replace(/\{\{servico\}\}/g, servico);
 }
 
-async function enviarViaEvolution(tenant, telefone, mensagem) {
-  const base = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';
-  const instance = tenant.evolutionInstance;
-  const apikey = tenant.evolutionApiKey;
-
-  const url = `${base}/message/sendText/${instance}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey },
-    body: JSON.stringify({ number: telefone, text: mensagem }),
-  });
-
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Evolution API ${res.status}: ${txt}`);
-  }
-}
 
 async function criarNotificacao(tenantId, tipo, titulo, corpo) {
   await prisma.notificacao.create({ data: { tenantId, tipo, titulo, corpo } });
@@ -78,7 +62,7 @@ async function processarTenant(tenant) {
     const mensagem = montarMensagem(template, ag);
 
     try {
-      await enviarViaEvolution(tenant, telefone, mensagem);
+      await enfileirar(tenant, telefone, mensagem);
 
       await prisma.agendamento.update({
         where: { id: ag.id },
@@ -154,14 +138,14 @@ async function notificarAgendamento(tenant, agendamento) {
       .replace(/\{\{data\}\}/g, dataBr)
       .replace(/\{\{hora\}\}/g, hora)
       .replace(/\{\{servico\}\}/g, nomeServico);
-    await enviarViaEvolution(tenant, phoneCliente, msg).catch(e =>
+    enfileirar(tenant, phoneCliente, msg).catch(e =>
       console.error('[notificarAgendamento] cliente:', e.message)
     );
   }
 
   if (config.whatsappAdmin) {
     const adminMsg = `📅 Novo agendamento!\n\n👤 ${nomeCliente}\n🗂️ ${nomeServico}\n📆 ${dataBr} às ${hora}`;
-    await enviarViaEvolution(tenant, config.whatsappAdmin, adminMsg).catch(e =>
+    enfileirar(tenant, config.whatsappAdmin, adminMsg).catch(e =>
       console.error('[notificarAgendamento] admin:', e.message)
     );
   }

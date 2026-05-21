@@ -44,6 +44,19 @@ model Tenant {
   trialEmailD13EnviadoEm DateTime? @map("trial_email_d13_enviado_em")
   planoDowngradePendente Plano?    @map("plano_downgrade_pendente")
   planoDowngradeData     DateTime? @map("plano_downgrade_data")
+  // Dados de contato e legais
+  email          String?
+  telefone       String?
+  cnpj           String?
+  razaoSocial    String?  @map("razao_social")
+  logradouro     String?
+  numero         String?
+  complemento    String?
+  bairro         String?
+  cidade         String?
+  estado         String?
+  cep            String?
+  cadastroCompleto Boolean @default(false) @map("cadastro_completo")
   createdAt              DateTime @default(now()) @map("created_at")
 
   users              User[]
@@ -60,7 +73,7 @@ model Tenant {
   agentConfig        AgentConfig?
   agentSessions      AgentSession[]
   agentLeads         AgentLead[]
-
+  pushSubscriptions  PushSubscription[]
   @@map("tenants")
 }
 
@@ -82,6 +95,8 @@ model User {
   activationExpires    DateTime? @map("activation_expires")
   totpSecret           String?  @map("totp_secret")
   totpAtivo            Boolean  @default(false) @map("totp_ativo")
+
+  pushSubscriptions  PushSubscription[]
 
   @@unique([email, tenantId])
   @@map("users")
@@ -184,6 +199,7 @@ model Agendamento {
   @@index([tenantId, status])
   @@index([data, status])
   @@index([lembreteEnviado, status])
+  @@index([leadId])
   @@map("agendamentos")
 }
 
@@ -457,6 +473,24 @@ model AgentLead {
   @@unique([tenantId, telefone])
   @@index([tenantId])
   @@map("agent_leads")
+}
+
+// ─── PushSubscription (Web Push VAPID por usuário) ───────────────────────────
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int      @map("tenant_id")
+  userId    Int      @map("user_id")
+  endpoint  String   @db.Text
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@index([tenantId])
+  @@map("push_subscriptions")
 }
 
 // ─── AuditLog (registro de ações críticas) ────────────────────────────────────

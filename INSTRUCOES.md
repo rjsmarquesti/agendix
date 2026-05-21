@@ -1,156 +1,149 @@
-# CRM Simples — Instruções de Uso
+# Agendix — Instruções Técnicas
+> Deploy via Docker Hub + EasyPanel · Versão 1.2
+
+---
 
 ## Stack
-- **Backend:** Node.js + Express + Prisma
-- **Frontend:** React + Vite + Tailwind CSS
-- **Banco:** MariaDB 10.11
-- **Container:** Docker + Docker Compose
+
+| Camada | Tecnologia |
+|--------|-----------|
+| Frontend | React 18 + Vite + Tailwind CSS |
+| Backend | Node.js 20 + Express + Prisma ORM |
+| Banco | PostgreSQL 16 (Alpine) |
+| Auth | JWT + bcryptjs + TOTP 2FA |
+| WhatsApp | Evolution API |
+| Automação | n8n |
+| Pagamentos | Mercado Pago (Preapproval) |
+| Deploy | Docker Hub → EasyPanel |
 
 ---
 
-## Rodar com Docker Desktop (local)
+## Imagens Docker
 
-### Passo 1 — Clonar e configurar variáveis
-
-```bash
-cd crm-simples
-cp .env.example .env
+```
+rjsmarquesti/agendix-backend:stable
+rjsmarquesti/agendix-frontend:stable
 ```
 
-Edite o `.env` com suas senhas:
+Tags com data: formato `YYYYMMDD[letra]-v[semver]` (ex: `20260518e-v1.2.1`)
+
+---
+
+## Variáveis de Ambiente (backend)
 
 ```env
-DB_ROOT_PASSWORD=senha_root_forte
-DB_NAME=crm_simples
-DB_USER=crm_user
-DB_PASSWORD=senha_do_usuario
-JWT_SECRET=uma_chave_secreta_muito_longa_e_aleatoria
+DATABASE_URL=postgresql://USER:PASS@HOST:5432/DB
+JWT_SECRET=chave_longa_e_aleatoria
 JWT_EXPIRES_IN=7d
+PORT=3000
+APP_URL=https://agendix.divulgabr.com.br
+
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=suporte@divulgabr.com.br
+SMTP_PASS=...
+SMTP_FROM=suporte@divulgabr.com.br
+
+EVOLUTION_GLOBAL_API_KEY=...
+
+MP_ACCESS_TOKEN=...
+MP_PLAN_BASICO_ID=...
+MP_PLAN_PRO_ID=...
+MP_PLAN_PREMIUM_ID=...
+MP_PLAN_BUSINESS_ID=...
+MP_WEBHOOK_SECRET=...
 ```
 
-### Passo 2 — Subir os containers
-
-```bash
-docker-compose up -d --build
-```
-
-O Docker irá:
-1. Subir o MariaDB e aguardar ele ficar saudável
-2. Rodar `prisma migrate deploy` (cria as tabelas)
-3. Rodar o seed (cria o admin e dados de exemplo)
-4. Iniciar o backend na porta 3000
-5. Fazer o build do React e servir com Nginx na porta 80
-
-### Passo 3 — Acessar
-
-| Serviço   | URL                        |
-|-----------|----------------------------|
-| Frontend  | http://localhost            |
-| Backend   | http://localhost:3000/api   |
-
-**Login padrão:**
-- Email: `admin@crm.com`
-- Senha: `admin123`
-
-### Comandos úteis
-
-```bash
-# Ver logs em tempo real
-docker-compose logs -f
-
-# Ver logs de um serviço específico
-docker-compose logs -f backend
-
-# Parar tudo
-docker-compose down
-
-# Parar e apagar o banco (CUIDADO: apaga os dados)
-docker-compose down -v
-
-# Rebuild após mudanças no código
-docker-compose up -d --build backend
-docker-compose up -d --build frontend
-```
+> O backend valida essas 12 variáveis no boot e encerra com mensagem clara se alguma estiver ausente.
 
 ---
 
-## Rodar no EasyPanel
+## Deploy no EasyPanel
 
-### Passo 1 — Preparar o repositório
+### Serviço 1: PostgreSQL
 
-Faça push do projeto para um repositório Git (GitHub, GitLab, etc.).
+- Tipo: **PostgreSQL** (serviço nativo do EasyPanel)
+- Anote a `DATABASE_URL` gerada
 
-> Certifique-se que o `.env` **não** está no repositório (está no `.gitignore`).
+### Serviço 2: Backend
 
-### Passo 2 — Criar os serviços no EasyPanel
-
-No painel do EasyPanel, crie um novo projeto e adicione **3 serviços**:
-
----
-
-#### Serviço 1: MariaDB
-
-- Tipo: **MariaDB** (ou App com imagem `mariadb:10.11`)
-- Variáveis de ambiente:
-  ```
-  MYSQL_ROOT_PASSWORD=senha_root_forte
-  MYSQL_DATABASE=crm_simples
-  MYSQL_USER=crm_user
-  MYSQL_PASSWORD=senha_do_usuario
-  ```
-- Volume: `/var/lib/mysql` → volume persistente
-
----
-
-#### Serviço 2: Backend (App)
-
-- Tipo: **App**
-- Source: Repositório Git → pasta `./backend`
-- Dockerfile: `./backend/Dockerfile`
+- Tipo: **App** → imagem Docker Hub
+- Imagem: `rjsmarquesti/agendix-backend:stable`
 - Porta: `3000`
-- Variáveis de ambiente:
-  ```
-  DATABASE_URL=mysql://crm_user:senha_do_usuario@<nome-servico-mariadb>:3306/crm_simples
-  JWT_SECRET=sua_chave_secreta
-  JWT_EXPIRES_IN=7d
-  PORT=3000
-  ```
+- Volumes:
+  - `agendix-uploads` → `/app/uploads` (logos)
+  - `agendix-backups` → `/app/backups` (backups JSON)
 
-> Substitua `<nome-servico-mariadb>` pelo nome interno do serviço MariaDB no EasyPanel (geralmente o nome que você deu ao criar).
+> **IMPORTANTE:** usar Volume (não Bind Mount) para `backups`. Bind mount com path inexistente causa erro na subida.
 
----
+### Serviço 3: Frontend
 
-#### Serviço 3: Frontend (App)
-
-- Tipo: **App**
-- Source: Repositório Git → pasta `./frontend`
-- Dockerfile: `./frontend/Dockerfile`
+- Tipo: **App** → imagem Docker Hub
+- Imagem: `rjsmarquesti/agendix-frontend:stable`
 - Porta: `80`
-- Domínio: configure o domínio desejado no EasyPanel
+- Domínio: configure o domínio desejado
+
+### Startup do backend
+
+O `CMD` do Dockerfile executa na ordem:
+
+```sh
+npx prisma migrate deploy && node prisma/seed.js && node server.js
+```
+
+O `entrypoint.sh` remove automaticamente migrations com falha antes do `migrate deploy` (robustez no cold-start).
+
+> Em `NODE_ENV=production`, o seed pula os dados de demonstração.
 
 ---
 
-### Passo 3 — Deploy
+## Workflow de Build e Deploy
 
-No EasyPanel, clique em **Deploy** em cada serviço na ordem:
-1. MariaDB
-2. Backend
-3. Frontend
+```bash
+# 1. Bumpar versão no package.json do serviço alterado
+# 2. Buildar
+docker build -t rjsmarquesti/agendix-backend:YYYYMMDD[letra]-vX.Y.Z ./backend
+docker build -t rjsmarquesti/agendix-frontend:YYYYMMDD[letra]-vX.Y.Z ./frontend
 
-### Passo 4 — Acessar
+# 3. Tag stable (após validar)
+docker tag rjsmarquesti/agendix-backend:TAG rjsmarquesti/agendix-backend:stable
+docker tag rjsmarquesti/agendix-frontend:TAG rjsmarquesti/agendix-frontend:stable
 
-Acesse pelo domínio configurado no EasyPanel.
+# 4. Push
+docker push rjsmarquesti/agendix-backend:TAG
+docker push rjsmarquesti/agendix-backend:stable
+docker push rjsmarquesti/agendix-frontend:TAG
+docker push rjsmarquesti/agendix-frontend:stable
+
+# 5. No EasyPanel: atualizar tag e fazer Redeploy
+```
+
+> Login no Docker Hub em ambiente não-TTY: usar `~/.docker/config.json` com auth pré-configurado (não usar `docker login` interativo).
 
 ---
 
-## Desenvolvimento local (sem Docker)
+## Migrations Prisma
+
+Rodam automaticamente no boot via `prisma migrate deploy`. Para adicionar nova migration:
+
+```bash
+cd backend
+npx prisma migrate dev --name descricao_da_migration
+```
+
+Testar localmente antes de buildar a imagem.
+
+---
+
+## Desenvolvimento Local
 
 ### Backend
 
 ```bash
 cd backend
 cp .env.example .env
-# Edite .env com DATABASE_URL apontando para MariaDB local
+# Edite .env com DATABASE_URL apontando para PostgreSQL local
 npm install
 npx prisma migrate deploy
 node prisma/seed.js
@@ -165,55 +158,68 @@ npm install
 npm run dev
 ```
 
-O Vite já faz proxy `/api → http://localhost:3000`.
+O Vite faz proxy `/api → http://localhost:3000` automaticamente.
 
-Acesse: http://localhost:5173
+Acesse: `http://localhost:5173`
 
 ---
 
-## Estrutura do projeto
+## Estrutura do Projeto
 
 ```
-crm-simples/
+agendix/
 ├── backend/
 │   ├── prisma/
-│   │   ├── schema.prisma       # Schema do banco
-│   │   ├── seed.js             # Dados iniciais
-│   │   └── migrations/         # Migrations do Prisma
+│   │   ├── schema.prisma
+│   │   ├── seed.js
+│   │   └── migrations/
 │   ├── src/
-│   │   ├── controllers/        # Lógica de negócio
-│   │   ├── routes/             # Rotas da API
-│   │   ├── middlewares/        # Auth + erros
-│   │   └── lib/prisma.js       # Cliente Prisma
+│   │   ├── controllers/
+│   │   ├── routes/
+│   │   ├── middlewares/
+│   │   ├── lib/          (prisma.js, audit.js, encrypt.js, mailer.js)
+│   │   ├── services/     (mercadoPago, trialEmail, agentIA)
+│   │   └── config/       (planos.js)
+│   ├── uploads/logos/
+│   ├── backups/
 │   ├── server.js
-│   ├── Dockerfile
-│   └── package.json
+│   ├── entrypoint.sh
+│   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/              # Login, Dashboard, Leads, Agendamentos
-│   │   ├── components/         # Layout, Modal, Badge
-│   │   ├── context/            # AuthContext
-│   │   └── services/api.js     # Cliente HTTP
-│   ├── Dockerfile
+│   │   ├── pages/
+│   │   ├── components/
+│   │   ├── context/      (AuthContext, ThemeContext)
+│   │   └── services/api.js
+│   ├── public/
+│   │   └── landingpage-agendix-v2.html
 │   ├── nginx.conf
-│   └── package.json
-├── docker-compose.yml
-├── .env.example
-└── .gitignore
+│   └── Dockerfile
+├── docs/
+│   ├── manual-admin.md
+│   └── manual-cliente.md
+└── INSTRUCOES.md
 ```
 
-## API — Rotas disponíveis
+---
 
-| Método | Rota                    | Descrição               |
-|--------|-------------------------|-------------------------|
-| POST   | /api/auth/login         | Login                   |
-| GET    | /api/auth/me            | Usuário autenticado     |
-| GET    | /api/dashboard          | Estatísticas            |
-| GET    | /api/leads              | Listar leads            |
-| POST   | /api/leads              | Criar lead              |
-| PUT    | /api/leads/:id          | Editar lead             |
-| DELETE | /api/leads/:id          | Remover lead            |
-| GET    | /api/agendamentos       | Listar agendamentos     |
-| POST   | /api/agendamentos       | Criar agendamento       |
-| PUT    | /api/agendamentos/:id   | Editar agendamento      |
-| DELETE | /api/agendamentos/:id   | Remover agendamento     |
+## nginx.conf — Roteamento
+
+```
+location = /      → landingpage-agendix-v2.html
+location /        → SPA React (try_files $uri $uri/ /index.html)
+location /api/    → proxy backend:3000
+```
+
+---
+
+## Credenciais Padrão (seed)
+
+| Papel | Email | Observação |
+|-------|-------|-----------|
+| super_admin | suporte@divulgabr.com.br | Alterar senha após primeiro acesso |
+| admin demo | admin@crm.com / admin123 | Criado apenas em `NODE_ENV != production` |
+
+---
+
+*Agendix · Docker Hub: rjsmarquesti · EasyPanel: projeto `desenvolvimento`*

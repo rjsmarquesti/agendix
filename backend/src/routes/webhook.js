@@ -150,6 +150,43 @@ router.post('/agente/:slug', async (req, res) => {
     }
 
     const event = req.body?.event;
+
+    // Detecta desconexão ou ban imediatamente, sem esperar o watchdog de 15 min
+    if (event === 'connection.update') {
+      const data       = req.body?.data || {};
+      const state      = data.state;
+      const reasonCode = data.statusReason ?? data.lastDisconnect?.error?.output?.statusCode;
+      const isBanned   = state === 'close' && reasonCode === 401;
+      const isDown     = state === 'close' || state === 'connecting';
+
+      if (isDown) {
+        await prisma.notificacao.create({
+          data: {
+            tenantId: tenant.id,
+            tipo:     isBanned ? 'instancia_banida' : 'instancia_desconectada',
+            titulo:   isBanned ? '🚫 WhatsApp banido' : '⚠️ WhatsApp desconectado',
+            corpo:    isBanned
+              ? 'Seu número foi banido pelo WhatsApp. Entre em contato com o suporte para trocar o número.'
+              : 'Sua conexão WhatsApp caiu. Acesse Configurações › Integração para reconectar.',
+          },
+        }).catch(() => {});
+
+        const { enviarEmailAlertaWA } = require('../lib/mailer');
+        const admin = await prisma.user.findFirst({
+          where:   { tenantId: tenant.id, role: 'admin', ativo: true },
+          orderBy: { createdAt: 'asc' },
+          select:  { email: true, nome: true },
+        });
+        if (admin?.email) {
+          await enviarEmailAlertaWA({
+            para: admin.email, nome: admin.nome, tenantNome: tenant.nome, state, isBanned,
+          }).catch(() => {});
+        }
+        console.warn(`[webhook:connection] tenant="${req.params.slug}" state="${state}" banned=${isBanned}`);
+      }
+      return;
+    }
+
     if (event !== 'messages.upsert') return;
 
     const msg = req.body?.data;

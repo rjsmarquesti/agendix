@@ -21,6 +21,15 @@ const agendamentoPublicoLimiter = rateLimit({
   message: { error: mensagemPadrao(20) },
 });
 
+// Recuperação de senha — limite agressivo para dificultar enumeração de e-mails
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de recuperação de senha. Aguarde 15 minutos.' },
+});
+
 // Rotas n8n — tolerância alta (automação legítima)
 const n8nLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -39,4 +48,4 @@ const apiGeralLimiter = rateLimit({
   message: { error: mensagemPadrao(300) },
 });
 
-module.exports = { loginLimiter, agendamentoPublicoLimiter, n8nLimiter, apiGeralLimiter };
+module.exports = { loginLimiter, forgotPasswordLimiter, agendamentoPublicoLimiter, n8nLimiter, apiGeralLimiter };

@@ -1,139 +1,181 @@
-# Manual do Administrador — Divulga BR CRM
-> Painel Super Admin · Versão 1.0
+# Manual do Administrador — Agendix
+> Painel Super Admin · Versão 1.2
 
 ---
 
 ## 1. Acesso ao Painel
 
-**URL:** `https://crm.divulgabr.com.br/admin/login`
+**URL:** `https://agendix.divulgabr.com.br/admin/login`
 
-| Campo | Valor padrão |
-|-------|-------------|
-| Email | super@crm.com |
-| Senha | superadmin123 |
+| Campo | Valor |
+|-------|-------|
+| Email | suporte@divulgabr.com.br |
+| Senha | *(configurada no seed — altere após o primeiro acesso)* |
 
-> **Importante:** Altere a senha padrão assim que possível.
+> O painel `/admin` é isolado do login dos tenants. Credenciais não se misturam.
 
 ---
 
 ## 2. Dashboard
 
-Ao entrar, você verá a tela de **visão geral** com:
+Tela inicial com visão consolidada da plataforma:
 
-- **Total de clientes** — quantidade de empresas cadastradas
-- **Ativos** — clientes com acesso liberado
-- **Inativos** — clientes bloqueados
-- **Total de leads** — soma de todos os leads de todos os clientes
-
-Também há dois painéis:
-- **Clientes por plano** — distribuição entre Básico, Pro e Premium
+- **Total de tenants** — empresas cadastradas
+- **Ativos / Trial / Inadimplentes** — distribuição por status de plano
+- **MRR estimado** — receita recorrente mensal
 - **Clientes recentes** — últimos cadastrados com plano e status
 
 ---
 
-## 3. Gerenciar Clientes
+## 3. Gerenciar Clientes (`/admin/clientes`)
 
-Acesse pelo menu lateral: **Clientes**
-
-### 3.1 Listar clientes
-A tabela exibe: nome, slug, plano, status (ativo/inativo) e quantidade de leads.
-
-Use a **barra de busca** para filtrar por nome ou slug.
-
-### 3.2 Criar novo cliente
+### 3.1 Criar novo tenant
 
 Clique em **+ Novo Cliente** e preencha:
 
 | Campo | Descrição |
 |-------|-----------|
 | Nome da empresa | Nome exibido no CRM do cliente |
-| Identificador (slug) | URL de acesso, ex: `minha-empresa` (apenas letras, números e hífen) |
-| Plano | Básico / Pro / Premium |
-| Cor primária | Cor da marca do cliente (hex, ex: `#2563eb`) |
-| Módulos ativos | Quais seções o cliente pode ver |
-| Ativo | Se o cliente pode fazer login |
+| Slug | Identificador único na URL (ex: `clinica-silva`) |
+| Plano | Básico / Pro / Premium / Business |
+| Cor primária | Hex da marca (ex: `#2563eb`) |
+| Ativo | Se o cliente pode fazer login imediatamente |
 
-**Módulos disponíveis:**
-- `leads` — Gestão de leads
-- `agendamentos` — Agenda de atendimentos
-- `usuarios` — Gerenciar usuários internos
-- `configuracoes` — Configurações da conta
+Após criar, o sistema provisiona automaticamente a instância WhatsApp (Evolution API) se o tenant tiver plano com Bot WA.
 
-**Limites por plano:**
+### 3.2 Editar tenant
 
-| Plano | Usuários |
-|-------|----------|
-| Básico | 1 |
-| Pro | 5 |
-| Premium | Ilimitado |
+Clique no **lápis**. Campos disponíveis para edição incluem nome, slug, plano, cor, email e telefone de contato.
 
-### 3.3 Editar cliente
+### 3.3 Upgrade / Downgrade de plano
 
-Clique no ícone de **lápis** na linha do cliente para abrir o modal de edição. Todos os campos podem ser alterados.
+- **Upgrade:** abre o checkout do Mercado Pago em nova aba; o plano é atualizado automaticamente pelo webhook após o pagamento.
+- **Downgrade:** agendado para o fim do ciclo atual. Um badge amarelo aparece na listagem indicando o plano que entrará na próxima renovação. Para cancelar o downgrade, clique no badge.
 
-### 3.4 Ativar / Desativar cliente
+### 3.4 Ativar / Desativar tenant
 
-No modal de edição, desmarque o campo **Ativo** para bloquear o acesso de todos os usuários daquele cliente.
+No modal de edição, desmaque **Ativo** para bloquear todos os usuários daquele tenant. Os dados são preservados.
 
-### 3.5 Ver detalhes e usuários
+### 3.5 Deletar tenant
 
-Clique no ícone de **olho** para ver os dados completos do cliente e a lista de usuários cadastrados.
+Ação irreversível. Remove o tenant e todos os dados vinculados. Confirme com cuidado.
 
 ---
 
-## 4. Gerenciar Usuários dos Clientes
+## 4. Gerenciar Usuários dos Tenants
 
-### 4.1 Criar usuário para um cliente
+### 4.1 Criar usuário
 
-1. Na tabela de clientes, clique no ícone de **pessoa com +**
-2. Preencha nome, email, senha e papel (função)
-3. Clique em **Criar Usuário**
+1. Na tabela de clientes, clique no ícone **pessoa+**
+2. Preencha nome, email, WhatsApp, senha e papel
 
-**Papéis disponíveis:**
+**Papéis:**
 
 | Papel | Permissões |
 |-------|-----------|
-| `admin` | Acesso total ao CRM do cliente, incluindo usuários e configurações |
+| `admin` | Acesso total ao CRM, usuários e configurações |
 | `atendente` | Acesso apenas a leads e agendamentos |
 
-> O sistema verifica o limite de usuários do plano antes de criar.
+> O backend valida o limite de usuários do plano antes de criar.
 
-### 4.2 Resetar senha de usuário
+### 4.2 Editar usuário
 
-1. Clique no ícone de **olho** do cliente
-2. Na lista de usuários, clique em **Resetar Senha**
-3. Digite a nova senha e confirme
+Clique em **Editar** na linha do usuário (dentro do modal de detalhes do tenant). Permite alterar nome, email, WhatsApp, papel e status ativo/inativo.
 
----
+### 4.3 Resetar senha de usuário
 
-## 5. Como o cliente acessa o sistema
-
-O cliente acessa em: `https://crm.divulgabr.com.br/login`
-
-Na tela de login, ele preenche:
-- **Identificador da empresa** — o slug cadastrado (ex: `minha-empresa`)
-- **Email e senha** — do usuário criado por você
+1. Abra o modal de detalhes do tenant (ícone **olho**)
+2. Na lista de usuários, clique em **Enviar link de reset**
+3. O sistema envia um email de redefinição ao endereço cadastrado
 
 ---
 
-## 6. Identidade visual por cliente
+## 5. WhatsApp & n8n por Tenant
 
-Cada cliente pode ter:
-- **Cor primária** — aplicada na sidebar e elementos de destaque do CRM
-- **Nome exibido** — aparece no topo do painel do cliente
+Na coluna de ações do tenant, há botões específicos para integração:
 
-Isso garante uma experiência white-label para cada empresa.
+- **QR Code WA** — exibe o QR Code para conectar o número WhatsApp da instância do tenant
+- **Status WA** — mostra se a instância está conectada
+- **Ativar n8n** — ao marcar `n8nAtivo`, o sistema provisiona automaticamente os workflows de automação (bot WA + lembretes) no n8n
 
----
-
-## 7. Boas práticas
-
-- Crie um usuário `admin` para cada cliente logo após criar a empresa
-- Defina uma cor primária alinhada à marca do cliente
-- Use slugs curtos e sem espaços (ex: `clinica-silva`, `auto-center`)
-- Clientes Básico têm apenas 1 usuário — escolha bem qual criar
-- Para revogar acesso temporariamente, desative o cliente em vez de deletar
+> Após provisionar o n8n, oriente o tenant a configurar o webhook URL e API token na aba **Bot/n8n** das configurações.
 
 ---
 
-*Divulga BR — Sistema de CRM · Suporte interno*
+## 6. Financeiro da Plataforma (`/admin/financeiro`)
+
+### 6.1 Dashboard Financeiro
+
+- **MRR** — receita recorrente mensal somada dos planos ativos
+- **Tabela de pagamentos** — histórico de assinaturas por tenant com valor, status e data
+
+### 6.2 Lançamentos (`/admin/financeiro/lancamentos`)
+
+CRUD de lançamentos da plataforma (custos de servidor, despesas operacionais, receitas extras). Filtros por tipo, categoria e período.
+
+### 6.3 Fluxo de Caixa (`/admin/financeiro/fluxo-caixa`)
+
+Gráfico de barras com 12 meses de receitas e despesas + tabela acumulada mês a mês.
+
+---
+
+## 7. Backups (`/admin/backups`)
+
+| Ação | Descrição |
+|------|-----------|
+| **Criar backup** | Gera um arquivo JSON completo (admin ou por tenant) |
+| **Baixar** | Download autenticado do arquivo JSON |
+| **Restaurar** | Aplica o backup em transaction completa |
+| **Excluir** | Remove o arquivo do volume |
+
+> Backups ficam no volume `agendix-backups` (`/app/backups` no container).
+
+---
+
+## 8. Consumo de Recursos (`/admin/consumo`)
+
+Barras de progresso mostrando uso vs. limite do plano para cada tenant:
+- **Agendamentos no mês** vs. limite do plano
+- **Usuários cadastrados** vs. limite do plano
+
+Útil para identificar tenants próximos do limite e sugerir upgrade.
+
+---
+
+## 9. Logs de Auditoria (`/admin/logs`)
+
+Registro de todas as ações críticas do sistema. Filtros por:
+- **Ação** — login, tenant_criado, backup_criado, plano_alterado, etc.
+- **Tenant** — filtrar por empresa específica
+- **Período** — data início e fim
+
+Clique em uma linha para expandir os detalhes JSON da ação.
+
+**Ações auditadas:**
+`login`, `tenant_criado`, `tenant_deletado`, `backup_criado`, `backup_restaurado`, `plano_alterado`, `senha_resetada_admin`, `assinatura_ativa`, `assinatura_cancelada`, `assinatura_inadimplente`
+
+---
+
+## 10. Planos e Limites
+
+| Plano | Preço | Agend./mês | Usuários | Bot WA | Financeiro |
+|-------|-------|-----------|----------|--------|-----------|
+| Trial | grátis 14d | 60 | 1 | ❌ | ❌ |
+| Básico | R$ 37/mês | 60 | 1 | ❌ | ❌ |
+| Pro | R$ 57/mês | 300 | 5 | ✅ | básico |
+| Premium | R$ 97/mês | ∞ | ∞ | ✅ + Agente IA | básico |
+| Business | R$ 127/mês | ∞ | ∞ | ✅ + Agente IA | completo |
+
+---
+
+## 11. Boas Práticas
+
+- Crie um usuário `admin` para cada tenant imediatamente após criar a empresa
+- Use slugs curtos e sem espaços (ex: `clinica-silva`, `salao-ana`)
+- Para bloquear acesso temporário, desative o tenant em vez de deletar
+- Antes de restaurar um backup, faça um novo backup do estado atual
+- Monitore a tela de Consumo semanalmente para antecipar upgrades
+
+---
+
+*Agendix · Suporte: suporte@divulgabr.com.br*

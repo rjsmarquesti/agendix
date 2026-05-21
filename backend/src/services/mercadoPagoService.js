@@ -52,7 +52,12 @@ async function buscarAssinatura(subscriptionId) {
 // Valida a assinatura HMAC-SHA256 enviada pelo MP no header x-signature
 function verificarWebhookSignature(req) {
   const secret = process.env.MP_WEBHOOK_SECRET;
-  if (!secret) return true; // sem secret configurado, aceita (ambiente dev)
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('MP_WEBHOOK_SECRET não configurado em produção');
+    }
+    return true; // aceita apenas em dev/test
+  }
 
   const xSignature = req.headers['x-signature'];
   const xRequestId = req.headers['x-request-id'];

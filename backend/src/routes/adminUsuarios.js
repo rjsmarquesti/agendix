@@ -49,12 +49,15 @@ router.get('/', async (req, res) => {
 // PUT /api/admin/usuarios/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { ativo, role } = req.body;
+    const { ativo, role, nome, email, whatsapp } = req.body;
     const data = {};
-    if (ativo !== undefined) data.ativo = Boolean(ativo);
-    if (role) data.role = role;
+    if (ativo     !== undefined) data.ativo    = Boolean(ativo);
+    if (role)                    data.role     = role;
+    if (nome)                    data.nome     = nome;
+    if (email)                   data.email    = email;
+    if (whatsapp  !== undefined) data.whatsapp = whatsapp || null;
     const user = await prisma.user.update({ where: { id: Number(req.params.id) }, data });
-    res.json({ ok: true, user: { id: user.id, ativo: user.ativo, role: user.role } });
+    res.json({ ok: true, user: { id: user.id, nome: user.nome, email: user.email, whatsapp: user.whatsapp, ativo: user.ativo, role: user.role } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

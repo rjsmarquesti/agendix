@@ -49,6 +49,12 @@ async function processarTenant(tenant, adminEmail, adminNome) {
 }
 
 async function executarEmailsTrial() {
+  // Marca trials vencidos como "expirado" para manter banco consistente com o middleware
+  await prisma.tenant.updateMany({
+    where: { planoStatus: 'trial', planoVencimento: { lt: new Date() } },
+    data: { planoStatus: 'expirado' },
+  });
+
   // Apenas tenants em trial ativo
   const tenants = await prisma.tenant.findMany({
     where: { ativo: true, planoStatus: 'trial' },

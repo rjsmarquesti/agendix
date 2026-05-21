@@ -60,4 +60,16 @@ async function logoutInstance(slug, apiKey) {
   return evFetch('DELETE', `/instance/logout/${slug}`, null, apiKey);
 }
 
-module.exports = { createInstance, getConnectionState, getQRCode, deleteInstance, logoutInstance };
+async function setWebhook(slug, apiKey, webhookUrl) {
+  return evFetch('PUT', `/webhook/set/${slug}`, {
+    webhook: {
+      enabled: true,
+      url: webhookUrl,
+      webhookByEvents: false,
+      webhookBase64: false,
+      events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+    },
+  }, apiKey);
+}
+
+module.exports = { createInstance, getConnectionState, getQRCode, deleteInstance, logoutInstance, setWebhook };

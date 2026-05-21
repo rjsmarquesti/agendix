@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 const MODULOS_DISPONIVEIS = [
   { id: 'leads',        label: 'Leads',        desc: 'Gestão de contatos e oportunidades' },
@@ -30,14 +31,15 @@ const DURACAO_OPTIONS = [
 ];
 
 const TABS_BASE = [
-  { id: 'empresa',    label: 'Empresa' },
-  { id: 'agenda',     label: 'Agenda' },
-  { id: 'email',      label: 'Email' },
-  { id: 'integracao', label: 'Integração' },
-  { id: 'n8n',        label: null }, // label dinâmica — calculada no componente
-  { id: 'agente-ia',  label: 'Agente IA' },
-  { id: 'plano',      label: 'Plano' },
-  { id: 'dados',      label: 'Dados' },
+  { id: 'empresa',       label: 'Empresa' },
+  { id: 'agenda',        label: 'Agenda' },
+  { id: 'email',         label: 'Email' },
+  { id: 'integracao',    label: 'Integração' },
+  { id: 'n8n',           label: null }, // label dinâmica — calculada no componente
+  { id: 'agente-ia',     label: 'Agente IA' },
+  { id: 'notificacoes',  label: 'Notificações' },
+  { id: 'plano',         label: 'Plano' },
+  { id: 'dados',         label: 'Dados' },
 ];
 
 const PLANOS_MP = [
@@ -46,6 +48,81 @@ const PLANOS_MP = [
   { id: 'premium',  label: 'Premium',  preco: 'R$ 97/mês',  descricao: 'Usuários ilimitados · Agendamentos ilimitados · Bot WA' },
   { id: 'business', label: 'Business', preco: 'R$ 127/mês', descricao: 'Tudo do Premium + Módulo Financeiro completo' },
 ];
+
+function AbaNotificacoes() {
+  const { supported, permission, subscribed, loading, subscribe, unsubscribe } = usePushNotifications();
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+        <div>
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">Notificações push</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Receba alertas em tempo real quando um novo agendamento chegar pelo link público, mesmo com o navegador fechado.
+          </p>
+        </div>
+
+        {!supported && (
+          <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+            <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Seu navegador não suporta notificações push.</p>
+          </div>
+        )}
+
+        {supported && permission === 'denied' && (
+          <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl">
+            <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-red-700 dark:text-red-400">Permissão bloqueada</p>
+              <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">Você bloqueou as notificações neste navegador. Para ativar, clique no ícone de cadeado na barra de endereço e permita notificações.</p>
+            </div>
+          </div>
+        )}
+
+        {supported && permission !== 'denied' && (
+          <div className="flex items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className={`w-2.5 h-2.5 rounded-full ${subscribed ? 'bg-green-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`} />
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {subscribed ? 'Notificações ativas' : 'Notificações desativadas'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {subscribed ? 'Você receberá alertas de novos agendamentos neste dispositivo.' : 'Clique em ativar para receber alertas neste dispositivo.'}
+                </p>
+              </div>
+            </div>
+            {subscribed ? (
+              <button
+                onClick={unsubscribe}
+                disabled={loading}
+                className="shrink-0 px-4 py-2 text-sm font-semibold rounded-xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition">
+                {loading ? 'Aguarde...' : 'Desativar'}
+              </button>
+            ) : (
+              <button
+                onClick={subscribe}
+                disabled={loading}
+                className="shrink-0 px-4 py-2 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition">
+                {loading ? 'Ativando...' : 'Ativar'}
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            As notificações são por dispositivo e por usuário. Se você acessar em outro computador ou celular, precisará ativar novamente.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Settings() {
   const { tenant, updateTenant } = useAuth();
@@ -1127,7 +1204,10 @@ export default function Settings() {
           </div>
         )}
 
-        {/* ── ABA DADOS ── */}
+        {/* ── ABA NOTIFICAÇÕES ── */}
+        {tab === 'notificacoes' && <AbaNotificacoes />}
+
+        {/* ── ABA PLANO ── */}
         {tab === 'plano' && (
           <div className="space-y-6">
             {/* Status atual */}

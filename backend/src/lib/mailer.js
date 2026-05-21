@@ -36,7 +36,6 @@ async function enviarEmailRedefinicao({ para, nome, link }) {
           Redefinir senha
         </a>
         <p style="color:#6b7280;font-size:13px">Se não foi você quem solicitou, ignore este email. Sua senha não será alterada.</p>
-        <p style="color:#9ca3af;font-size:12px">Link: <a href="${link}">${link}</a></p>
       </div>
     `,
   });
@@ -58,7 +57,6 @@ async function enviarEmailAtivacao({ para, nome, link }) {
           Ativar minha conta
         </a>
         <p style="color:#6b7280;font-size:13px">Se não foi você quem se cadastrou, ignore este email.</p>
-        <p style="color:#9ca3af;font-size:12px">Link: <a href="${link}">${link}</a></p>
       </div>
     `,
   });
@@ -198,6 +196,71 @@ async function enviarEmailTrialD13({ para, nome }) {
   });
 }
 
+const PLANO_LABEL = { basico: 'Básico', pro: 'Pro', premium: 'Premium', business: 'Business' };
+const PLANO_RECURSOS = {
+  basico:   ['Até 60 agendamentos/mês', '1 usuário', 'Link de agendamento público'],
+  pro:      ['Até 300 agendamentos/mês', '5 usuários', 'Bot WhatsApp', 'Financeiro básico'],
+  premium:  ['Agendamentos ilimitados', 'Usuários ilimitados', 'Bot WhatsApp', 'Financeiro básico'],
+  business: ['Agendamentos ilimitados', 'Usuários ilimitados', 'Bot WhatsApp', 'Financeiro completo'],
+};
+
+async function enviarEmailOnboardingPago({ para, nome, slug, plano }) {
+  const from    = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@agendix.com.br';
+  const appUrl  = process.env.APP_URL || 'https://agendix.divulgabr.com.br';
+  const recursos = (PLANO_RECURSOS[plano] || []).map(r => `<li>${r}</li>`).join('');
+
+  await transporter.sendMail({
+    from: `"Agendix" <${from}>`,
+    to: para,
+    subject: `Assinatura confirmada — Agendix ${PLANO_LABEL[plano] || plano}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#111">
+        <h2 style="color:#5B3DF5;margin-bottom:4px">Assinatura ativada! 🎉</h2>
+        <p>Olá, <strong>${nome}</strong>. Seu plano <strong>${PLANO_LABEL[plano] || plano}</strong> está ativo.</p>
+        <p>Recursos incluídos no seu plano:</p>
+        <ul style="line-height:2;padding-left:20px">${recursos}</ul>
+        <p><strong>Próximos passos para aproveitar ao máximo:</strong></p>
+        <ol style="line-height:2;padding-left:20px">
+          <li>Configure sua agenda em <a href="${appUrl}/configuracoes" style="color:#5B3DF5">Configurações → Agenda</a></li>
+          <li>Conecte seu WhatsApp em <a href="${appUrl}/configuracoes" style="color:#5B3DF5">Configurações → Integração</a></li>
+          <li>Compartilhe seu link de agendamento: <a href="${appUrl}/agendar/${slug}" style="color:#5B3DF5">${appUrl}/agendar/${slug}</a></li>
+        </ol>
+        <p>Precisa de ajuda? Responda este email ou fale no WhatsApp do suporte.</p>
+        <p style="color:#6b7280;font-size:13px">Equipe Agendix — suporte@divulgabr.com.br</p>
+      </div>
+    `,
+  });
+}
+
+async function enviarEmailAdminNovoPagamento({ tenantNome, tenantSlug, plano, adminEmail }) {
+  const from   = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@agendix.com.br';
+  const destino = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const appUrl  = process.env.APP_URL || 'https://agendix.divulgabr.com.br';
+
+  if (!destino) return;
+
+  await transporter.sendMail({
+    from: `"Agendix Monitor" <${from}>`,
+    to: destino,
+    subject: `💰 Novo pagamento — ${tenantNome} (${PLANO_LABEL[plano] || plano})`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;border:1px solid #d1fae5;border-radius:12px">
+        <h2 style="color:#059669;margin:0 0 12px">Novo cliente pagante</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <tr><td style="padding:6px 0;color:#6b7280">Empresa</td><td style="padding:6px 0"><strong>${tenantNome}</strong></td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280">Slug</td><td style="padding:6px 0;font-family:monospace">${tenantSlug}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280">Plano</td><td style="padding:6px 0">${PLANO_LABEL[plano] || plano}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280">Email admin</td><td style="padding:6px 0">${adminEmail || '—'}</td></tr>
+        </table>
+        <div style="margin-top:16px;padding:12px;background:#f0fdf4;border-radius:8px;font-size:13px;color:#166534">
+          <strong>Ação necessária:</strong> configure WhatsApp e n8n para este tenant no
+          <a href="${appUrl}/admin/clientes" style="color:#059669">painel admin → Clientes</a>.
+        </div>
+      </div>
+    `,
+  });
+}
+
 module.exports = {
   enviarEmailRedefinicao,
   enviarEmailAtivacao,
@@ -206,4 +269,6 @@ module.exports = {
   enviarEmailTrialD10,
   enviarEmailTrialD13,
   enviarEmailTenant,
+  enviarEmailOnboardingPago,
+  enviarEmailAdminNovoPagamento,
 };

@@ -5,6 +5,9 @@ function getTenantSlug() {
   try { return JSON.parse(localStorage.getItem('crm_tenant'))?.slug; } catch { return null; }
 }
 
+// Flag global: evita múltiplos redirects quando vários requests paralelos recebem 401
+let isLoggingOut = false;
+
 async function request(endpoint, options = {}) {
   const token = getToken();
   const slug = getTenantSlug();
@@ -23,8 +26,11 @@ async function request(endpoint, options = {}) {
   try { data = await res.json(); } catch { data = { error: `Erro ${res.status} — resposta inválida do servidor` }; }
 
   if (res.status === 401) {
-    localStorage.clear();
-    window.location.href = '/login';
+    if (!isLoggingOut) {
+      isLoggingOut = true;
+      localStorage.clear();
+      window.location.href = '/login';
+    }
     return;
   }
 

@@ -3,8 +3,10 @@ const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+
 async function main() {
-  // Super admin (sem tenant)
+  // Super admin (sem tenant) — executa em todos os ambientes
   const superAdmin = await prisma.user.findFirst({ where: { role: 'super_admin' } });
   if (!superAdmin) {
     const senha = await bcrypt.hash('An@Beatriz270172', 10);
@@ -19,6 +21,12 @@ async function main() {
       data: { email: 'suporte@divulgabr.com.br', senha },
     });
     console.log('✅ Super Admin atualizado: suporte@divulgabr.com.br');
+  }
+
+  // Dados de demonstração — ignorados em produção
+  if (IS_PROD) {
+    console.log('ℹ️  NODE_ENV=production: seed de demonstração ignorado.');
+    return;
   }
 
   // Tenant demo

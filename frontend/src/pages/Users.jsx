@@ -9,12 +9,25 @@ const ROLE_LABELS = { admin: 'Admin', atendente: 'Atendente' };
 const ROLE_COLORS = { admin: 'bg-purple-100 text-purple-700', atendente: 'bg-gray-100 text-gray-600' };
 const EMPTY = { nome: '', email: '', senha: '', role: 'atendente' };
 
+function IconEye({ off }) {
+  return off ? (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  ) : (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
 export default function Users() {
   const { tenant } = useAuth();
   const [users, setUsers] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [showSenha, setShowSenha] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const limites = { basico: 1, pro: 5, premium: '∞' };
@@ -161,9 +174,15 @@ export default function Users() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{editId ? 'Nova Senha (deixe vazio para manter)' : 'Senha *'}</label>
-            <input type="password" value={form.senha} onChange={e => setForm(f => ({ ...f, senha: e.target.value }))}
-              required={!editId} minLength={6} placeholder="mínimo 6 caracteres"
-              className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+            <div className="relative">
+              <input type={showSenha ? 'text' : 'password'} value={form.senha} onChange={e => setForm(f => ({ ...f, senha: e.target.value }))}
+                required={!editId} minLength={6} placeholder="mínimo 6 caracteres"
+                className="w-full px-4 pr-10 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+              <button type="button" onClick={() => setShowSenha(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <IconEye off={showSenha} />
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Papel</label>

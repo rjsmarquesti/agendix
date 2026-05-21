@@ -204,13 +204,15 @@ router.post('/forgot-password', async (req, res, next) => {
     const appUrl = process.env.APP_URL || 'http://localhost:5173';
     const link = `${appUrl}/redefinir-senha?token=${token}`;
 
-    await enviarEmailRedefinicao({ para: user.email, nome: user.nome, link });
+    enviarEmailRedefinicao({ para: user.email, nome: user.nome, link }).catch(e =>
+      console.error('[forgot-password] email:', e.message)
+    );
 
     // Enviar tambÃ©m via WhatsApp (instÃ¢ncia global) se o usuÃ¡rio tiver nÃºmero
     if (user.whatsapp) {
       const evoBase = process.env.EVOLUTION_BASE_URL || 'https://api.divulgabr.com.br';
       const evoInst = process.env.EVOLUTION_GLOBAL_INSTANCE;
-      const evoKey  = process.env.EVOLUTION_GLOBAL_APIKEY;
+      const evoKey  = process.env.EVOLUTION_GLOBAL_API_KEY;
       if (evoInst && evoKey) {
         const waMsg = `ðŸ” *RedefiniÃ§Ã£o de senha â€” Agendix*\n\nClique no link para criar uma nova senha:\n${link}\n\n_Este link expira em 1 hora._`;
         fetch(`${evoBase}/message/sendText/${evoInst}`, {
@@ -232,22 +234,26 @@ router.post('/reset-password', async (req, res, next) => {
     if (!token || !novaSenha) return res.status(400).json({ error: 'Token e nova senha sÃ£o obrigatÃ³rios' });
     if (novaSenha.length < 6) return res.status(400).json({ error: 'Senha mÃ­nimo 6 caracteres' });
 
+    // Valida existência antes de gastar CPU no bcrypt
     const user = await prisma.user.findFirst({
-      where: {
-        passwordResetToken: token,
-        passwordResetExpires: { gt: new Date() },
-      },
+      where: { passwordResetToken: token, passwordResetExpires: { gt: new Date() } },
+      select: { id: true },
     });
-
-    if (!user) return res.status(400).json({ error: 'Token invÃ¡lido ou expirado' });
+    if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
 
     const hash = await bcrypt.hash(novaSenha, 10);
-    await prisma.user.update({
-      where: { id: user.id },
+
+    // updateMany com o token no WHERE é atômico: só um request concorrente terá count=1
+    const resultado = await prisma.user.updateMany({
+      where: { id: user.id, passwordResetToken: token, passwordResetExpires: { gt: new Date() } },
       data: { senha: hash, passwordResetToken: null, passwordResetExpires: null },
     });
 
-    res.json({ message: 'Senha redefinida com sucesso. FaÃ§a login com sua nova senha.' });
+    if (resultado.count === 0) {
+      return res.status(400).json({ error: 'Token inválido ou expirado' });
+    }
+
+    res.json({ message: 'Senha redefinida com sucesso. Faça login com sua nova senha.' });
   } catch (err) { next(err); }
 });
 

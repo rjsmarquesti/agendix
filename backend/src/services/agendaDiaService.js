@@ -3,6 +3,7 @@ const https = require('https');
 const http = require('http');
 const prisma = require('../lib/prisma');
 const { enviarEmailTenant } = require('../lib/mailer');
+const { enviarMensagemWA } = require('./waWatchdogService');
 
 function hoje() {
   return new Date().toISOString().split('T')[0];
@@ -128,12 +129,7 @@ async function enviarPdfViaWhatsApp(tenant, telefone, pdfBuffer, dataFormatada) 
 }
 
 async function enviarTextoWA(tenant, telefone, mensagem) {
-  const base = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';
-  await fetch(`${base}/message/sendText/${tenant.evolutionInstance}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: tenant.evolutionApiKey },
-    body: JSON.stringify({ number: telefone, text: mensagem }),
-  });
+  await enviarMensagemWA(tenant, telefone, mensagem);
 }
 
 async function enviarAgendaDiaTenant(tenant, config) {

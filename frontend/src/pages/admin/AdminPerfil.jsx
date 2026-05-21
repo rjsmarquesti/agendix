@@ -4,11 +4,24 @@ import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
+function IconEye({ off }) {
+  return off ? (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  ) : (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
 export default function AdminPerfil() {
   const { user, login, token } = useAuth();
 
   const [formPerfil, setFP] = useState({ nome: user?.nome || '', email: user?.email || '' });
   const [formSenha, setFS]  = useState({ senhaAtual: '', novaSenha: '', confirmar: '' });
+  const [showS, setShowS]   = useState({ atual: false, nova: false, conf: false });
   const [loadingP, setLP]   = useState(false);
   const [loadingS, setLS]   = useState(false);
 
@@ -77,30 +90,48 @@ export default function AdminPerfil() {
           <form onSubmit={salvarSenha} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">Senha atual</label>
-              <input
-                type="password" required value={formSenha.senhaAtual}
-                onChange={e => setFS(f => ({ ...f, senhaAtual: e.target.value }))}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
+              <div className="relative">
+                <input
+                  type={showS.atual ? 'text' : 'password'} required value={formSenha.senhaAtual}
+                  onChange={e => setFS(f => ({ ...f, senhaAtual: e.target.value }))}
+                  placeholder="••••••••"
+                  className="w-full px-4 pr-10 py-3 bg-slate-800 border border-slate-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+                <button type="button" onClick={() => setShowS(s => ({ ...s, atual: !s.atual }))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
+                  <IconEye off={showS.atual} />
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">Nova senha</label>
-              <input
-                type="password" required minLength={6} value={formSenha.novaSenha}
-                onChange={e => setFS(f => ({ ...f, novaSenha: e.target.value }))}
-                placeholder="Mínimo 6 caracteres"
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
+              <div className="relative">
+                <input
+                  type={showS.nova ? 'text' : 'password'} required minLength={6} value={formSenha.novaSenha}
+                  onChange={e => setFS(f => ({ ...f, novaSenha: e.target.value }))}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full px-4 pr-10 py-3 bg-slate-800 border border-slate-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+                <button type="button" onClick={() => setShowS(s => ({ ...s, nova: !s.nova }))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
+                  <IconEye off={showS.nova} />
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">Confirmar nova senha</label>
-              <input
-                type="password" required value={formSenha.confirmar}
-                onChange={e => setFS(f => ({ ...f, confirmar: e.target.value }))}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
+              <div className="relative">
+                <input
+                  type={showS.conf ? 'text' : 'password'} required value={formSenha.confirmar}
+                  onChange={e => setFS(f => ({ ...f, confirmar: e.target.value }))}
+                  placeholder="••••••••"
+                  className="w-full px-4 pr-10 py-3 bg-slate-800 border border-slate-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+                <button type="button" onClick={() => setShowS(s => ({ ...s, conf: !s.conf }))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
+                  <IconEye off={showS.conf} />
+                </button>
+              </div>
             </div>
             <button
               type="submit" disabled={loadingS}

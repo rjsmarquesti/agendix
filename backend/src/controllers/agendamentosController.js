@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
 const { criar: criarAgendamento } = require('../services/agendamentoService');
 const { notificarAgendamento } = require('../services/notificacaoService');
+const { enviarPushParaTenant } = require('../lib/pushService');
 
 const incluirLead = {
   lead: { select: { nome: true, telefone: true, email: true } },
@@ -114,16 +115,37 @@ exports.atualizar = async (req, res, next) => {
       const tenant = await prisma.tenant.findUnique({ where: { id: req.user.tenantId } });
       notificarAgendamento(tenant, agendamento).catch(err => console.error('[notificar]', err.message));
     }
+    if (status === 'cancelado' && existe.status !== 'cancelado') {
+      const nomeCliente = agendamento.lead?.nome || agendamento.clienteNome || 'Cliente';
+      enviarPushParaTenant(req.user.tenantId, {
+        title: 'Agendamento cancelado',
+        body:  `${nomeCliente} • ${agendamento.data} às ${agendamento.hora}`,
+        url:   '/agendamentos',
+        icon:  '/logo.png',
+      }).catch(err => console.error('[push/cancelado]', err.message));
+    }
     res.json({ agendamento });
   } catch (err) { next(err); }
 };
 
 exports.deletar = async (req, res, next) => {
   try {
-    const existe = await prisma.agendamento.findFirst({ where: { id: Number(req.params.id), tenantId: req.user.tenantId } });
+    const existe = await prisma.agendamento.findFirst({
+      where: { id: Number(req.params.id), tenantId: req.user.tenantId },
+      include: { lead: { select: { nome: true } } },
+    });
     if (!existe) return res.status(404).json({ error: 'Agendamento não encontrado' });
 
     await prisma.agendamento.delete({ where: { id: Number(req.params.id), tenantId: req.user.tenantId } });
+
+    const nomeCliente = existe.lead?.nome || existe.clienteNome || 'Cliente';
+    enviarPushParaTenant(req.user.tenantId, {
+      title: 'Agendamento removido',
+      body:  `${nomeCliente} • ${existe.data} às ${existe.hora}`,
+      url:   '/agendamentos',
+      icon:  '/logo.png',
+    }).catch(err => console.error('[push/deletar]', err.message));
+
     res.json({ message: 'Agendamento removido' });
   } catch (err) { next(err); }
 };

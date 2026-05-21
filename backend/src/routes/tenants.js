@@ -12,6 +12,36 @@ const validarTenant = [
 ];
 
 router.get('/',    ...onlySuper, ctrl.listar);
+
+// Status WA em bulk para todos os tenants com instância configurada
+router.get('/wa-status', ...onlySuper, async (req, res) => {
+  try {
+    const prisma = require('../lib/prisma');
+    const { getConnectionState } = require('../services/evolutionService');
+
+    const tenants = await prisma.tenant.findMany({
+      where: { evolutionInstance: { not: null } },
+      select: { id: true, evolutionInstance: true, evolutionApiKey: true },
+    });
+
+    const results = await Promise.allSettled(
+      tenants.map(t => getConnectionState(t.evolutionInstance, t.evolutionApiKey))
+    );
+
+    const statuses = {};
+    tenants.forEach((t, i) => {
+      const r = results[i];
+      statuses[t.id] = r.status === 'fulfilled'
+        ? (r.value?.instance?.state || r.value?.state || 'unknown')
+        : 'error';
+    });
+
+    res.json({ statuses });
+  } catch (err) {
+    res.json({ statuses: {} });
+  }
+});
+
 router.get('/:id', ...onlySuper, ctrl.buscarPorId);
 router.post('/',   ...onlySuper, validarTenant, ctrl.criar);
 router.put('/:id', ...onlySuper, ctrl.atualizar);
@@ -45,6 +75,9 @@ router.post('/:id/usuarios/:userId/ativar', ...onlySuper, async (req, res, next)
 
 // Evolution API — criar/recriar instância
 router.post('/:id/create-evolution', ...onlySuper, ctrl.criarEvolution);
+
+// Evolution API — reconfigurar webhook (para tenants já existentes)
+router.post('/:id/reconfigure-webhook', ...onlySuper, ctrl.reconfigurarWebhook);
 
 // WhatsApp — status, QR code e disconnect (super-admin por tenant ID)
 router.get('/:id/whatsapp/status', ...onlySuper, async (req, res, next) => {

@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { provisionarWorkflows, removerWorkflows, desativarWorkflows, ativarWorkflows } = require('../services/n8nProvisioningService');
-const { createInstance, deleteInstance } = require('../services/evolutionService');
+const { createInstance, deleteInstance, setWebhook } = require('../services/evolutionService');
 const audit = require('../lib/audit');
 
 exports.listar = async (req, res, next) => {
@@ -66,6 +66,13 @@ exports.criar = async (req, res, next) => {
               evolutionBaseUrl: baseUrl,
             },
           });
+          // Configura webhook para receber connection.update e messages.upsert
+          const appUrl = process.env.APP_URL || '';
+          if (appUrl && apiKey) {
+            await setWebhook(tenant.slug, apiKey, `${appUrl}/api/webhook/agente/${tenant.slug}`).catch(
+              err => console.error(`[evolution] Falha ao configurar webhook ${tenant.slug}:`, err.message)
+            );
+          }
         })
         .catch(err => console.error(`[evolution] Falha ao criar instância ${tenant.slug}:`, err.message));
     }
@@ -80,7 +87,8 @@ exports.criar = async (req, res, next) => {
 
 exports.atualizar = async (req, res, next) => {
   try {
-    const { nome, slug, logo, corPrimaria, plano, modulos, ativo, planoStatus, planoVencimento, n8nAtivo } = req.body;
+    const { nome, slug, logo, corPrimaria, plano, modulos, ativo, planoStatus, planoVencimento, n8nAtivo,
+            email, telefone, cnpj, razaoSocial, logradouro, numero, complemento, bairro, cidade, estado, cep, cadastroCompleto } = req.body;
     const id = Number(req.params.id);
 
     const tenantAntes = await prisma.tenant.findUnique({
@@ -102,9 +110,30 @@ exports.atualizar = async (req, res, next) => {
       const d = planoVencimento ? new Date(planoVencimento) : null;
       updateData.planoVencimento = d && !isNaN(d.getTime()) ? d : null;
     }
-    if (n8nAtivo   !== undefined) updateData.n8nAtivo   = Boolean(n8nAtivo);
+    if (n8nAtivo        !== undefined) updateData.n8nAtivo        = Boolean(n8nAtivo);
+    if (email           !== undefined) updateData.email           = email || null;
+    if (telefone        !== undefined) updateData.telefone        = telefone || null;
+    if (cnpj            !== undefined) updateData.cnpj            = cnpj || null;
+    if (razaoSocial     !== undefined) updateData.razaoSocial     = razaoSocial || null;
+    if (logradouro      !== undefined) updateData.logradouro      = logradouro || null;
+    if (numero          !== undefined) updateData.numero          = numero || null;
+    if (complemento     !== undefined) updateData.complemento     = complemento || null;
+    if (bairro          !== undefined) updateData.bairro          = bairro || null;
+    if (cidade          !== undefined) updateData.cidade          = cidade || null;
+    if (estado          !== undefined) updateData.estado          = estado || null;
+    if (cep             !== undefined) updateData.cep             = cep || null;
+    if (cadastroCompleto!== undefined) updateData.cadastroCompleto = Boolean(cadastroCompleto);
 
     const tenant = await prisma.tenant.update({ where: { id }, data: updateData });
+
+    // Audit: mudança de plano registrada separadamente para facilitar rastreio financeiro
+    if (plano !== undefined && plano !== tenantAntes?.plano) {
+      audit.log('plano_alterado', {
+        entidade: 'tenant', entidadeId: id,
+        userId: req.user?.id, ip: req.ip,
+        detalhes: { de: tenantAntes?.plano, para: plano },
+      });
+    }
 
     // Provisionamento automático sempre que n8nAtivo=true e ainda sem workflows
     const semWorkflows = !tenantAntes?.n8nWorkflowWaId && !tenantAntes?.n8nWorkflowNotifId;
@@ -205,7 +234,37 @@ exports.criarEvolution = async (req, res, next) => {
         evolutionBaseUrl: process.env.EVOLUTION_BASE_URL || 'https://api.divulgabr.com.br',
       },
     });
+
+    const appUrl = process.env.APP_URL || '';
+    if (appUrl && apiKey) {
+      await setWebhook(tenant.slug, apiKey, `${appUrl}/api/webhook/agente/${tenant.slug}`).catch(
+        err => console.error(`[evolution] Falha ao configurar webhook ${tenant.slug}:`, err.message)
+      );
+    }
+
     res.json({ tenant: updated });
+  } catch (err) { next(err); }
+};
+
+// Reconfigurar webhook Evolution para um tenant já existente
+exports.reconfigurarWebhook = async (req, res, next) => {
+  try {
+    const tenant = await prisma.tenant.findUnique({ where: { id: Number(req.params.id) } });
+    if (!tenant) return res.status(404).json({ error: 'Empresa não encontrada' });
+    if (!tenant.evolutionInstance || !tenant.evolutionApiKey) {
+      return res.status(400).json({ error: 'Tenant sem instância Evolution configurada' });
+    }
+
+    const appUrl = process.env.APP_URL || '';
+    if (!appUrl) return res.status(500).json({ error: 'APP_URL não configurada no servidor' });
+
+    await setWebhook(
+      tenant.evolutionInstance,
+      tenant.evolutionApiKey,
+      `${appUrl}/api/webhook/agente/${tenant.slug}`
+    );
+
+    res.json({ ok: true, webhook: `${appUrl}/api/webhook/agente/${tenant.slug}` });
   } catch (err) { next(err); }
 };
 
@@ -215,8 +274,14 @@ exports.resetarSenha = async (req, res, next) => {
     const { novaSenha } = req.body;
     if (!novaSenha || novaSenha.length < 6) return res.status(400).json({ error: 'Senha mínimo 6 caracteres' });
 
+    const userId = Number(req.params.userId);
     const senhaHash = await bcrypt.hash(novaSenha, 10);
-    await prisma.user.update({ where: { id: Number(req.params.userId) }, data: { senha: senhaHash } });
+    await prisma.user.update({ where: { id: userId }, data: { senha: senhaHash } });
+    audit.log('senha_resetada_admin', {
+      entidade: 'user', entidadeId: userId,
+      userId: req.user?.id, ip: req.ip,
+      detalhes: { resetadoPor: req.user?.email },
+    });
     res.json({ message: 'Senha atualizada' });
   } catch (err) { next(err); }
 };

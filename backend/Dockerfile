@@ -3,6 +3,8 @@ FROM node:20-alpine
 # OpenSSL necessário para o Prisma
 RUN apk add --no-cache openssl
 
+ENV NODE_ENV=production
+
 WORKDIR /app
 
 COPY package*.json ./

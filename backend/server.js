@@ -4,7 +4,7 @@ const cors    = require('cors');
 const helmet  = require('helmet');
 
 const requestLogger = require('./src/middlewares/requestLogger');
-const { loginLimiter, agendamentoPublicoLimiter, n8nLimiter, apiGeralLimiter } = require('./src/middlewares/rateLimiter');
+const { loginLimiter, forgotPasswordLimiter, agendamentoPublicoLimiter, n8nLimiter, apiGeralLimiter } = require('./src/middlewares/rateLimiter');
 
 const app = express();
 
@@ -38,6 +38,7 @@ app.use('/api/uploads', express.static(require('path').join(__dirname, 'uploads'
 
 // Rate limiting por grupo de rota
 app.use('/api/auth/login',             loginLimiter);
+app.use('/api/auth/forgot-password',   forgotPasswordLimiter);
 app.use('/api/public/:slug/agendar',   agendamentoPublicoLimiter);
 app.use('/api/n8n',                    n8nLimiter);
 app.use('/api',                        apiGeralLimiter);
@@ -78,15 +79,32 @@ app.use('/api/users',        tenantMiddleware, require('./src/routes/users'));
 app.use('/api/financeiro',    tenantMiddleware, require('./src/routes/financeiro'));
 app.use('/api/notificacoes', tenantMiddleware, require('./src/routes/notificacoes'));
 app.use('/api/agente-ia',   tenantMiddleware, require('./src/routes/agenteIa'));
+app.use('/api/push',        tenantMiddleware, require('./src/routes/push'));
 
 app.use(require('./src/middlewares/errorHandler'));
 
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
+  // Variáveis obrigatórias em produção — boot falha se ausentes
+  if (process.env.NODE_ENV === 'production') {
+    const REQUIRED_ENV = [
+      'DATABASE_URL', 'JWT_SECRET', 'MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET',
+      'MP_PLAN_BASICO_ID', 'MP_PLAN_PRO_ID', 'MP_PLAN_PREMIUM_ID', 'MP_PLAN_BUSINESS_ID',
+      'SMTP_USER', 'SMTP_PASS', 'ENCRYPTION_KEY', 'APP_URL',
+    ];
+    const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+    if (missing.length) {
+      console.error(`[FATAL] Variáveis de ambiente obrigatórias não configuradas: ${missing.join(', ')}`);
+      process.exit(1);
+    }
+  }
+
   const { agendarCron } = require('./src/services/notificacaoService');
   const { agendarCronTrial } = require('./src/services/trialEmailService');
+  const { agendarWatchdog } = require('./src/services/watchdogService');
   agendarCron();
   agendarCronTrial();
+  agendarWatchdog();
   app.listen(PORT, () => console.log(`Backend rodando na porta ${PORT}`));
 }
 

@@ -18,6 +18,21 @@ router.get('/nichos', auth, (req, res) => {
 router.get('/',            auth, requireRole('admin', 'super_admin'), ctrl.get);
 router.put('/',            auth, requireRole('admin', 'super_admin'), ctrl.update);
 router.post('/api-token',  auth, requireRole('admin', 'super_admin'), ctrl.gerarApiToken);
+
+// Completar cadastro legal (qualquer admin do tenant, mesmo com trial expirado)
+router.put('/completar-cadastro', auth, requireRole('admin', 'super_admin'), async (req, res, next) => {
+  try {
+    const { cnpj, razaoSocial, email, telefone, logradouro, numero, complemento, bairro, cidade, estado, cep } = req.body;
+    if (!cnpj || !razaoSocial || !email || !telefone || !logradouro || !numero || !cidade || !estado || !cep)
+      return res.status(400).json({ error: 'Preencha todos os campos obrigatórios' });
+
+    await prisma.tenant.update({
+      where: { id: req.user.tenantId },
+      data: { cnpj, razaoSocial, email, telefone, logradouro, numero: numero || null, complemento: complemento || null, bairro: bairro || null, cidade, estado, cep, cadastroCompleto: true },
+    });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
 router.get('/agenda',      auth, requireRole('admin', 'super_admin'), ctrl.getAgenda);
 router.put('/agenda',      auth, requireRole('admin', 'super_admin'), ctrl.updateAgenda);
 
