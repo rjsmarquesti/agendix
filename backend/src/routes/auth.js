@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const prisma = require('../lib/prisma');
 const { enviarEmailRedefinicao, enviarEmailAtivacao, enviarEmailBoasVindas } = require('../lib/mailer');
+const { encrypt, decrypt } = require('../lib/encrypt');
 
 const validarLogin = [
   body('email').isEmail().withMessage('Email invÃ¡lido'),
@@ -270,8 +271,8 @@ router.get('/2fa/setup', auth, async (req, res, next) => {
     const otpauth = authenticator.keyuri(req.user.email, 'Agendix Admin', secret);
     const qrcode  = await QRCode.toDataURL(otpauth);
 
-    // Salva o secret (ainda não ativo — só ativa após confirmar o primeiro código)
-    await prisma.user.update({ where: { id: req.user.id }, data: { totpSecret: secret, totpAtivo: false } });
+    // Salva o secret criptografado (ainda não ativo — só ativa após confirmar o primeiro código)
+    await prisma.user.update({ where: { id: req.user.id }, data: { totpSecret: encrypt(secret), totpAtivo: false } });
 
     res.json({ secret, qrcode });
   } catch (err) { next(err); }
@@ -287,7 +288,7 @@ router.post('/2fa/verify', auth, async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user.totpSecret) return res.status(400).json({ error: '2FA não configurado. Acesse /auth/2fa/setup primeiro.' });
 
-    const valid = authenticator.verify({ token: String(code).replace(/\s/g, ''), secret: user.totpSecret });
+    const valid = authenticator.verify({ token: String(code).replace(/\s/g, ''), secret: decrypt(user.totpSecret) });
     if (!valid) return res.status(400).json({ error: 'Código inválido' });
 
     await prisma.user.update({ where: { id: req.user.id }, data: { totpAtivo: true } });
@@ -305,7 +306,7 @@ router.post('/2fa/disable', auth, async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user.totpAtivo) return res.status(400).json({ error: '2FA não está ativo' });
 
-    const valid = authenticator.verify({ token: String(code).replace(/\s/g, ''), secret: user.totpSecret });
+    const valid = authenticator.verify({ token: String(code).replace(/\s/g, ''), secret: decrypt(user.totpSecret) });
     if (!valid) return res.status(400).json({ error: 'Código inválido' });
 
     await prisma.user.update({ where: { id: req.user.id }, data: { totpSecret: null, totpAtivo: false } });

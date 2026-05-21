@@ -1,59 +1,16 @@
-const https = require('https');
 const prisma = require('../lib/prisma');
 const { getSlots } = require('./disponibilidadeService');
 const { LIMITE_AGENDAMENTOS } = require('../config/planos');
+// Usa a fila centralizada para garantir delay anti-ban e teto de volume
+const { enqueueSend } = require('../lib/waQueue');
 
 const TTL_MS = 30 * 60 * 1000; // 30 minutos
 
-// ─── Envio Evolution API ─────────────────────────────────────────────────────
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-async function evolutionPost(tenant, path, payload, tentativas = 3) {
-  const instance = tenant.evolutionInstance;
-  const apiKey   = tenant.evolutionApiKey;
-  const baseUrl  = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';
-  if (!instance || !apiKey) return { ok: false };
-
-  const body = JSON.stringify(payload);
-  const url  = new URL(`${baseUrl}${path}/${instance}`);
-
-  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
-    const resultado = await new Promise(resolve => {
-      const req = https.request({
-        hostname: url.hostname,
-        path:     url.pathname,
-        method:   'POST',
-        timeout:  10000, // 10s timeout por tentativa
-        headers: { apikey: apiKey, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-      }, res => {
-        let raw = '';
-        res.on('data', d => { raw += d; });
-        res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: raw }));
-      });
-      req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 408 }); });
-      req.on('error', () => resolve({ ok: false }));
-      req.write(body);
-      req.end();
-    });
-
-    if (resultado.ok) return resultado;
-
-    // Não retentar em erros de payload (4xx exceto 429)
-    if (resultado.status >= 400 && resultado.status < 500 && resultado.status !== 429) {
-      return resultado;
-    }
-
-    if (tentativa < tentativas) {
-      await sleep(500 * Math.pow(2, tentativa - 1)); // 500ms, 1s, 2s
-    }
-  }
-
-  return { ok: false };
-}
+// ─── Envio via waQueue (anti-ban) ────────────────────────────────────────────
 
 async function sendWA(tenant, phone, text) {
-  return evolutionPost(tenant, '/message/sendText', { number: phone, text });
+  const result = await enqueueSend(tenant, phone, text);
+  return { ok: result.ok };
 }
 
 async function sendWAList(tenant, phone, slots, data) {
@@ -61,21 +18,34 @@ async function sendWAList(tenant, phone, slots, data) {
                   '1️⃣1️⃣','1️⃣2️⃣','1️⃣3️⃣','1️⃣4️⃣','1️⃣5️⃣','1️⃣6️⃣','1️⃣7️⃣','1️⃣8️⃣','1️⃣9️⃣','2️⃣0️⃣',
                   '2️⃣1️⃣','2️⃣2️⃣','2️⃣3️⃣','2️⃣4️⃣','2️⃣5️⃣','2️⃣6️⃣','2️⃣7️⃣','2️⃣8️⃣','2️⃣9️⃣','3️⃣0️⃣','3️⃣1️⃣'];
 
-  const result = await evolutionPost(tenant, '/message/sendList', {
-    number: phone,
-    title: `📅 Horários — ${formatDataBR(data)}`,
-    description: 'Toque em um horário para selecioná-lo:',
-    buttonText: 'Ver horários',
-    footerText: 'AgendaBot',
-    sections: [{
-      title: 'Disponíveis',
-      rows: slots.map(s => ({ title: s, rowId: s })),
-    }],
-  });
+  // sendList não passa pelo waQueue (endpoint diferente), mas usa fetch direto com timeout
+  const base     = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';
+  const instance = tenant.evolutionInstance;
+  const apikey   = tenant.evolutionApiKey;
 
-  // Fallback para texto se sendList falhar (versão Evolution API sem suporte ou erro de formato)
-  if (!result.ok) {
-    console.error('[sendWAList] Evolution API rejeitou sendList — status:', result.status, '— body:', result.body);
+  let ok = false;
+  try {
+    const res = await fetch(`${base}/message/sendList/${instance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey },
+      body: JSON.stringify({
+        number: phone,
+        title: `📅 Horários — ${formatDataBR(data)}`,
+        description: 'Toque em um horário para selecioná-lo:',
+        buttonText: 'Ver horários',
+        footerText: 'AgendaBot',
+        sections: [{ title: 'Disponíveis', rows: slots.map(s => ({ title: s, rowId: s })) }],
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    ok = res.ok;
+    if (!ok) console.error('[sendWAList] status:', res.status, await res.text().catch(() => ''));
+  } catch (e) {
+    console.error('[sendWAList] erro:', e.message);
+  }
+
+  // Fallback para texto simples se sendList falhar
+  if (!ok) {
     const lista = slots.map((s, i) => `${emojis[i] || (i + 1) + '.'} ${s}`).join('\n');
     await sendWA(tenant, phone, `📅 Horários disponíveis para *${formatDataBR(data)}*:\n\n${lista}\n\nDigite o número ou o horário desejado.`);
   }

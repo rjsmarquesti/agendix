@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const { authenticator } = require('otplib');
 const prisma = require('../lib/prisma');
-const audit = require('../lib/audit');
+const audit  = require('../lib/audit');
+const { decrypt } = require('../lib/encrypt');
 
 exports.login = async (req, res, next) => {
   try {
@@ -31,7 +32,7 @@ exports.login = async (req, res, next) => {
     if (user.role === 'super_admin' && user.totpAtivo) {
       const { totp } = req.body;
       if (!totp) return res.status(403).json({ error: '2FA obrigatório', code: 'TOTP_REQUIRED' });
-      const totpValido = authenticator.verify({ token: String(totp).replace(/\s/g, ''), secret: user.totpSecret });
+      const totpValido = authenticator.verify({ token: String(totp).replace(/\s/g, ''), secret: decrypt(user.totpSecret) });
       if (!totpValido) return res.status(403).json({ error: 'Código 2FA inválido', code: 'TOTP_INVALID' });
     }
 
