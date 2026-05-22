@@ -1,62 +1,82 @@
-const LEAD_COLORS = {
-  novo:        'bg-blue-100 text-blue-700',
-  contato:     'bg-yellow-100 text-yellow-700',
-  qualificado: 'bg-cyan-100 text-cyan-700',
-  proposta:    'bg-indigo-100 text-indigo-700',
-  agendado:    'bg-purple-100 text-purple-700',
-  convertido:  'bg-green-100 text-green-700',
-  perdido:     'bg-red-100 text-red-700',
+/* Cores usando os tokens do design system (CSS variables) */
+const LEAD_STYLES = {
+  novo:        { bg: 'var(--g-dim)',              color: 'var(--g)'   },
+  contato:     { bg: 'var(--a-dim)',              color: 'var(--a-lt)' },
+  qualificado: { bg: 'var(--tl-dim)',             color: 'var(--tl)'  },
+  proposta:    { bg: 'rgba(139,92,246,0.12)',      color: '#a78bfa'    },
+  agendado:    { bg: 'rgba(139,92,246,0.12)',      color: '#a78bfa'    },
+  convertido:  { bg: 'var(--g-dim)',              color: 'var(--g)'   },
+  perdido:     { bg: 'rgba(239,68,68,0.10)',       color: '#f87171'    },
 };
 
-const AGEND_COLORS = {
-  marcado:    'bg-blue-100 text-blue-700',
-  confirmado: 'bg-green-100 text-green-700',
-  cancelado:  'bg-red-100 text-red-700',
-  realizado:  'bg-gray-100 text-gray-600',
+const AGEND_STYLES = {
+  marcado:    { bg: 'var(--g-dim)',              color: 'var(--g)'    },
+  confirmado: { bg: 'var(--tl-dim)',             color: 'var(--tl)'   },
+  realizado:  { bg: 'var(--g-dim)',              color: 'var(--g)'    },
+  cancelado:  { bg: 'var(--a-dim)',              color: 'var(--a-lt)' },
+  faltou:     { bg: 'rgba(239,68,68,0.10)',      color: '#f87171'     },
 };
 
-const PRIORITY_COLORS = {
-  baixa:   'bg-gray-100 text-gray-500',
-  normal:  'bg-blue-50 text-blue-600',
-  alta:    'bg-orange-100 text-orange-600',
-  urgente: 'bg-red-100 text-red-700',
+const PRIORITY_STYLES = {
+  baixa:   { bg: 'rgba(120,120,160,0.10)', color: 'var(--mt-lt)' },
+  normal:  { bg: 'var(--tl-dim)',          color: 'var(--tl)'    },
+  alta:    { bg: 'var(--a-dim)',           color: 'var(--a-lt)'  },
+  urgente: { bg: 'rgba(239,68,68,0.10)',   color: '#f87171'      },
 };
 
-const FONTE_COLORS = {
-  google_maps: 'bg-green-100 text-green-700',
-  manual:      'bg-gray-100 text-gray-600',
-  csv_import:  'bg-yellow-100 text-yellow-700',
-  api:         'bg-violet-100 text-violet-700',
+const FONTE_STYLES = {
+  google_maps: { bg: 'var(--g-dim)',         color: 'var(--g)'    },
+  manual:      { bg: 'rgba(120,120,160,0.10)', color: 'var(--mt-lt)' },
+  csv_import:  { bg: 'var(--a-dim)',         color: 'var(--a-lt)' },
+  api:         { bg: 'rgba(139,92,246,0.12)', color: '#a78bfa'   },
 };
 
 const LABELS = {
-  // status lead
   novo: 'Novo', contato: 'Contato', qualificado: 'Qualificado',
   proposta: 'Proposta', agendado: 'Agendado', convertido: 'Convertido', perdido: 'Perdido',
-  // status agend
-  marcado: 'Marcado', confirmado: 'Confirmado', cancelado: 'Cancelado', realizado: 'Realizado',
-  // priority
+  marcado: 'Marcado', confirmado: 'Confirmado', cancelado: 'Cancelado', realizado: 'Realizado', faltou: 'Faltou',
   baixa: 'Baixa', normal: 'Normal', alta: 'Alta', urgente: 'Urgente',
-  // fonte
   google_maps: 'Google Maps', manual: 'Manual', csv_import: 'CSV', api: 'API',
 };
 
+const fallback = { bg: 'rgba(120,120,160,0.10)', color: 'var(--mt-lt)' };
+
 export function BadgeLead({ status }) {
-  const color = LEAD_COLORS[status] || 'bg-gray-100 text-gray-600';
-  return <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${color}`}>{LABELS[status] || status}</span>;
+  const s = LEAD_STYLES[status] || fallback;
+  return (
+    <span className="px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ backgroundColor: s.bg, color: s.color }}>
+      {LABELS[status] || status}
+    </span>
+  );
 }
 
 export function BadgeAgend({ status }) {
-  const color = AGEND_COLORS[status] || 'bg-gray-100 text-gray-600';
-  return <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${color}`}>{LABELS[status] || status}</span>;
+  const s = AGEND_STYLES[status] || fallback;
+  return (
+    <span className="px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ backgroundColor: s.bg, color: s.color }}>
+      {LABELS[status] || status}
+    </span>
+  );
 }
 
 export function BadgePriority({ priority }) {
-  const color = PRIORITY_COLORS[priority] || 'bg-gray-100 text-gray-500';
-  return <span className={`px-2 py-0.5 rounded text-xs font-medium ${color}`}>{LABELS[priority] || priority}</span>;
+  const s = PRIORITY_STYLES[priority] || fallback;
+  return (
+    <span className="px-2 py-0.5 rounded text-xs font-medium"
+      style={{ backgroundColor: s.bg, color: s.color }}>
+      {LABELS[priority] || priority}
+    </span>
+  );
 }
 
 export function BadgeFonte({ fonte }) {
-  const color = FONTE_COLORS[fonte] || 'bg-gray-100 text-gray-600';
-  return <span className={`px-2 py-0.5 rounded text-xs font-medium ${color}`}>{LABELS[fonte] || fonte}</span>;
+  const s = FONTE_STYLES[fonte] || fallback;
+  return (
+    <span className="px-2 py-0.5 rounded text-xs font-medium"
+      style={{ backgroundColor: s.bg, color: s.color }}>
+      {LABELS[fonte] || fonte}
+    </span>
+  );
 }

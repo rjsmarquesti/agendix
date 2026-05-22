@@ -28,21 +28,22 @@ export default function AdminForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ backgroundColor: 'var(--g)' }}>
+              <svg className="w-7 h-7" stroke="#08080C" fill="none" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
               </svg>
             </div>
-            <span className="text-white font-bold text-2xl tracking-tight">Divulga BR</span>
+            <span className="font-bold text-2xl tracking-tight" style={{ color: 'var(--tx)' }}>Agendix</span>
           </div>
-          <p className="text-slate-400 text-sm">Painel Administrativo</p>
+          <p className="text-sm" style={{ color: 'var(--mt-lt)' }}>Painel Administrativo</p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
+        <div className="rounded-2xl p-8 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--bd)' }}>
           {enviado ? (
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-green-900/40 border border-green-700 rounded-full flex items-center justify-center mx-auto">

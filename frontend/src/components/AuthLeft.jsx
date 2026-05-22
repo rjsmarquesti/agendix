@@ -27,59 +27,61 @@ const DEFAULT_FEATURES = [
   },
 ];
 
-export default function AuthLeft({ title = 'Agende.\nOrganize.\nCresça.', subtitle = 'Sistema completo de agendamentos para profissionais e pequenos negócios.', features = DEFAULT_FEATURES, brand = {} }) {
+export default function AuthLeft({
+  title = 'Agende.\nOrganize.\nCresça.',
+  subtitle = 'Sistema completo de agendamentos para profissionais e pequenos negócios.',
+  features = DEFAULT_FEATURES,
+  brand = {},
+}) {
   const { logo = null, nome = 'Agendix' } = brand;
+
   return (
-    <div
-      className="hidden lg:flex flex-col justify-between w-1/2 p-12 relative overflow-hidden flex-shrink-0"
-      style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1a0d3d 100%)' }}
-    >
-      {/* Glow radial */}
+    <div className="hidden lg:flex flex-col justify-between w-1/2 p-12 relative overflow-hidden flex-shrink-0 border-r"
+      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--bd)' }}>
+
+      {/* Glow verde */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: 'radial-gradient(circle at 30% 50%, #5B3DF5 0%, transparent 60%), radial-gradient(circle at 80% 20%, #2F80ED 0%, transparent 40%)',
-        opacity: 0.18,
+        backgroundImage: 'radial-gradient(ellipse at 25% 60%, var(--g-glow) 0%, transparent 60%), radial-gradient(ellipse at 80% 15%, rgba(6,182,212,0.08) 0%, transparent 50%)',
       }} />
 
       {/* Logo */}
       <div className="relative z-10">
-        {logo
-          ? (
-            <div className="flex items-center gap-3">
-              <BrandLogo logo={logo} nome={nome} size="lg" dark />
-              <span className="text-white font-bold text-xl">{nome}</span>
-            </div>
-          )
-          : (
-            <img
-              src="/logo-agendix-dark.png"
-              alt="Agendix"
-              className="h-14 w-auto object-contain"
-              style={{ mixBlendMode: 'screen' }}
-            />
-          )
-        }
+        {logo ? (
+          <div className="flex items-center gap-3">
+            <BrandLogo logo={logo} nome={nome} size="lg" dark />
+            <span className="font-bold text-xl" style={{ color: 'var(--tx)' }}>{nome}</span>
+          </div>
+        ) : (
+          <>
+            <img src="/logo-agendix-dark.png" alt="Agendix" className="h-14 w-auto object-contain dark:block hidden" />
+            <img src="/logo-agendix-light.png" alt="Agendix" className="h-14 w-auto object-contain dark:hidden block" />
+          </>
+        )}
       </div>
 
       {/* Conteúdo central */}
       <div className="relative z-10 space-y-8">
         <div>
-          <h1 className="text-4xl font-bold text-white leading-tight whitespace-pre-line">{title}</h1>
-          <p className="mt-4 text-lg" style={{ color: 'rgba(167,139,250,0.85)' }}>{subtitle}</p>
+          <h1 className="text-4xl font-bold leading-tight whitespace-pre-line" style={{ color: 'var(--tx)' }}>
+            {title}
+          </h1>
+          <p className="mt-4 text-base leading-relaxed" style={{ color: 'var(--tx-md)' }}>{subtitle}</p>
         </div>
         <div className="space-y-4">
           {features.map((f, i) => (
             <div key={i} className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(91,61,245,0.25)', color: '#a78bfa' }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: 'var(--g-dim)', color: 'var(--g)' }}>
                 {f.icon}
               </div>
-              <span className="text-sm" style={{ color: 'rgba(221,214,254,0.85)' }}>{f.text}</span>
+              <span className="text-sm" style={{ color: 'var(--tx-md)' }}>{f.text}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Rodapé */}
-      <p className="relative z-10 text-xs" style={{ color: 'rgba(139,92,246,0.5)' }}>
+      <p className="relative z-10 text-xs" style={{ color: 'var(--mt)' }}>
         © 2026 Agendix · DivulgaBR
       </p>
     </div>

@@ -100,9 +100,9 @@ export default function Ativar() {
             {status === 'loading' && (
               <>
                 <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
-                  style={{ background: 'rgba(91,61,245,0.1)' }}>
+                  style={{ background: 'var(--g-dim)' }}>
                   <svg className="animate-spin w-10 h-10" fill="none" viewBox="0 0 24 24"
-                    style={{ color: '#5B3DF5' }}>
+                    style={{ color: 'var(--g)' }}>
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
@@ -133,7 +133,7 @@ export default function Ativar() {
 
                 {/* PrÃ³ximos passos */}
                 <div className="rounded-2xl border border-gray-200 dark:border-gray-700 p-5 text-left space-y-3"
-                  style={{ background: 'rgba(91,61,245,0.04)' }}>
+                  style={{ background: 'var(--g-dim)' }}>
                   <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">O que fazer agora</p>
                   {[
                     'FaÃ§a login com seu email e senha',
@@ -142,7 +142,7 @@ export default function Ativar() {
                   ].map((step, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5"
-                        style={{ background: 'linear-gradient(135deg,#5B3DF5,#2F80ED)' }}>
+                        style={{ backgroundColor: 'var(--g)', color: '#08080C' }}>
                         {i + 1}
                       </span>
                       <span className="text-sm text-gray-600 dark:text-gray-300">{step}</span>
@@ -152,7 +152,7 @@ export default function Ativar() {
 
                 <Link to="/login"
                   className="inline-flex items-center gap-2 px-8 py-3 text-white font-semibold rounded-xl transition"
-                  style={{ background: 'linear-gradient(135deg,#5B3DF5,#2F80ED)' }}>
+                  style={{ backgroundColor: 'var(--g)', color: '#08080C' }}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14" />
                   </svg>
@@ -176,12 +176,12 @@ export default function Ativar() {
                 <div className="flex flex-col gap-3">
                   <Link to="/login?mode=register"
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 text-white font-semibold rounded-xl transition text-sm"
-                    style={{ background: 'linear-gradient(135deg,#5B3DF5,#2F80ED)' }}>
+                    style={{ backgroundColor: 'var(--g)', color: '#08080C' }}>
                     Criar nova conta
                   </Link>
                   <Link to="/login"
                     className="text-sm font-medium hover:underline"
-                    style={{ color: '#5B3DF5' }}>
+                    style={{ color: 'var(--g)' }}>
                     JÃ¡ tenho conta ativada â†’ Entrar
                   </Link>
                 </div>

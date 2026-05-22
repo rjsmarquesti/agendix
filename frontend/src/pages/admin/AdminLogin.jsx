@@ -68,19 +68,19 @@ function StepCredentials({ onSuccess, onTotpRequired }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-slate-400 mb-1">Email</label>
+        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--mt-lt)' }}>Email</label>
         <input type="email" required autoFocus value={form.email}
           onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
           placeholder="super@crm.com"
-          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+          className="w-full px-4 py-3 border rounded-xl text-sm" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-slate-400 mb-1">Senha</label>
+        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--mt-lt)' }}>Senha</label>
         <div className="relative">
           <input type={showSenha ? 'text' : 'password'} required value={form.senha}
             onChange={e => setForm(f => ({ ...f, senha: e.target.value }))}
             placeholder="••••••••"
-            className="w-full px-4 pr-10 py-3 bg-slate-800 border border-slate-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+            className="w-full px-4 pr-10 py-3 border rounded-xl text-sm" />
           <button type="button" onClick={() => setShowSenha(v => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
             <IconEye off={showSenha} />
@@ -89,7 +89,8 @@ function StepCredentials({ onSuccess, onTotpRequired }) {
       </div>
       {erro && <p className="bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded-xl text-sm">{erro}</p>}
       <button type="submit" disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2">
+        className="w-full disabled:opacity-60 font-semibold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2"
+        style={{ backgroundColor: 'var(--g)', color: '#08080C' }}>
         {loading ? <><Spinner />Verificando...</> : 'Continuar'}
       </button>
     </form>
@@ -158,10 +159,10 @@ function StepTotp({ credenciais, onSuccess, onVoltar }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600/20 rounded-full mb-3">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-3" style={{ backgroundColor: 'var(--g-dim)', color: 'var(--g)' }}>
           <IconShield />
         </div>
-        <p className="text-slate-300 text-sm">Digite o código de 6 dígitos do seu aplicativo autenticador.</p>
+        <p className="text-sm" style={{ color: 'var(--tx-md)' }}>Digite o código de 6 dígitos do seu aplicativo autenticador.</p>
       </div>
 
       {/* Inputs individuais por dígito */}
@@ -174,7 +175,7 @@ function StepTotp({ credenciais, onSuccess, onVoltar }) {
             value={d}
             onChange={e => handleChange(i, e.target.value)}
             onKeyDown={e => handleKeyDown(i, e)}
-            className="w-11 h-14 text-center text-xl font-bold bg-slate-800 border border-slate-600 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+            className="w-11 h-14 text-center text-xl font-bold border rounded-xl transition"
           />
         ))}
       </div>
@@ -183,11 +184,12 @@ function StepTotp({ credenciais, onSuccess, onVoltar }) {
 
       <div className="space-y-2">
         <button type="submit" disabled={loading || digits.join('').length < 6}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2">
+          className="w-full disabled:opacity-50 font-semibold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2"
+          style={{ backgroundColor: 'var(--g)', color: '#08080C' }}>
           {loading ? <><Spinner />Verificando...</> : 'Verificar código'}
         </button>
         <button type="button" onClick={onVoltar}
-          className="w-full text-slate-500 hover:text-slate-300 text-sm py-2 transition">
+          className="w-full text-sm py-2 transition" style={{ color: 'var(--mt-lt)' }}>
           Voltar ao login
         </button>
       </div>
@@ -212,31 +214,32 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ backgroundColor: 'var(--g)' }}>
+              <svg className="w-7 h-7" stroke="#08080C" fill="none" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
               </svg>
             </div>
-            <span className="text-white font-bold text-2xl tracking-tight">Divulga BR</span>
+            <span className="font-bold text-2xl tracking-tight" style={{ color: 'var(--tx)' }}>Agendix</span>
           </div>
-          <p className="text-slate-400 text-sm">Painel Administrativo</p>
+          <p className="text-sm" style={{ color: 'var(--mt-lt)' }}>Painel Administrativo</p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
-          <h2 className="text-white font-bold text-xl mb-1">
+        <div className="rounded-2xl p-8 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--bd)' }}>
+          <h2 className="font-bold text-xl mb-1" style={{ color: 'var(--tx)' }}>
             {etapa === 'totp' ? 'Verificação em duas etapas' : 'Acesso restrito'}
           </h2>
           {etapa === 'credenciais' && (
-            <p className="text-slate-500 text-sm mb-6">Somente administradores do sistema.</p>
+            <p className="text-sm mb-6" style={{ color: 'var(--mt-lt)' }}>Somente administradores do sistema.</p>
           )}
           {etapa === 'totp' && (
-            <p className="text-slate-500 text-sm mb-6">Abra o Google Authenticator ou Authy.</p>
+            <p className="text-sm mb-6" style={{ color: 'var(--mt-lt)' }}>Abra o Google Authenticator ou Authy.</p>
           )}
 
           {etapa === 'credenciais' && (
@@ -255,10 +258,10 @@ export default function AdminLogin() {
         </div>
 
         <div className="text-center mt-4">
-          <Link to="/admin/esqueci-senha" className="text-slate-500 hover:text-slate-300 text-xs transition-colors">
+          <Link to="/admin/esqueci-senha" className="text-xs transition-colors" style={{ color: 'var(--mt-lt)' }}>
             Esqueci minha senha
           </Link>
-          <p className="text-slate-700 text-xs mt-1">Divulga BR — Agendix</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--mt)' }}>Agendix Admin</p>
         </div>
       </div>
     </div>

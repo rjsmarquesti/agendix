@@ -109,17 +109,17 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--bg)' }}>
         <div className="text-center space-y-4">
           <p className="text-gray-600 dark:text-gray-400">Link inválido ou expirado.</p>
-          <Link to="/login" className="text-sm font-medium hover:underline" style={{ color: '#5B3DF5' }}>Voltar para o login</Link>
+          <Link to="/login" className="text-sm font-medium hover:underline" style={{ color: 'var(--g)' }}>Voltar para o login</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen flex transition-colors" style={{ backgroundColor: 'var(--bg)' }}>
       <ThemeToggle />
 
       <AuthLeft
@@ -264,7 +264,7 @@ export default function ResetPassword() {
                 <div style={{ animationDelay: '180ms' }} className="animate-auth">
                   <button type="submit" disabled={loading}
                     className="w-full text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-                    style={{ background: 'linear-gradient(135deg,#5B3DF5,#2F80ED)', opacity: loading ? 0.7 : 1 }}>
+                    style={{ backgroundColor: 'var(--g)', color: '#08080C', opacity: loading ? 0.7 : 1 }}>
                     {loading
                       ? <><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Salvando...</>
                       : 'Salvar nova senha'}
@@ -272,7 +272,7 @@ export default function ResetPassword() {
                 </div>
 
                 <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-                  <Link to="/login" className="font-medium hover:underline" style={{ color: '#5B3DF5' }}>
+                  <Link to="/login" className="font-medium hover:underline text-accent">
                     Cancelar e voltar ao login
                   </Link>
                 </p>

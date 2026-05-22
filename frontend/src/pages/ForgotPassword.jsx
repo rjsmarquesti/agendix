@@ -87,7 +87,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen flex transition-colors" style={{ backgroundColor: 'var(--bg)' }}>
       <ThemeToggle />
 
       <AuthLeft
@@ -129,7 +129,7 @@ export default function ForgotPassword() {
                 ].map((step, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5"
-                      style={{ background: 'linear-gradient(135deg,#5B3DF5,#2F80ED)' }}>
+                      style={{ backgroundColor: 'var(--g)', color: '#08080C' }}>
                       {i + 1}
                     </span>
                     <span className="text-sm text-gray-600 dark:text-gray-300">{step}</span>
@@ -139,12 +139,12 @@ export default function ForgotPassword() {
 
               <div className="flex flex-col gap-2 text-center">
                 <button onClick={() => { setSent(false); setStatus(null); }}
-                  className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  className="text-sm transition-colors" style={{ color: 'var(--mt-lt)' }}>
                   Não recebeu? Tente novamente
                 </button>
                 <Link to="/login"
                   className="inline-flex items-center justify-center gap-2 text-sm font-medium text-white py-3 px-6 rounded-xl transition"
-                  style={{ background: 'linear-gradient(135deg,#5B3DF5,#2F80ED)' }}>
+                  style={{ backgroundColor: 'var(--g)', color: '#08080C' }}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14" />
                   </svg>
@@ -179,7 +179,7 @@ export default function ForgotPassword() {
                       onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                       placeholder="minha-empresa"
                       className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700/60 text-gray-800 dark:text-gray-100 text-sm transition"
-                      style={{ '--tw-ring-color': '#5B3DF5' }}
+                      style={{ '--tw-ring-color': 'var(--g)' }}
                     />
                   </div>
                 </div>
@@ -210,7 +210,7 @@ export default function ForgotPassword() {
                 <div style={{ animationDelay: '180ms' }} className="animate-auth">
                   <button type="submit" disabled={loading}
                     className="w-full text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-                    style={{ background: 'linear-gradient(135deg,#5B3DF5,#2F80ED)', opacity: loading ? 0.7 : 1 }}>
+                    style={{ backgroundColor: 'var(--g)', color: '#08080C', opacity: loading ? 0.7 : 1 }}>
                     {loading
                       ? <><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Enviando...</>
                       : 'Enviar link de redefinição'}
@@ -219,7 +219,7 @@ export default function ForgotPassword() {
 
                 <p className="text-center text-sm text-gray-500 dark:text-gray-400">
                   Lembrou a senha?{' '}
-                  <Link to="/login" className="font-medium hover:underline" style={{ color: '#5B3DF5' }}>
+                  <Link to="/login" className="font-medium hover:underline text-accent">
                     Voltar ao login
                   </Link>
                 </p>

@@ -90,7 +90,7 @@ const FEATURES = [
   { icon: <IconDollar />, title: 'Módulo Financeiro', desc: 'Tenha controle total das finanças do seu negócio.' },
 ];
 
-const INPUT_CLS = 'w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm transition placeholder-gray-400';
+const INPUT_CLS = 'w-full pl-10 pr-4 py-3 border rounded-xl text-sm transition placeholder-gray-400';
 
 export default function Register() {
   const [form, setForm] = useState({ nomeEmpresa: '', nomeCompleto: '', whatsapp: '', email: '', senha: '' });
@@ -128,20 +128,21 @@ export default function Register() {
     }
   }
 
-  /* ── Painel esquerdo (reutilizado em ambos os estados) ── */
+  /* ── Painel esquerdo ── */
   const LeftPanel = () => (
-    <div className="hidden lg:flex flex-col justify-between w-5/12 flex-shrink-0 p-12 relative overflow-hidden"
-      style={{ background: 'linear-gradient(160deg, #0F172A 0%, #1a0d3d 100%)' }}>
-      {/* Glow */}
+    <div className="hidden lg:flex flex-col justify-between w-5/12 flex-shrink-0 p-12 relative overflow-hidden border-r"
+      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--bd)' }}>
+
+      {/* Glow verde de fundo */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: 'radial-gradient(circle at 20% 50%, #5B3DF5 0%, transparent 55%), radial-gradient(circle at 80% 10%, #2F80ED 0%, transparent 45%)',
-        opacity: 0.18,
+        backgroundImage: 'radial-gradient(ellipse at 20% 60%, var(--g-glow) 0%, transparent 60%), radial-gradient(ellipse at 80% 10%, rgba(6,182,212,0.08) 0%, transparent 50%)',
       }} />
 
       {/* Logo */}
       <div className="relative z-10">
-        <img src="/logo-agendix-dark.png" alt="Agendix" className="h-16 w-auto object-contain" style={{ mixBlendMode: 'screen' }} />
-        <p className="mt-2 text-xs tracking-widest font-semibold" style={{ color: 'rgba(167,139,250,0.6)' }}>
+        <img src="/logo-agendix-dark.png" alt="Agendix" className="h-14 w-auto object-contain dark:block hidden" />
+        <img src="/logo-agendix-light.png" alt="Agendix" className="h-14 w-auto object-contain dark:hidden block" />
+        <p className="mt-2 text-xs tracking-widest font-semibold" style={{ color: 'var(--g)' }}>
           AGENDE. ORGANIZE. CRESÇA.
         </p>
       </div>
@@ -149,37 +150,37 @@ export default function Register() {
       {/* Headline + features */}
       <div className="relative z-10 space-y-8">
         <div>
-          <h2 className="text-3xl font-bold text-white leading-tight">
+          <h2 className="text-3xl font-bold leading-tight" style={{ color: 'var(--tx)' }}>
             Comece grátis<br />por 30 dias.
           </h2>
-          <p className="mt-3 text-sm leading-relaxed" style={{ color: 'rgba(148,163,184,0.85)' }}>
-            O sistema de agendamento online que ajuda profissionais e empresas a economizar tempo, organizar atendimentos e crescer com mais profissionalismo.
+          <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--tx-md)' }}>
+            O sistema de agendamento online que ajuda profissionais e empresas a economizar tempo, organizar atendimentos e crescer.
           </p>
         </div>
-        <div className="space-y-5">
+        <div className="space-y-4">
           {FEATURES.map((f, i) => (
             <div key={i} className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: 'rgba(91,61,245,0.25)', color: '#a78bfa' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: 'var(--g-dim)', color: 'var(--g)' }}>
                 {f.icon}
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">{f.title}</p>
-                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'rgba(148,163,184,0.75)' }}>{f.desc}</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--tx)' }}>{f.title}</p>
+                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--mt-lt)' }}>{f.desc}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      <p className="relative z-10 text-xs" style={{ color: 'rgba(139,92,246,0.4)' }}>© 2026 Agendix · DivulgaBR</p>
+      <p className="relative z-10 text-xs" style={{ color: 'var(--mt)' }}>© 2026 Agendix · DivulgaBR</p>
     </div>
   );
 
   /* ── Tela de sucesso ── */
   if (sucesso) {
     return (
-      <div className="min-h-screen flex bg-white dark:bg-gray-900">
+      <div className="min-h-screen flex" style={{ backgroundColor: 'var(--bg)' }}>
         <LeftPanel />
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="w-full max-w-md text-center space-y-6">
@@ -206,7 +207,7 @@ export default function Register() {
                 <span className="text-sm text-green-700 dark:text-green-300">Verifique seu WhatsApp</span>
               </div>
             </div>
-            <Link to="/login" className="block text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline">
+            <Link to="/login" className="block text-sm font-semibold hover:underline" style={{ color: 'var(--g)' }}>
               Já ativei minha conta → Entrar
             </Link>
           </div>
@@ -220,7 +221,7 @@ export default function Register() {
       <LeftPanel />
 
       {/* Painel direito */}
-      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto" style={{ backgroundColor: 'var(--bg)' }}>
         <div className="w-full max-w-md py-8">
 
           {/* Header do formulário */}
@@ -324,8 +325,8 @@ export default function Register() {
             )}
 
             <button type="submit" disabled={loading}
-              className="w-full py-3.5 rounded-xl font-semibold text-white text-sm transition flex items-center justify-center gap-2 mt-2"
-              style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)', boxShadow: '0 4px 24px rgba(124,58,237,0.35)' }}
+              className="w-full py-3.5 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 mt-2"
+              style={{ backgroundColor: 'var(--g)', color: '#08080C', boxShadow: '0 4px 24px var(--g-glow)' }}
               onMouseEnter={e => e.currentTarget.style.opacity = '0.92'}
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
               {loading
@@ -335,14 +336,14 @@ export default function Register() {
 
             <p className="text-center text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
               Ao criar sua conta, você concorda com nossos{' '}
-              <a href="/termos" target="_blank" className="text-violet-600 dark:text-violet-400 hover:underline">Termos de Uso</a>{' '}
+              <a href="/termos" target="_blank" className="text-accent hover:underline">Termos de Uso</a>{' '}
               e{' '}
-              <a href="/privacidade" target="_blank" className="text-violet-600 dark:text-violet-400 hover:underline">Política de Privacidade</a>
+              <a href="/privacidade" target="_blank" className="text-accent hover:underline">Política de Privacidade</a>
             </p>
 
             <p className="text-center text-sm text-gray-500 dark:text-gray-400">
               Já tem uma conta?{' '}
-              <Link to="/login" className="text-violet-600 dark:text-violet-400 hover:underline font-semibold">
+              <Link to="/login" className="text-accent hover:underline font-semibold">
                 Fazer login
               </Link>
             </p>

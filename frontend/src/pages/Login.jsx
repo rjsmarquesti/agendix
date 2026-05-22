@@ -74,7 +74,7 @@ const FEATURES = [
   { icon: <IconDollar />, title: 'Módulo Financeiro', desc: 'Tenha controle total das finanças do seu negócio.' },
 ];
 
-const INPUT_CLS = 'w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm transition placeholder-gray-400';
+const INPUT_CLS = 'w-full pl-10 pr-4 py-3 border rounded-xl text-sm transition placeholder-gray-400';
 
 export default function Login() {
   const [form, setForm] = useState({ slug: localStorage.getItem('crm_slug') || '', email: '', senha: '' });
@@ -119,72 +119,70 @@ export default function Login() {
   }
 
   /* ── Painel esquerdo ── */
-  const leftContent = brand.logo
-    ? (
-      <div className="hidden lg:flex flex-col justify-between w-5/12 flex-shrink-0 p-12 relative overflow-hidden"
-        style={{ background: 'linear-gradient(160deg, #0F172A 0%, #1a0d3d 100%)' }}>
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: 'radial-gradient(circle at 20% 50%, #5B3DF5 0%, transparent 55%), radial-gradient(circle at 80% 10%, #2F80ED 0%, transparent 45%)',
-          opacity: 0.18,
-        }} />
-        <div className="relative z-10 flex items-center gap-3">
-          <BrandLogo logo={brand.logo} nome={brand.nome} size="lg" dark />
-          <span className="text-white font-bold text-xl">{brand.nome}</span>
-        </div>
-        <div className="relative z-10 space-y-4">
-          <h2 className="text-3xl font-bold text-white leading-tight">Bem-vindo<br />de volta.</h2>
-          <p className="text-sm leading-relaxed" style={{ color: 'rgba(148,163,184,0.85)' }}>
+  const LeftPanel = () => (
+    <div className="hidden lg:flex flex-col justify-between w-5/12 flex-shrink-0 p-12 relative overflow-hidden border-r"
+      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--bd)' }}>
+
+      {/* Glow verde de fundo */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: 'radial-gradient(ellipse at 20% 60%, var(--g-glow) 0%, transparent 60%), radial-gradient(ellipse at 80% 10%, rgba(6,182,212,0.08) 0%, transparent 50%)',
+      }} />
+
+      {/* Logo / brand */}
+      <div className="relative z-10">
+        {brand.logo
+          ? <div className="flex items-center gap-3">
+              <BrandLogo logo={brand.logo} nome={brand.nome} size="lg" dark />
+              <span className="font-bold text-xl" style={{ color: 'var(--tx)' }}>{brand.nome}</span>
+            </div>
+          : <>
+              <img src="/logo-agendix-dark.png" alt="Agendix" className="h-14 w-auto object-contain dark:block hidden" />
+              <img src="/logo-agendix-light.png" alt="Agendix" className="h-14 w-auto object-contain dark:hidden block" />
+              <p className="mt-2 text-xs tracking-widest font-semibold" style={{ color: 'var(--g)' }}>
+                AGENDE. ORGANIZE. CRESÇA.
+              </p>
+            </>
+        }
+      </div>
+
+      {/* Headline + features */}
+      <div className="relative z-10 space-y-8">
+        <div>
+          <h2 className="text-3xl font-bold leading-tight" style={{ color: 'var(--tx)' }}>
+            Bem-vindo<br />de volta.
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--tx-md)' }}>
             Entre na sua conta para gerenciar agendamentos, clientes e muito mais.
           </p>
         </div>
-        <p className="relative z-10 text-xs" style={{ color: 'rgba(139,92,246,0.4)' }}>© 2026 Agendix · DivulgaBR</p>
-      </div>
-    )
-    : (
-      <div className="hidden lg:flex flex-col justify-between w-5/12 flex-shrink-0 p-12 relative overflow-hidden"
-        style={{ background: 'linear-gradient(160deg, #0F172A 0%, #1a0d3d 100%)' }}>
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: 'radial-gradient(circle at 20% 50%, #5B3DF5 0%, transparent 55%), radial-gradient(circle at 80% 10%, #2F80ED 0%, transparent 45%)',
-          opacity: 0.18,
-        }} />
-        <div className="relative z-10">
-          <img src="/logo-agendix-dark.png" alt="Agendix" className="h-16 w-auto object-contain" style={{ mixBlendMode: 'screen' }} />
-          <p className="mt-2 text-xs tracking-widest font-semibold" style={{ color: 'rgba(167,139,250,0.6)' }}>
-            AGENDE. ORGANIZE. CRESÇA.
-          </p>
-        </div>
-        <div className="relative z-10 space-y-8">
-          <div>
-            <h2 className="text-3xl font-bold text-white leading-tight">Bem-vindo<br />de volta.</h2>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: 'rgba(148,163,184,0.85)' }}>
-              Entre na sua conta para gerenciar agendamentos, clientes e muito mais.
-            </p>
-          </div>
-          <div className="space-y-5">
-            {FEATURES.map((f, i) => (
-              <div key={i} className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(91,61,245,0.25)', color: '#a78bfa' }}>
-                  {f.icon}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">{f.title}</p>
-                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'rgba(148,163,184,0.75)' }}>{f.desc}</p>
-                </div>
+        <div className="space-y-4">
+          {FEATURES.map((f, i) => (
+            <div key={i} className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: 'var(--g-dim)', color: 'var(--g)' }}>
+                {f.icon}
               </div>
-            ))}
-          </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--tx)' }}>{f.title}</p>
+                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--mt-lt)' }}>{f.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
-        <p className="relative z-10 text-xs" style={{ color: 'rgba(139,92,246,0.4)' }}>© 2026 Agendix · DivulgaBR</p>
       </div>
-    );
+
+      <p className="relative z-10 text-xs" style={{ color: 'var(--mt)' }}>© 2026 Agendix · DivulgaBR</p>
+    </div>
+  );
+
+  const leftContent = <LeftPanel />;
 
   return (
-    <div className="min-h-screen flex bg-white dark:bg-gray-900">
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--bg)' }}>
       {leftContent}
 
       {/* Painel direito */}
-      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto relative">
+      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto relative" style={{ backgroundColor: 'var(--bg)' }}>
 
         {/* Toggle tema */}
         <button onClick={toggleTheme}
@@ -251,7 +249,7 @@ export default function Login() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Senha</label>
-                <Link to="/esqueci-senha" className="text-xs text-violet-600 dark:text-violet-400 hover:underline">
+                <Link to="/esqueci-senha" className="text-xs text-accent hover:underline">
                   Esqueci minha senha
                 </Link>
               </div>
@@ -274,8 +272,8 @@ export default function Login() {
             )}
 
             <button type="submit" disabled={loading}
-              className="w-full py-3.5 rounded-xl font-semibold text-white text-sm transition flex items-center justify-center gap-2 mt-2"
-              style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)', boxShadow: '0 4px 24px rgba(124,58,237,0.35)' }}
+              className="w-full py-3.5 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 mt-2"
+              style={{ backgroundColor: 'var(--g)', color: '#08080C', boxShadow: '0 4px 24px var(--g-glow)' }}
               onMouseEnter={e => e.currentTarget.style.opacity = '0.92'}
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
               {loading
@@ -285,7 +283,7 @@ export default function Login() {
 
             <p className="text-center text-sm text-gray-500 dark:text-gray-400">
               Não tem uma conta?{' '}
-              <Link to="/cadastro" className="text-violet-600 dark:text-violet-400 hover:underline font-semibold">
+              <Link to="/cadastro" className="text-accent hover:underline font-semibold">
                 Criar conta grátis
               </Link>
             </p>
