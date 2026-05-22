@@ -38,6 +38,7 @@ import AdminConsumo                from './pages/admin/AdminConsumo';
 import AdminLogs                   from './pages/admin/AdminLogs';
 import AdminUsuarios               from './pages/admin/AdminUsuarios';
 import AdminForgotPassword         from './pages/admin/AdminForgotPassword';
+import WaAtendimento               from './pages/WaAtendimento';
 const PLANOS_COM_FINANCEIRO = ['pro', 'premium', 'business'];
 
 function PrivateRoute({ children, roles, planos }) {
@@ -91,7 +92,8 @@ export default function App() {
         <Route path="/anamnese"     element={<PrivateRoute><Anamnese /></PrivateRoute>} />
         <Route path="/processos"    element={<PrivateRoute><Processos /></PrivateRoute>} />
         <Route path="/orcamentos"   element={<PrivateRoute><Orcamentos /></PrivateRoute>} />
-        <Route path="/documentos"   element={<PrivateRoute><Documentos /></PrivateRoute>} />
+        <Route path="/documentos"      element={<PrivateRoute><Documentos /></PrivateRoute>} />
+        <Route path="/wa-atendimento"  element={<PrivateRoute><WaAtendimento /></PrivateRoute>} />
 
         {/* Rotas super admin */}
         <Route path="/admin"                        element={<AdminRoute><AdminDashboard /></AdminRoute>} />

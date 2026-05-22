@@ -74,6 +74,8 @@ model Tenant {
   agentSessions      AgentSession[]
   agentLeads         AgentLead[]
   pushSubscriptions  PushSubscription[]
+  waAtendentes       WaAtendente[]
+  waFilas            WaFila[]
   @@map("tenants")
 }
 
@@ -491,6 +493,81 @@ model PushSubscription {
   @@unique([userId, endpoint])
   @@index([tenantId])
   @@map("push_subscriptions")
+}
+
+// ─── WaAtendente (atendentes humanos de WhatsApp por tenant) ─────────────────
+model WaAtendente {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nome        String
+  telefone    String   // número do atendente (para notificação)
+  ativo       Boolean  @default(true)
+  cargaAtual  Int      @default(0) @map("carga_atual")
+  cargaMaxima Int      @default(5) @map("carga_maxima")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  filas       WaFila[]
+
+  @@index([tenantId, ativo])
+  @@map("wa_atendentes")
+}
+
+// ─── WaFila (sessão de atendimento humano) ────────────────────────────────────
+model WaFila {
+  id              Int          @id @default(autoincrement())
+  tenantId        Int          @map("tenant_id")
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clienteTelefone String       @map("cliente_telefone")
+  clienteNome     String?      @map("cliente_nome")
+  atendenteId     Int?         @map("atendente_id")
+  atendente       WaAtendente? @relation(fields: [atendenteId], references: [id], onDelete: SetNull)
+  status          StatusFila   @default(aguardando)
+  abertaEm        DateTime     @default(now()) @map("aberta_em")
+  fechadaEm       DateTime?    @map("fechada_em")
+
+  logs            WaConversaLog[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, abertaEm])
+  @@map("wa_filas")
+}
+
+// ─── WaConversaLog (auditoria imutável de mensagens) ─────────────────────────
+model WaConversaLog {
+  id          Int             @id @default(autoincrement())
+  filaId      Int             @map("fila_id")
+  fila        WaFila          @relation(fields: [filaId], references: [id], onDelete: Cascade)
+  tenantId    Int             @map("tenant_id")
+  direcao     DirecaoMsg
+  deTelefone  String          @map("de_telefone")
+  paraTelefone String         @map("para_telefone")
+  mensagem    String          @db.Text
+  atendenteId Int?            @map("atendente_id")   // null = bot
+  fonte       FonteMsg        @default(bot)
+  criadoEm   DateTime         @default(now()) @map("criado_em")
+
+  @@index([filaId])
+  @@index([tenantId, criadoEm])
+  @@map("wa_conversa_logs")
+}
+
+enum StatusFila {
+  aguardando
+  em_atendimento
+  encerrado
+  abandonado
+}
+
+enum DirecaoMsg {
+  entrada
+  saida
+}
+
+enum FonteMsg {
+  bot
+  humano
+  gemini
 }
 
 // ─── AuditLog (registro de ações críticas) ────────────────────────────────────
