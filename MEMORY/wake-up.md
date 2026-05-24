@@ -2,8 +2,8 @@
 
 > Claude: leia este arquivo no início de cada sessão antes de qualquer ação.
 
-**Última sessão:** 2026-05-23
-**Último deploy:** 2026-05-23 — backend:20260523a-v1.4.0 / frontend:20260523a-v1.3.0
+**Última sessão:** 2026-05-23 21:36
+**Último deploy:** 2026-05-23 ✅ — backend:20260523a-v1.4.0 / frontend:20260523a-v1.3.0 (EasyPanel `desenvolvimento`)
 
 ---
 
