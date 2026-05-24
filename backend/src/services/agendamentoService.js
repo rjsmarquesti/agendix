@@ -56,7 +56,7 @@ async function criarComAntiDoubleBooking(dados, opts = {}) {
  * Usado pelo controller do painel admin, pela rota pública e pela rota n8n.
  *
  * @param {object} dados  - Campos do agendamento (deve incluir tenantId, data, hora, leadId)
- * @param {string} plano  - Plano do tenant ('basico' | 'pro' | 'premium')
+ * @param {string} plano  - Plano do tenant ('solo' | 'pro' | 'business')
  * @param {object} [opts] - Opções: { incluir } para include do Prisma
  */
 async function criar(dados, plano, opts = {}) {

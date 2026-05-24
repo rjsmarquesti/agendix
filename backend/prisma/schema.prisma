@@ -14,7 +14,7 @@ model Tenant {
   slug        String        @unique
   logo        String?
   corPrimaria String        @default("#2563eb") @map("cor_primaria")
-  plano       Plano         @default(basico)
+  plano       Plano         @default(solo)
   modulos     Json          @default("[\"leads\",\"agendamentos\"]")
   ativo           Boolean  @default(true)
   n8nWebhookUrl   String?  @map("n8n_webhook_url")
@@ -283,9 +283,8 @@ model ConversaWhatsapp {
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 enum Plano {
-  basico
+  solo
   pro
-  premium
   business
 }
 

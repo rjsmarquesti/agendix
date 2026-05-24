@@ -14,7 +14,7 @@ const STATUS_LABEL = {
 export default function WaAtendimento() {
   const { tenant } = useAuth();
   const plano = tenant?.plano;
-  const liberado = plano !== 'basico';
+  const liberado = plano === 'pro' || plano === 'business';
 
   const [tab, setTab] = useState('dashboard');
   const [dashboard, setDashboard] = useState(null);

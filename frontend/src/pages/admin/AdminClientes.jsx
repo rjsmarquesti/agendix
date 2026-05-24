@@ -4,20 +4,19 @@ import AdminLayout from '../../components/AdminLayout';
 import Modal from '../../components/Modal';
 import { api } from '../../services/api';
 
-const PLANO_COLOR  = { basico: 'bg-slate-700 text-slate-300', pro: 'bg-blue-900 text-blue-300', premium: 'bg-yellow-900 text-yellow-300', business: 'bg-purple-900 text-purple-300' };
+const PLANO_COLOR  = { solo: 'bg-slate-700 text-slate-300', pro: 'bg-blue-900 text-blue-300', business: 'bg-purple-900 text-purple-300' };
 const STATUS_COLOR = { trial: 'bg-slate-700 text-slate-300', ativo: 'bg-green-900 text-green-300', inadimplente: 'bg-red-900 text-red-300', cancelado: 'bg-red-950 text-red-400', inativo: 'bg-gray-700 text-gray-400', aguardando_pagamento: 'bg-yellow-900 text-yellow-300' };
 const STATUS_LABEL = { trial: 'Trial', ativo: 'Ativo', inadimplente: 'Inadimplente', cancelado: 'Cancelado', inativo: 'Inativo', aguardando_pagamento: 'Aguardando pgto.' };
 const CORES = ['#2563eb','#7c3aed','#db2777','#dc2626','#ea580c','#16a34a','#0891b2','#1e293b'];
 const MODULOS = [{ id: 'leads', label: 'Leads' }, { id: 'agendamentos', label: 'Agendamentos' }];
-const ORDEM_PLANO = { basico: 0, pro: 1, premium: 2, business: 3 };
+const ORDEM_PLANO = { solo: 0, pro: 1, business: 2 };
 const PLANOS_INFO = [
-  { value: 'basico',   label: 'Básico',   preco: 'R$ 37/mês' },
-  { value: 'pro',      label: 'Pro',       preco: 'R$ 57/mês' },
-  { value: 'premium',  label: 'Premium',   preco: 'R$ 97/mês' },
-  { value: 'business', label: 'Business',  preco: 'R$ 127/mês' },
+  { value: 'solo',     label: 'Solo',     preco: 'R$ 49/mês' },
+  { value: 'pro',      label: 'Pro',      preco: 'R$ 89/mês' },
+  { value: 'business', label: 'Business', preco: 'R$ 149/mês' },
 ];
 
-const EMPTY_TENANT    = { nome: '', slug: '', logo: '', corPrimaria: '#2563eb', plano: 'basico', planoStatus: 'trial', planoVencimento: '', modulos: ['leads','agendamentos'], ativo: true, email: '', telefone: '' };
+const EMPTY_TENANT    = { nome: '', slug: '', logo: '', corPrimaria: '#2563eb', plano: 'solo', planoStatus: 'trial', planoVencimento: '', modulos: ['leads','agendamentos'], ativo: true, email: '', telefone: '' };
 const EMPTY_USER      = { nome: '', email: '', senha: '', role: 'admin' };
 const EMPTY_SENHA     = { novaSenha: '', confirmar: '' };
 const EMPTY_EDIT_USER = { nome: '', email: '', whatsapp: '', role: 'atendente', ativo: true };
@@ -599,10 +598,9 @@ export default function AdminClientes() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Plano</label>
               <select value={formTenant.plano} onChange={e => setFT(f => ({ ...f, plano: e.target.value }))}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50">
-                <option value="basico">Básico (1 usuário · 50 ag/mês)</option>
-                <option value="pro">Pro (5 usuários · 300 ag/mês · Bot WA)</option>
-                <option value="premium">Premium (ilimitado · Bot WA)</option>
-                <option value="business">Business (ilimitado · Bot WA · Financeiro)</option>
+                <option value="solo">Solo (1 usuário · 100 ag/mês · Confirmação WA)</option>
+                <option value="pro">Pro (5 usuários · ilimitado · Bot WA completo)</option>
+                <option value="business">Business (ilimitado · Bot WA + IA · Financeiro completo)</option>
               </select>
             </div>
             <div>

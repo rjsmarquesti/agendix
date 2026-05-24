@@ -4,9 +4,8 @@ import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 
 const PLANO_BADGE = {
-  basico:   'bg-slate-700 text-slate-200',
+  solo:     'bg-slate-700 text-slate-200',
   pro:      'bg-blue-900 text-blue-300',
-  premium:  'bg-yellow-900 text-yellow-300',
   business: 'bg-purple-900 text-purple-300',
 };
 
@@ -92,9 +91,8 @@ export default function AdminConsumo() {
         <select value={filtroPlano} onChange={e => setFiltroPlano(e.target.value)}
           className="bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500">
           <option value="">Todos os planos</option>
-          <option value="basico">Básico</option>
+          <option value="solo">Solo</option>
           <option value="pro">Pro</option>
-          <option value="premium">Premium</option>
           <option value="business">Business</option>
         </select>
         <span className="text-slate-500 text-sm self-center">{filtrados.length} cliente(s)</span>

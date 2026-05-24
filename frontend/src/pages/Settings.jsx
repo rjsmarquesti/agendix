@@ -43,10 +43,21 @@ const TABS_BASE = [
 ];
 
 const PLANOS_MP = [
-  { id: 'basico',   label: 'Básico',   preco: 'R$ 37/mês',  descricao: '1 usuário · 100 agendamentos/mês' },
-  { id: 'pro',      label: 'Pro',      preco: 'R$ 57/mês',  descricao: '5 usuários · 300 agendamentos · Bot WhatsApp' },
-  { id: 'premium',  label: 'Premium',  preco: 'R$ 97/mês',  descricao: 'Usuários ilimitados · Agendamentos ilimitados · Bot WA' },
-  { id: 'business', label: 'Business', preco: 'R$ 127/mês', descricao: 'Tudo do Premium + Módulo Financeiro completo' },
+  {
+    id: 'solo', label: 'Solo', preco: 'R$ 49/mês',
+    descricao: '1 usuário · 100 agendamentos/mês · Confirmação WA',
+    features: ['1 usuário', '100 agendamentos/mês', 'Confirmação WA automática', 'Agendamento público online'],
+  },
+  {
+    id: 'pro', label: 'Pro', preco: 'R$ 89/mês',
+    descricao: '5 usuários · Ilimitado · Bot WA completo · Financeiro básico',
+    features: ['5 usuários', 'Agendamentos ilimitados', 'Bot WA completo', 'Módulo financeiro básico', 'Atendimento WA (fila)'],
+  },
+  {
+    id: 'business', label: 'Business', preco: 'R$ 149/mês',
+    descricao: 'Usuários ilimitados · Bot WA + Agente IA · Financeiro completo',
+    features: ['Usuários ilimitados', 'Agendamentos ilimitados', 'Bot WA + Agente IA', 'Financeiro completo', 'Atendimento WA (fila humana)'],
+  },
 ];
 
 function AbaNotificacoes() {
@@ -1127,14 +1138,14 @@ export default function Settings() {
                   <div className="flex items-center justify-between text-sm mb-1">
                     <span className="text-gray-400">Agendamentos este mês</span>
                     <span className="text-white font-medium">
-                      {usoMes} / {tenant?.plano === 'basico' ? 100 : tenant?.plano === 'pro' ? 300 : '∞'}
+                      {usoMes} / {tenant?.plano === 'solo' || tenant?.plano === 'trial' ? 100 : '∞'}
                     </span>
                   </div>
-                  {tenant?.plano !== 'premium' && (
+                  {(tenant?.plano === 'solo' || tenant?.plano === 'trial') && (
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div
-                        className={`h-2 rounded-full transition-all ${usoMes / (tenant?.plano === 'basico' ? 100 : 300) > 0.8 ? 'bg-red-500' : 'bg-blue-500'}`}
-                        style={{ width: `${Math.min(100, (usoMes / (tenant?.plano === 'basico' ? 100 : 300)) * 100)}%` }}
+                        className={`h-2 rounded-full transition-all ${usoMes / 100 > 0.8 ? 'bg-red-500' : 'bg-blue-500'}`}
+                        style={{ width: `${Math.min(100, (usoMes / 100) * 100)}%` }}
                       />
                     </div>
                   )}
@@ -1334,7 +1345,7 @@ export default function Settings() {
             {!agentConfig && !agentForm.promptBase ? (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                 <div className="text-center py-4">
-                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Disponível nos planos <strong>Premium</strong> e <strong>Business</strong>.</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Disponível no plano <strong>Business</strong>.</p>
                   <p className="text-gray-400 dark:text-gray-500 text-xs">Configure abaixo para ativar o atendimento automático no WhatsApp.</p>
                 </div>
               </div>

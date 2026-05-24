@@ -17,7 +17,7 @@ const { enviarEmailOnboardingPago, enviarEmailAdminNovoPagamento } = require('..
 router.post('/assinar', authMiddleware, tenantMiddleware, async (req, res) => {
   try {
     const { plano } = req.body;
-    const planosValidos = ['basico', 'pro', 'premium', 'business'];
+    const planosValidos = ['solo', 'pro', 'business'];
     if (!planosValidos.includes(plano)) {
       return res.status(400).json({ error: 'Plano inválido' });
     }
@@ -87,8 +87,8 @@ router.get('/status', authMiddleware, tenantMiddleware, async (req, res) => {
   }
 });
 
-const PRECO_PLANO = { basico: 37, pro: 57, premium: 97, business: 127 };
-const ORDEM_PLANO = { basico: 0, pro: 1, premium: 2, business: 3 };
+const PRECO_PLANO = { solo: 49, pro: 89, business: 149 };
+const ORDEM_PLANO = { solo: 0, pro: 1, business: 2 };
 
 // POST /api/payments/mudar-plano — admin inicia upgrade ou agenda downgrade
 router.post('/mudar-plano', authMiddleware, async (req, res) => {
@@ -97,7 +97,7 @@ router.post('/mudar-plano', authMiddleware, async (req, res) => {
     if (req.user.role !== 'super_admin') return res.status(403).json({ error: 'Acesso negado' });
 
     const { tenantId, plano: planoNovo } = req.body;
-    const planosValidos = ['basico', 'pro', 'premium', 'business'];
+    const planosValidos = ['solo', 'pro', 'business'];
     if (!tenantId || !planosValidos.includes(planoNovo)) {
       return res.status(400).json({ error: 'tenantId e plano são obrigatórios' });
     }

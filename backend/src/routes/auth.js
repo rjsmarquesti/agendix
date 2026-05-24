@@ -45,7 +45,7 @@ router.post('/register', async (req, res, next) => {
       data: {
         nome: nomeEmpresa,
         slug,
-        plano: 'basico',
+        plano: 'solo',
         planoStatus: 'trial',
         planoVencimento: trialVencimento,
         modulos: ['leads', 'agendamentos'],

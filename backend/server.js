@@ -90,7 +90,7 @@ if (require.main === module) {
   if (process.env.NODE_ENV === 'production') {
     const REQUIRED_ENV = [
       'DATABASE_URL', 'JWT_SECRET', 'MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET',
-      'MP_PLAN_BASICO_ID', 'MP_PLAN_PRO_ID', 'MP_PLAN_PREMIUM_ID', 'MP_PLAN_BUSINESS_ID',
+      'MP_PLAN_SOLO_ID', 'MP_PLAN_PRO_ID', 'MP_PLAN_BUSINESS_ID',
       'SMTP_USER', 'SMTP_PASS', 'ENCRYPTION_KEY', 'APP_URL',
     ];
     const missing = REQUIRED_ENV.filter(k => !process.env[k]);

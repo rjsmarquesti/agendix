@@ -75,19 +75,15 @@ export default function Termos() {
         <p>Os planos disponíveis e seus valores mensais são:</p>
         <ul>
           <li>
-            <strong>Básico:</strong> R$ 37,00/mês — até 60 agendamentos/mês, 1 usuário
+            <strong>Solo:</strong> R$ 49,00/mês — até 100 agendamentos/mês, 1 usuário, confirmação WA automática
           </li>
           <li>
-            <strong>Pro:</strong> R$ 57,00/mês — até 300 agendamentos/mês, 5 usuários, bot WhatsApp,
+            <strong>Pro:</strong> R$ 89,00/mês — agendamentos ilimitados, 5 usuários, bot WhatsApp completo,
             módulo financeiro básico
           </li>
           <li>
-            <strong>Premium:</strong> R$ 97,00/mês — agendamentos ilimitados, usuários ilimitados, bot
-            WhatsApp, módulo financeiro básico
-          </li>
-          <li>
-            <strong>Business:</strong> R$ 127,00/mês — agendamentos ilimitados, usuários ilimitados, bot
-            WhatsApp, módulo financeiro completo
+            <strong>Business:</strong> R$ 149,00/mês — agendamentos ilimitados, usuários ilimitados, bot
+            WhatsApp + Agente IA, módulo financeiro completo
           </li>
         </ul>
         <p>

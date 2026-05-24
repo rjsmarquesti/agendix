@@ -39,7 +39,7 @@ import AdminLogs                   from './pages/admin/AdminLogs';
 import AdminUsuarios               from './pages/admin/AdminUsuarios';
 import AdminForgotPassword         from './pages/admin/AdminForgotPassword';
 import WaAtendimento               from './pages/WaAtendimento';
-const PLANOS_COM_FINANCEIRO = ['pro', 'premium', 'business'];
+const PLANOS_COM_FINANCEIRO = ['pro', 'business'];
 
 function PrivateRoute({ children, roles, planos }) {
   const { token, user, tenant } = useAuth();

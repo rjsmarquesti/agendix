@@ -1,15 +1,21 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 
 const PLANOS = [
-  { nome: 'Básico',   preco: 'R$ 37/mês',  desc: '100 agendamentos · 1 usuário' },
-  { nome: 'Pro',      preco: 'R$ 57/mês',  desc: '300 agendamentos · 5 usuários · Bot WA' },
-  { nome: 'Premium',  preco: 'R$ 97/mês',  desc: 'Ilimitado · Bot WA · Agente IA · Financeiro', destaque: true },
-  { nome: 'Business', preco: 'R$ 127/mês', desc: 'Ilimitado · Tudo incluso + Financeiro completo' },
+  { id: 'solo',     nome: 'Solo',     preco: 'R$ 49/mês',  desc: '1 usuário · 100 agendamentos/mês · Confirmação WA' },
+  { id: 'pro',      nome: 'Pro',      preco: 'R$ 89/mês',  desc: 'Ilimitado · 5 usuários · Bot WA completo', destaque: true },
+  { id: 'business', nome: 'Business', preco: 'R$ 149/mês', desc: 'Ilimitado · Usuários ilimitados · Bot WA + Agente IA' },
 ];
 
 export default function TrialExpirado() {
   const { user } = useAuth();
+  const [uso, setUso] = useState(null);
+
+  useEffect(() => {
+    api.get('/dashboard').then(d => setUso(d)).catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4"
@@ -45,9 +51,22 @@ export default function TrialExpirado() {
           <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--tx)' }}>
             Seu período de teste encerrou
           </h1>
-          <p className="text-sm mb-8" style={{ color: 'var(--tx-md)' }}>
+          <p className="text-sm mb-4" style={{ color: 'var(--tx-md)' }}>
             Os 30 dias gratuitos chegaram ao fim. Escolha um plano e continue sem perder nenhum dado.
           </p>
+
+          {uso && (
+            <div className="rounded-xl px-4 py-3 mb-6 text-sm"
+              style={{ backgroundColor: 'var(--s2)', borderColor: 'var(--bd)', border: '1px solid' }}>
+              <p style={{ color: 'var(--tx-md)' }}>
+                Durante seu trial você realizou{' '}
+                <strong style={{ color: 'var(--g)' }}>{uso.agendamentosMes ?? 0} agendamentos</strong>
+                {uso.totalLeads > 0 && (
+                  <> e cadastrou <strong style={{ color: 'var(--g)' }}>{uso.totalLeads} leads</strong></>
+                )}.
+              </p>
+            </div>
+          )}
 
           {/* Planos */}
           <div className="space-y-3 text-left mb-8">

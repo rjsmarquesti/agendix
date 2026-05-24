@@ -262,8 +262,8 @@ router.get('/disponibilidade', apiTokenAuth, async (req, res, next) => {
 // GET /api/n8n/conversas/:telefone
 router.get('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
   try {
-    if (!BOT_WHATSAPP[req.tenant.plano]) {
-      return res.status(403).json({ error: 'Bot WhatsApp não disponível no plano atual.' });
+    if (BOT_WHATSAPP[req.tenant.plano] !== 'completo') {
+      return res.status(403).json({ error: 'Bot WhatsApp conversacional disponível a partir do plano Pro.' });
     }
     const telefone = req.params.telefone.replace(/\D/g, '');
     const conversa = await prisma.conversaWhatsapp.findUnique({
@@ -287,8 +287,8 @@ router.get('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
 // PUT /api/n8n/conversas/:telefone — cria ou atualiza conversa
 router.put('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
   try {
-    if (!BOT_WHATSAPP[req.tenant.plano]) {
-      return res.status(403).json({ error: 'Bot WhatsApp não disponível no plano atual.' });
+    if (BOT_WHATSAPP[req.tenant.plano] !== 'completo') {
+      return res.status(403).json({ error: 'Bot WhatsApp conversacional disponível a partir do plano Pro.' });
     }
     const telefone = req.params.telefone.replace(/\D/g, '');
     const { estado, dadosJson } = req.body;
@@ -307,8 +307,8 @@ router.put('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
 // DELETE /api/n8n/conversas/:telefone — encerra conversa
 router.delete('/conversas/:telefone', apiTokenAuth, async (req, res, next) => {
   try {
-    if (!BOT_WHATSAPP[req.tenant.plano]) {
-      return res.status(403).json({ error: 'Bot WhatsApp não disponível no plano atual.' });
+    if (BOT_WHATSAPP[req.tenant.plano] !== 'completo') {
+      return res.status(403).json({ error: 'Bot WhatsApp conversacional disponível a partir do plano Pro.' });
     }
     const telefone = req.params.telefone.replace(/\D/g, '');
     await prisma.conversaWhatsapp.deleteMany({

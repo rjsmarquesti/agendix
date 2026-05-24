@@ -3,7 +3,7 @@ const prisma = require('../lib/prisma');
 const authMiddleware = require('../middlewares/auth');
 const { requireRole } = require('../middlewares/auth');
 
-const PRECO_PLANO = { basico: 37, pro: 57, premium: 97, business: 127 };
+const PRECO_PLANO = { solo: 49, pro: 89, business: 149 };
 
 router.use(authMiddleware, requireRole('super_admin'));
 

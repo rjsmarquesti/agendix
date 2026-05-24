@@ -36,7 +36,7 @@ exports.criar = async (req, res, next) => {
         nome, slug,
         logo: logo || null,
         corPrimaria: corPrimaria || '#2563eb',
-        plano: plano || 'basico',
+        plano: plano || 'solo',
         modulos: modulos || ['leads', 'agendamentos'],
       },
     });

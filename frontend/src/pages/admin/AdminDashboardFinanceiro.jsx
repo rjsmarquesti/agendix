@@ -4,9 +4,8 @@ import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 
 const PLANO_BADGE = {
-  basico:   'bg-slate-700 text-slate-200',
+  solo:     'bg-slate-700 text-slate-200',
   pro:      'bg-blue-900 text-blue-300',
-  premium:  'bg-yellow-900 text-yellow-300',
   business: 'bg-purple-900 text-purple-300',
 };
 

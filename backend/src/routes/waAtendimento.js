@@ -3,10 +3,10 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-// Guard: apenas planos pro, premium, business
+// Guard: apenas planos pro e business
 function requirePlano(req, res, next) {
-  const plano = req.tenant?.plano;
-  if (plano === 'basico') {
+  const { ATENDIMENTO_WA } = require('../config/planos');
+  if (!ATENDIMENTO_WA[req.tenant?.plano]) {
     return res.status(403).json({ error: 'Módulo Atendimento WA disponível a partir do plano Pro.' });
   }
   next();

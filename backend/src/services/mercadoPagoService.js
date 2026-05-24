@@ -2,9 +2,8 @@ const { MercadoPagoConfig, PreApproval, PreApprovalPlan } = require('mercadopago
 const crypto = require('crypto');
 
 const PLANO_MP_ID = {
-  basico:   process.env.MP_PLAN_BASICO_ID,
+  solo:     process.env.MP_PLAN_SOLO_ID,
   pro:      process.env.MP_PLAN_PRO_ID,
-  premium:  process.env.MP_PLAN_PREMIUM_ID,
   business: process.env.MP_PLAN_BUSINESS_ID,
 };
 

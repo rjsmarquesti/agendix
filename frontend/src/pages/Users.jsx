@@ -30,7 +30,7 @@ export default function Users() {
   const [showSenha, setShowSenha] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const limites = { basico: 1, pro: 5, premium: '∞' };
+  const limites = { solo: 1, pro: 5, business: '∞', trial: 3 };
   const limite = limites[tenant?.plano] || 1;
 
   const load = useCallback(async () => {

@@ -1,9 +1,10 @@
 module.exports = {
-  LIMITE_USUARIOS:     { basico: 1,     pro: 5,    premium: Infinity, business: Infinity },
-  LIMITE_AGENDAMENTOS: { basico: 100,   pro: 300,  premium: Infinity, business: Infinity },
-  BOT_WHATSAPP:        { basico: false, pro: true, premium: true,     business: true },
-  // 'basico' = lançamentos + saldo; 'completo' = DRE + relatórios; false = sem acesso
-  MODULO_FINANCEIRO:   { basico: false, pro: 'basico', premium: 'basico', business: 'completo' },
-  AGENTE_IA:           { basico: false, pro: false, premium: true, business: true },
-  ATENDIMENTO_WA:      { basico: false, pro: true,  premium: true, business: true },
+  LIMITE_USUARIOS:     { solo: 1,             pro: 5,          business: Infinity, trial: 3          },
+  LIMITE_AGENDAMENTOS: { solo: 100,           pro: Infinity,   business: Infinity, trial: 100        },
+  // false = sem bot; 'confirmacao' = só envia confirmação de agendamento; 'completo' = fluxo conversacional
+  BOT_WHATSAPP:        { solo: 'confirmacao', pro: 'completo', business: 'completo', trial: 'completo' },
+  // false = sem acesso; 'basico' = lançamentos + saldo; 'completo' = DRE + relatórios
+  MODULO_FINANCEIRO:   { solo: false,         pro: 'basico',   business: 'completo', trial: 'basico'  },
+  AGENTE_IA:           { solo: false,         pro: false,      business: true,       trial: false      },
+  ATENDIMENTO_WA:      { solo: false,         pro: true,       business: true,       trial: true       },
 };

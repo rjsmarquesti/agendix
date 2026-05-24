@@ -64,7 +64,7 @@ function BannerUpsell() {
 export default function Financeiro() {
   const { tenant } = useAuth();
   const planoFinanceiro = (() => {
-    const m = { basico: false, pro: 'basico', premium: 'basico', business: 'completo' };
+    const m = { solo: false, pro: 'basico', business: 'completo', trial: 'basico' };
     return m[tenant?.plano] || false;
   })();
   const [tab, setTab]               = useState('lancamentos');

@@ -153,8 +153,8 @@ function isAgendarIntent(text) {
 
 async function criarAgendamento(tenant, dados) {
   const { nome, telefone, data, hora, servicoId, servicoNome } = dados;
-  const plano = tenant.plano || 'basico';
-  const limite = LIMITE_AGENDAMENTOS[plano] ?? 60;
+  const plano = tenant.plano || 'solo';
+  const limite = LIMITE_AGENDAMENTOS[plano] ?? 100;
 
   if (limite !== Infinity) {
     const mes = data.substring(0, 7); // YYYY-MM
@@ -370,9 +370,10 @@ async function handleAguardandoConfirmacao(tenant, phone, text, conversa) {
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 async function handleBotMessage(tenant, phone, text) {
-  const plano = tenant.plano || 'basico';
+  const plano = tenant.plano || 'solo';
   const { BOT_WHATSAPP } = require('../config/planos');
   if (!BOT_WHATSAPP[plano]) return false; // plano sem bot → não processa
+  if (BOT_WHATSAPP[plano] === 'confirmacao') return false; // solo: só envia confirmação, não processa conversa
 
   const conversa = await getConversa(tenant.id, phone);
 

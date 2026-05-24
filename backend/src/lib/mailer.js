@@ -211,7 +211,7 @@ async function enviarEmailTrialD10({ para, nome, slug }) {
     subject: `Faltam 2 semanas para o seu teste encerrar — ${nome}`,
     html: emailBase({
       title: '15 dias restantes no seu teste',
-      preheader: 'Seu teste termina em 15 dias. Conheça os planos a partir de R$ 37/mês.',
+      preheader: 'Seu teste termina em 15 dias. Conheça os planos a partir de R$ 49/mês.',
       body: `
         <div class="alert">
           <p style="margin:0;font-weight:600;color:${C.a}">⏳ Seu teste termina em 15 dias</p>
@@ -223,7 +223,7 @@ async function enviarEmailTrialD10({ para, nome, slug }) {
           <li>Envia lembretes para seus clientes e reduz faltas</li>
           <li>Controla agenda e financeiro em um só lugar</li>
         </ul>
-        <p style="color:${C.txMd};font-size:14px;margin:20px 0"><strong style="color:${C.tx}">Planos a partir de R$ 37/mês.</strong> Cancele quando quiser, sem multa.</p>
+        <p style="color:${C.txMd};font-size:14px;margin:20px 0"><strong style="color:${C.tx}">Planos a partir de R$ 49/mês.</strong> Cancele quando quiser, sem multa.</p>
         <div style="text-align:center;margin:28px 0">
           <a href="${linkPlano}" class="btn">Escolher meu plano</a>
         </div>
@@ -256,7 +256,7 @@ async function enviarEmailTrialD13({ para, nome }) {
           <p style="margin:0;color:#f87171;font-weight:600;font-size:14px">O que acontece se o teste expirar?</p>
           <p style="margin:8px 0 0;color:${C.txMd};font-size:13px">Seu acesso será bloqueado. Seus dados ficam guardados por 30 dias — você pode assinar e retomar de onde parou.</p>
         </div>
-        <p style="color:${C.txMd};font-size:14px;margin:0 0 28px"><strong style="color:${C.tx}">Planos a partir de R$ 37/mês.</strong></p>
+        <p style="color:${C.txMd};font-size:14px;margin:0 0 28px"><strong style="color:${C.tx}">Planos a partir de R$ 49/mês.</strong></p>
         <div style="text-align:center;margin:28px 0">
           <a href="${linkPlano}" class="btn">Assinar agora e continuar</a>
         </div>
@@ -267,12 +267,11 @@ async function enviarEmailTrialD13({ para, nome }) {
   });
 }
 
-const PLANO_LABEL = { basico: 'Básico', pro: 'Pro', premium: 'Premium', business: 'Business' };
+const PLANO_LABEL = { solo: 'Solo', pro: 'Pro', business: 'Business' };
 const PLANO_RECURSOS = {
-  basico:   ['Até 60 agendamentos/mês', '1 usuário', 'Link de agendamento público'],
-  pro:      ['Até 300 agendamentos/mês', '5 usuários', 'Bot WhatsApp', 'Financeiro básico'],
-  premium:  ['Agendamentos ilimitados', 'Usuários ilimitados', 'Bot WhatsApp', 'Financeiro completo'],
-  business: ['Agendamentos ilimitados', 'Usuários ilimitados', 'Bot WhatsApp', 'Financeiro completo + IA'],
+  solo:     ['100 agendamentos/mês', '1 usuário', 'Confirmação WA automática', 'Agendamento público online'],
+  pro:      ['Agendamentos ilimitados', '5 usuários', 'Bot WA completo', 'Financeiro básico'],
+  business: ['Agendamentos ilimitados', 'Usuários ilimitados', 'Bot WA + Agente IA', 'Financeiro completo'],
 };
 
 async function enviarEmailOnboardingPago({ para, nome, slug, plano }) {
