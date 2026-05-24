@@ -2,21 +2,27 @@
 
 > Claude: leia este arquivo no início de cada sessão antes de qualquer ação.
 
-**Última sessão:** 2026-05-22 17:30
-**Último deploy:** 2026-05-12 — backend:20260512a / frontend:20260512a
+**Última sessão:** 2026-05-23
+**Último deploy:** 2026-05-23 — backend:20260523a-v1.4.0 / frontend:20260523a-v1.3.0
 
 ---
 
 ## Estado Atual
 
 ### O que está funcionando
-- Auth JWT multi-tenant completo (login, roles, reset senha, ativação)
+- Auth JWT multi-tenant completo (login, roles, reset senha, ativação, 2FA TOTP)
 - CRUD Leads, Agendamentos, Serviços, Usuários
 - Agendamento público por slug (/agendar/:slug)
 - WhatsApp via Evolution API + QR Code polling
+- WA Queue anti-ban (delay 2-5s, teto 20 msgs/hora)
+- WA Watchdog (email de alerta ao admin se desconectar)
+- WA Circuit Breaker (suspende instância após 5 erros consecutivos)
+- Módulo Atendimento WhatsApp (fila, atendentes, auditoria jurídica)
+- Web Push Notifications (VAPID)
 - Módulo financeiro tenant (plano pro+)
 - Pagamentos Mercado Pago (PreApproval recorrente)
 - Painel super admin completo (tenants, financeiro, backups, consumo, logs)
+- Design system completo (dark mode, tokens CSS, paleta verde esmeralda)
 - Landing page dark com toggle
 
 ### Em andamento
@@ -29,7 +35,7 @@
 
 ## Contexto Crítico
 
-- **Docker Hub:** rjsmarquesti/agendix-backend:20260512b / agendix-frontend:20260512a
+- **Docker Hub:** rjsmarquesti/agendix-backend:20260523a-v1.4.0 / agendix-frontend:20260523a-v1.3.0
 - **Produção:** agendix.divulgabr.com.br (EasyPanel — projeto `desenvolvimento`)
 - **Banco:** PostgreSQL 16 — migrations via `prisma migrate deploy` no startup
 - **Branch estável:** stable-v1 + tag v1.0-stable (rollback seguro)
