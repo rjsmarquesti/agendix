@@ -166,6 +166,23 @@ exports.atualizar = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// DELETE /leads/bulk — exclusão em massa
+exports.deletarEmMassa = async (req, res, next) => {
+  try {
+    const tenantId = req.user.tenantId;
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ error: 'Informe ao menos um ID' });
+
+    const result = await prisma.lead.deleteMany({
+      where: { id: { in: ids.map(Number) }, tenantId },
+    });
+
+    res.json({ deletados: result.count });
+  } catch (err) { next(err); }
+};
+
 // DELETE /leads/:id
 exports.deletar = async (req, res, next) => {
   try {

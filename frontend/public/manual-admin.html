@@ -44,7 +44,7 @@
 <div class="wrap">
 
   <h1>Agendix</h1>
-  <p class="subtitle">Manual do Administrador — versão 1.0 · Perfil: <strong>admin</strong></p>
+  <p class="subtitle">Manual do Administrador — versão 1.3 · Perfil: <strong>admin</strong> · Atualizado em maio/2026</p>
 
   <div class="toc">
     <h4>Índice</h4>
@@ -65,9 +65,11 @@
       <a href="#cfg-agente">↳ 8.6 Agente IA</a>
       <a href="#cfg-plano">↳ 8.7 Plano</a>
       <a href="#cfg-dados">↳ 8.8 Dados (backup)</a>
+      <a href="#cfg-push">↳ 8.9 Notificações Push</a>
     </div>
     <a href="#notificacoes">9. Notificações</a>
     <a href="#link-publico">10. Link de agendamento público</a>
+    <a href="#atendimento-wa">11. Módulo Atendimento WhatsApp</a>
   </div>
 
   <!-- 1. ACESSO -->
@@ -87,6 +89,14 @@
     <p>Se recebeu um e-mail de ativação, clique no link antes de logar pela primeira vez. O link expira em 24 horas.</p>
   </div>
   <div class="note">A sessão dura 7 dias. Após esse período você será redirecionado para o login automaticamente.</div>
+
+  <h3>Autenticação em dois fatores (2FA)</h3>
+  <p>Se a conta tiver 2FA habilitado, após digitar e-mail e senha aparecerá um campo adicional solicitando o <strong>código de 6 dígitos</strong>.</p>
+  <ul>
+    <li>Use um aplicativo autenticador (Google Authenticator, Authy ou similar) para gerar o código.</li>
+    <li>O código é renovado a cada 30 segundos — insira-o antes que expire.</li>
+    <li>Se perdeu acesso ao autenticador, contate o suporte Agendix para reset.</li>
+  </ul>
 
   <!-- 2. DASHBOARD -->
   <h2 id="dashboard">2. Dashboard</h2>
@@ -144,8 +154,27 @@
   <h3>Editar lead</h3>
   <p>Na lista, clique no ícone de lápis na linha do lead. O mesmo formulário abre em modo edição.</p>
 
+  <h3>Coluna Data de Cadastro</h3>
+  <p>A tabela de leads exibe uma coluna <strong>Data</strong> com a data em que o lead foi cadastrado no sistema (formato dd/mm/aaaa). Use-a para identificar leads recentes ou ordenar visualmente por tempo.</p>
+
   <h3>Excluir lead</h3>
   <p>Clique no ícone de lixeira. Uma confirmação será solicitada. <strong>A exclusão apaga também todos os agendamentos vinculados ao lead.</strong></p>
+
+  <h3>Exclusão em massa</h3>
+  <p>Para excluir vários leads de uma só vez:</p>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Marque os leads desejados</div>
+    <p>Clique no checkbox à esquerda de cada linha. Use o checkbox no cabeçalho da tabela para selecionar todos os leads da página atual.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Clique em <strong>Excluir selecionados</strong></div>
+    <p>Uma barra vermelha aparece no topo da lista indicando quantos leads estão selecionados. Clique no botão vermelho <strong>Excluir selecionados</strong>.</p>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">3</span>Confirme a exclusão</div>
+    <p>Um diálogo de confirmação será exibido. Esta ação não pode ser desfeita.</p>
+  </div>
+  <div class="warn">A exclusão em massa remove também todos os agendamentos vinculados aos leads selecionados.</div>
 
   <h3>Imprimir / exportar lista</h3>
   <p>Com filtros aplicados, clique no ícone de impressora. Uma janela de impressão será aberta com o relatório formatado.</p>
@@ -292,6 +321,7 @@
     <span class="tab-pill">Agente IA</span>
     <span class="tab-pill">Plano</span>
     <span class="tab-pill">Dados</span>
+    <span class="tab-pill">Push</span>
   </div>
 
   <h3 id="cfg-empresa">8.1 Aba Empresa</h3>
@@ -452,6 +482,17 @@
   </div>
   <div class="warn">A restauração substitui todos os dados atuais pelos do arquivo. Esta ação não pode ser desfeita.</div>
 
+  <h3 id="cfg-push">8.9 Aba Push (Notificações no Navegador)</h3>
+  <p>Permite receber notificações do Agendix diretamente no navegador, mesmo com a aba fechada (desde que o navegador esteja aberto).</p>
+  <div class="step">
+    <div class="step-title"><span class="step-num">1</span>Acesse <strong>Configurações → Push</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-title"><span class="step-num">2</span>Clique em <strong>Ativar notificações</strong></div>
+    <p>O navegador exibirá um pop-up pedindo permissão. Clique em <strong>Permitir</strong>.</p>
+  </div>
+  <div class="note">As notificações incluem: novos agendamentos, lembretes e alertas do sistema. Cada navegador/dispositivo precisa ser ativado individualmente.</div>
+
   <!-- 9. NOTIFICAÇÕES -->
   <h2 id="notificacoes">9. Notificações</h2>
   <p>O sino no canto superior direito exibe alertas do sistema em tempo real.</p>
@@ -487,6 +528,31 @@
     <li>Assinatura de e-mail</li>
     <li>Google Meu Negócio</li>
   </ul>
+
+  <!-- 11. MÓDULO ATENDIMENTO WA -->
+  <h2 id="atendimento-wa">11. Módulo Atendimento WhatsApp</h2>
+  <p>Disponível nos planos <span class="badge badge-green">Pro</span> <span class="badge badge-blue">Premium</span> <span class="badge badge-blue">Business</span>. Gerencia o atendimento humano via WhatsApp com fila, atendentes e auditoria das conversas.</p>
+
+  <h3>Fila de atendimento</h3>
+  <ul>
+    <li>Mensagens recebidas pelo WhatsApp entram na fila aguardando um atendente.</li>
+    <li>O sistema distribui automaticamente para o atendente disponível ou permite atribuição manual.</li>
+    <li>Status da conversa: <strong>Aguardando</strong> → <strong>Em atendimento</strong> → <strong>Encerrado</strong>.</li>
+  </ul>
+
+  <h3>Auditoria jurídica</h3>
+  <p>Todas as conversas são armazenadas com timestamp e identificação do atendente, garantindo rastreabilidade completa para fins de compliance e resolução de disputas.</p>
+
+  <h3>Proteção anti-ban (WA Queue)</h3>
+  <p>O sistema utiliza mecanismos de proteção para envio de mensagens em lote:</p>
+  <ul>
+    <li>Delay aleatório de 2 a 5 segundos entre mensagens.</li>
+    <li>Limite de 20 mensagens por hora por número.</li>
+    <li>Suspensão automática da instância após falhas repetidas (Circuit Breaker).</li>
+  </ul>
+
+  <h3>Alertas de desconexão (Watchdog)</h3>
+  <p>Se o WhatsApp desconectar (número deslogado, celular desligado etc.), o sistema envia automaticamente um e-mail de alerta ao admin com no máximo 1 aviso por hora.</p>
 
   <div class="note" style="margin-top:40px;">Dúvidas ou problemas? Entre em contato pelo WhatsApp do suporte Agendix ou envie e-mail para suporte@divulgabr.com.br.</div>
 

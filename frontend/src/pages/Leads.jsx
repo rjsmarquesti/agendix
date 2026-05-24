@@ -507,6 +507,16 @@ export default function Leads() {
     } catch (err) { toast.error(err.message); }
   }
 
+  async function handleBulkDelete() {
+    if (!confirm(`Remover ${selecionados.size} lead(s) selecionado(s)? Esta ação não pode ser desfeita.`)) return;
+    try {
+      const { deletados } = await api.delete('/leads/bulk', { ids: [...selecionados] });
+      toast.success(`${deletados} lead(s) removido(s)`);
+      setSelecionados(new Set());
+      loadLeads();
+    } catch (err) { toast.error(err.message); }
+  }
+
   const totalPages = Math.ceil(total / LIMIT);
   const filtrosAtivos = [filtroStatus, filtroFonte, filtroPriority, filtroEstado,
     filtroMunicipio, filtroBairro, filtroNicho, filtroCategoria].filter(Boolean).length;
@@ -623,10 +633,20 @@ export default function Leads() {
           <span className="text-sm text-blue-700 font-medium">
             {selecionados.size} lead(s) selecionado(s)
           </span>
-          <button onClick={() => setSelecionados(new Set())}
-            className="text-xs text-blue-500 hover:text-blue-700 underline">
-            Limpar seleção
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Excluir selecionados
+            </button>
+            <button onClick={() => setSelecionados(new Set())}
+              className="text-xs text-blue-500 hover:text-blue-700 underline">
+              Desmarcar
+            </button>
+          </div>
         </div>
       )}
 
@@ -799,13 +819,14 @@ export default function Leads() {
                 <th className="px-5 py-3">Fonte</th>
                 <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3">Prior.</th>
+                <th className="px-5 py-3 no-print">Data</th>
                 <th className="px-5 py-3 no-print">Ações</th>
               </tr>
             </thead>
             <tbody>
               {leads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-14 text-center text-gray-400">
+                  <td colSpan={9} className="px-6 py-14 text-center text-gray-400">
                     Nenhum lead encontrado
                   </td>
                 </tr>
@@ -873,6 +894,11 @@ export default function Leads() {
                   </td>
                   <td className="px-5 py-3">
                     <BadgePriority priority={l.priority} />
+                  </td>
+                  <td className="px-5 py-3 no-print">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      {l.createdAt ? new Date(l.createdAt).toLocaleDateString('pt-BR') : '—'}
+                    </span>
                   </td>
                   <td className="px-5 py-3 no-print">
                     <div className="flex items-center gap-1">

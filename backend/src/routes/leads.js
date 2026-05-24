@@ -9,6 +9,7 @@ const validar = [body('nome').notEmpty().withMessage('Nome obrigatório')];
 router.get('/nichos',  auth, ctrl.nichos);
 router.get('/stats',   auth, ctrl.stats);
 router.post('/importar', auth, ctrl.importar);
+router.delete('/bulk', auth, ctrl.deletarEmMassa);
 
 router.get('/',    auth, ctrl.listar);
 router.get('/:id', auth, ctrl.buscarPorId);
