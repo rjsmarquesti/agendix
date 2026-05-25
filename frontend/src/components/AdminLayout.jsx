@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const nav = [
   { to: '/admin',                         label: 'Dashboard',     exact: true, icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /> },
@@ -17,6 +18,7 @@ const nav = [
 
 export default function AdminLayout({ children, title, subtitle }) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -114,6 +116,16 @@ export default function AdminLayout({ children, title, subtitle }) {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={toggleTheme} title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+              className="w-9 h-9 rounded-xl flex items-center justify-center border transition-colors"
+              style={{ borderColor: 'var(--bd-md)', color: 'var(--mt-lt)', backgroundColor: 'transparent' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--s2)'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+              {theme === 'dark'
+                ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" /></svg>
+                : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+              }
+            </button>
             <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0"
               style={{ backgroundColor: 'var(--g)', color: '#08080C' }}>
               {user?.nome?.[0]?.toUpperCase()}
