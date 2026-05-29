@@ -40,6 +40,96 @@ async function apiTokenAuth(req, res, next) {
 }
 
 
+// POST /api/webhook/extrator/:slug
+// Recebe leads da extensão "Open Maps Leads Extractor" (Agendix v1.0)
+// Identificação por slug na URL — sem header de autenticação
+router.post('/extrator/:slug', async (req, res) => {
+  if (!/^[a-z0-9-]+$/.test(req.params.slug)) {
+    return res.status(400).json({ error: 'Slug inválido' });
+  }
+
+  const raw = await prisma.tenant.findFirst({ where: { slug: req.params.slug, ativo: true } });
+  if (!raw) return res.status(404).json({ error: 'Empresa não encontrada' });
+  const tenant = decryptTenant(raw);
+  const tenantId = tenant.id;
+
+  // Aceita array direto ou { leads: [] }
+  let lista = Array.isArray(req.body) ? req.body : req.body?.leads;
+  if (!Array.isArray(lista) || lista.length === 0) {
+    return res.status(400).json({ error: 'Envie um array de leads (direto ou em { leads: [] })' });
+  }
+  if (lista.length > 500) {
+    return res.status(400).json({ error: 'Máximo de 500 leads por envio' });
+  }
+
+  // Mapeia campos da extensão nova (name/phone/categories/address) para o schema interno
+  const mapped = lista.map(item => ({
+    nome_empresa:   item.name        || item.nome_empresa || item.nome || '',
+    telefone_e164:  item.phone_e164  || item.telefone_e164 || '',
+    telefone:       item.phone       || item.telefone || '',
+    endereco:       item.address     || item.endereco || '',
+    website:        item.website     || '',
+    rating:         item.rating      ?? item.rating ?? '',
+    reviews:        item.reviews     ?? item.reviewsCount ?? 0,
+    nicho:          item.categories  || item.nicho || '',
+    especialidades: item.categories  || item.especialidades || '',
+    fonte_url:      item.source_url  || '',
+  }));
+
+  const nichoDefault = (req.query.nicho || '').trim();
+  let inseridos = 0, ignorados = 0;
+  const erros = [];
+
+  for (const item of mapped) {
+    try {
+      const parsed = leadImportSchema.safeParse(item);
+      if (!parsed.success) {
+        erros.push({ item: item.nome_empresa || '?', erro: 'formato inválido' });
+        ignorados++;
+        continue;
+      }
+      const safeItem = parsed.data;
+
+      const nome = (safeItem.nome_empresa || safeItem.nome || '').trim();
+      if (!nome) { ignorados++; continue; }
+
+      const addr        = parseEndereco(safeItem.endereco);
+      const estado      = (safeItem.estado    || addr.estado    || '').toUpperCase().slice(0, 2) || null;
+      const cidade      = safeItem.cidade    || addr.cidade    || null;
+      const bairro      = safeItem.bairro    || addr.bairro    || null;
+      const cep         = safeItem.cep       || addr.cep       || null;
+      const logradouro  = safeItem.logradouro || addr.logradouro || null;
+      const nicho       = (safeItem.nicho || nichoDefault) || null;
+      const ratingRaw   = safeItem.rating ? String(safeItem.rating).replace(',', '.') : null;
+      const rating      = ratingRaw ? Number(ratingRaw) || null : null;
+      const reviewsRaw  = safeItem.reviews || safeItem.reviewsCount || 0;
+      const reviewsCount = Number(String(reviewsRaw).replace(/\D/g, '')) || 0;
+
+      await prisma.lead.create({
+        data: {
+          tenantId,
+          nome,
+          telefone:       safeItem.telefone_e164 || safeItem.telefone || null,
+          website:        safeItem.website        || null,
+          especialidades: safeItem.especialidades || null,
+          origem:         'Google Maps Extrator',
+          status:         'novo',
+          priority:       'normal',
+          fonte:          'google_maps',
+          nicho, cidade, municipio: cidade, bairro, estado, cep, logradouro,
+          rating, reviewsCount,
+        },
+      });
+      inseridos++;
+    } catch (e) {
+      if (e.code === 'P2002') { ignorados++; }
+      else { erros.push({ item: item.nome_empresa || '?', erro: e.message }); }
+    }
+  }
+
+  res.json({ ok: true, inseridos, ignorados, erros });
+});
+
 // POST /api/webhook/gmaps
 // Recebe array de leads no formato da extensão "Extrator Google Maps"
 router.post('/gmaps', apiTokenAuth, async (req, res) => {
@@ -220,7 +310,58 @@ router.post('/agente/:slug', async (req, res) => {
 
     // Bot de agendamento tem prioridade; se não processar, cai no agente IA
     const handled = await handleBotMessage(tenant, phone, text);
-    if (!handled) await handleMessage(tenant, phone, text);
+    if (!handled) {
+      const agenteRespondeu = await handleMessage(tenant, phone, text);
+
+      // Nenhum módulo automático respondeu → handoff para fila humana (wa_atendimento)
+      if (!agenteRespondeu) {
+        const modulos = Array.isArray(tenant.modulos) ? tenant.modulos : [];
+        if (modulos.includes('wa_atendimento')) {
+          const telefoneNorm = phone.replace(/\D/g, '');
+          const clienteNome  = msg.pushName || msg.notifyName || 'Cliente WhatsApp';
+
+          // Abre sessão na fila — idempotente (não duplica se já existe)
+          const existente = await prisma.waFila.findFirst({
+            where: { tenantId: tenant.id, clienteTelefone: telefoneNorm, status: { in: ['aguardando', 'em_atendimento'] } },
+          });
+
+          if (!existente) {
+            const atendentes = await prisma.waAtendente.findMany({
+              where: { tenantId: tenant.id, ativo: true },
+              orderBy: { cargaAtual: 'asc' },
+            });
+            const atendente = atendentes.find(a => a.cargaAtual < a.cargaMaxima) || null;
+
+            await prisma.waFila.create({
+              data: {
+                tenantId: tenant.id,
+                clienteTelefone: telefoneNorm,
+                clienteNome,
+                atendenteId: atendente?.id || null,
+                status: atendente ? 'em_atendimento' : 'aguardando',
+              },
+            });
+
+            if (atendente) {
+              await prisma.waAtendente.update({
+                where: { id: atendente.id },
+                data: { cargaAtual: { increment: 1 } },
+              });
+            }
+
+            // Notifica o tenant sobre nova sessão na fila
+            await prisma.notificacao.create({
+              data: {
+                tenantId: tenant.id,
+                tipo: 'wa_fila_nova',
+                titulo: '💬 Nova sessão na fila de atendimento',
+                corpo: `${clienteNome} (${telefoneNorm}) entrou na fila${atendente ? ` e foi atribuído a ${atendente.nome}` : ' aguardando atendente'}.`,
+              },
+            }).catch(() => {});
+          }
+        }
+      }
+    }
   } catch { /* silencioso — não expor erros internos */ }
 });
 
