@@ -1,10 +1,16 @@
 const router = require('express').Router();
-const { z }  = require('zod');
-const prisma = require('../lib/prisma');
-const { decryptTenant } = require('../lib/encrypt');
+const { z }   = require('zod');
+const prisma  = require('../lib/prisma');
+const { decryptTenant, decrypt } = require('../lib/encrypt');
 const parseEndereco = require('../utils/parseEndereco');
+const { extratorLimiter } = require('../middlewares/rateLimiter');
 const { handleMessage }    = require('../services/agentService');
 const { handleBotMessage } = require('../services/botAgendamentoService');
+const { parseEvolution, parseEvolutionConnection } = require('../lib/wa/webhook/parseEvolution');
+const { parseMeta, validateMetaSignature }         = require('../lib/wa/webhook/parseMeta');
+const { parseTwilio, validateTwilioSignature }     = require('../lib/wa/webhook/parseTwilio');
+const { parseZApi }                                = require('../lib/wa/webhook/parseZApi');
+const { verificarApikeyEvolutionLog } = require('../middlewares/webhookVerify');
 
 const leadImportSchema = z.object({
   nome_empresa:    z.string().max(255).optional(),
@@ -43,7 +49,8 @@ async function apiTokenAuth(req, res, next) {
 // POST /api/webhook/extrator/:slug
 // Recebe leads da extensão "Open Maps Leads Extractor" (Agendix v1.0)
 // Identificação por slug na URL — sem header de autenticação
-router.post('/extrator/:slug', async (req, res) => {
+router.post('/extrator/:slug', extratorLimiter, async (req, res) => {
+  try {
   if (!/^[a-z0-9-]+$/.test(req.params.slug)) {
     return res.status(400).json({ error: 'Slug inválido' });
   }
@@ -69,11 +76,10 @@ router.post('/extrator/:slug', async (req, res) => {
     telefone:       item.phone       || item.telefone || '',
     endereco:       item.address     || item.endereco || '',
     website:        item.website     || '',
-    rating:         item.rating      ?? item.rating ?? '',
+    rating:         item.rating      ?? '',
     reviews:        item.reviews     ?? item.reviewsCount ?? 0,
     nicho:          item.categories  || item.nicho || '',
     especialidades: item.categories  || item.especialidades || '',
-    fonte_url:      item.source_url  || '',
   }));
 
   const nichoDefault = (req.query.nicho || '').trim();
@@ -81,19 +87,21 @@ router.post('/extrator/:slug', async (req, res) => {
   const erros = [];
 
   for (const item of mapped) {
+    let nomeItem = item.nome_empresa || '?';
     try {
       const parsed = leadImportSchema.safeParse(item);
       if (!parsed.success) {
-        erros.push({ item: item.nome_empresa || '?', erro: 'formato inválido' });
+        erros.push({ item: nomeItem, erro: 'formato inválido' });
         ignorados++;
         continue;
       }
       const safeItem = parsed.data;
+      nomeItem = safeItem.nome_empresa || safeItem.nome || nomeItem;
 
       const nome = (safeItem.nome_empresa || safeItem.nome || '').trim();
       if (!nome) { ignorados++; continue; }
 
-      const addr        = parseEndereco(safeItem.endereco);
+      const addr        = parseEndereco(safeItem.endereco || '');
       const estado      = (safeItem.estado    || addr.estado    || '').toUpperCase().slice(0, 2) || null;
       const cidade      = safeItem.cidade    || addr.cidade    || null;
       const bairro      = safeItem.bairro    || addr.bairro    || null;
@@ -123,11 +131,15 @@ router.post('/extrator/:slug', async (req, res) => {
       inseridos++;
     } catch (e) {
       if (e.code === 'P2002') { ignorados++; }
-      else { erros.push({ item: item.nome_empresa || '?', erro: e.message }); }
+      else { erros.push({ item: nomeItem, erro: e.message }); }
     }
   }
 
-  res.json({ ok: true, inseridos, ignorados, erros });
+  return res.json({ ok: true, inseridos, ignorados, erros });
+  } catch (e) {
+    console.error('[webhook/extrator] erro interno:', e.message);
+    return res.status(500).json({ error: 'Erro interno ao processar leads', detalhe: e.message });
+  }
 });
 
 // POST /api/webhook/gmaps
@@ -219,150 +231,212 @@ router.post('/gmaps', apiTokenAuth, async (req, res) => {
   res.json({ ok: true, inseridos, ignorados, erros });
 });
 
-// POST /api/webhook/agente/:slug
-// Recebe eventos da Evolution API — validado por slug + token da instância
-router.post('/agente/:slug', async (req, res) => {
-  // Valida formato do slug antes de consultar o banco
-  if (!/^[a-z0-9-]+$/.test(req.params.slug)) {
-    return res.status(400).json({ error: 'Slug inválido' });
-  }
+// ── Handler compartilhado de mensagens inbound ────────────────────────────────
+// Chamado por todos os providers após normalizar { from, text, pushName }
 
-  res.json({ ok: true }); // responde imediatamente para a Evolution API não retentar
+async function handleInboundMessage(tenant, from, text, pushName) {
+  const telefoneNorm = (from || '').replace(/\D/g, '');
+  if (!telefoneNorm || !text) return;
+
+  // Garante que qualquer contato WA vira lead (silencioso)
+  prisma.lead.upsert({
+    where:  { telefone_tenantId: { telefone: telefoneNorm, tenantId: tenant.id } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      nome:     pushName || 'Cliente WhatsApp',
+      telefone: telefoneNorm,
+      fonte:    'api',
+      status:   'novo',
+      priority: 'normal',
+      origem:   'WhatsApp',
+    },
+  }).catch(() => {});
+
+  // Bot de agendamento tem prioridade; se não processar, cai no agente IA
+  const handled = await handleBotMessage(tenant, from, text);
+  if (!handled) {
+    const agenteRespondeu = await handleMessage(tenant, from, text);
+
+    // Nenhum módulo respondeu → handoff para fila humana
+    if (!agenteRespondeu) {
+      const modulos = Array.isArray(tenant.modulos) ? tenant.modulos : [];
+      if (modulos.includes('wa_atendimento')) {
+        const clienteNome = pushName || 'Cliente WhatsApp';
+        const existente   = await prisma.waFila.findFirst({
+          where: { tenantId: tenant.id, clienteTelefone: telefoneNorm, status: { in: ['aguardando', 'em_atendimento'] } },
+        });
+        if (!existente) {
+          const atendentes = await prisma.waAtendente.findMany({
+            where: { tenantId: tenant.id, ativo: true },
+            orderBy: { cargaAtual: 'asc' },
+          });
+          const atendente = atendentes.find(a => a.cargaAtual < a.cargaMaxima) || null;
+          await prisma.waFila.create({
+            data: {
+              tenantId: tenant.id,
+              clienteTelefone: telefoneNorm,
+              clienteNome,
+              atendenteId: atendente?.id || null,
+              status: atendente ? 'em_atendimento' : 'aguardando',
+            },
+          });
+          if (atendente) {
+            await prisma.waAtendente.update({ where: { id: atendente.id }, data: { cargaAtual: { increment: 1 } } });
+          }
+          prisma.notificacao.create({
+            data: {
+              tenantId: tenant.id,
+              tipo:    'wa_fila_nova',
+              titulo:  '💬 Nova sessão na fila de atendimento',
+              corpo:   `${clienteNome} (${telefoneNorm}) entrou na fila${atendente ? ` e foi atribuído a ${atendente.nome}` : ' aguardando atendente'}.`,
+            },
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+}
+
+// ── Evolution API webhook (mantido para retrocompatibilidade) ─────────────────
+
+router.post('/agente/:slug', async (req, res) => {
+  if (!/^[a-z0-9-]+$/.test(req.params.slug)) return res.status(400).json({ error: 'Slug inválido' });
+
+  res.json({ ok: true }); // responde imediatamente
 
   try {
-    const tenant = await prisma.tenant.findFirst({ where: { slug: req.params.slug, ativo: true } });
-    if (!tenant) return;
+    const raw = await prisma.tenant.findFirst({ where: { slug: req.params.slug, ativo: true } });
+    if (!raw) return;
+    const tenant = decryptTenant(raw);
 
-    // Valida token da instância Evolution (se configurado no tenant)
-    if (tenant.evolutionApiKey) {
-      const apikey = req.headers['apikey'] || req.headers['x-api-key'];
-      if (!apikey || apikey !== tenant.evolutionApiKey) return;
-    }
+    // Fase 1 — log apenas: a Evolution envia a key no body, não no header.
+    // Detecta divergência e registra, mas não bloqueia (adoção gradual).
+    await verificarApikeyEvolutionLog(req, tenant).catch(() => {});
 
-    const event = req.body?.event;
-
-    // Detecta desconexão ou ban imediatamente, sem esperar o watchdog de 15 min
-    if (event === 'connection.update') {
-      const data       = req.body?.data || {};
-      const state      = data.state;
-      const reasonCode = data.statusReason ?? data.lastDisconnect?.error?.output?.statusCode;
-      const isBanned   = state === 'close' && reasonCode === 401;
-      const isDown     = state === 'close' || state === 'connecting';
-
-      if (isDown) {
+    // Evento de conexão (desconexão / ban)
+    const connEvt = parseEvolutionConnection(req.body);
+    if (connEvt) {
+      if (connEvt.isDown) {
         await prisma.notificacao.create({
           data: {
             tenantId: tenant.id,
-            tipo:     isBanned ? 'instancia_banida' : 'instancia_desconectada',
-            titulo:   isBanned ? '🚫 WhatsApp banido' : '⚠️ WhatsApp desconectado',
-            corpo:    isBanned
+            tipo:     connEvt.isBanned ? 'instancia_banida' : 'instancia_desconectada',
+            titulo:   connEvt.isBanned ? '🚫 WhatsApp banido' : '⚠️ WhatsApp desconectado',
+            corpo:    connEvt.isBanned
               ? 'Seu número foi banido pelo WhatsApp. Entre em contato com o suporte para trocar o número.'
-              : 'Sua conexão WhatsApp caiu. Acesse Configurações › Integração para reconectar.',
+              : 'Sua conexão WhatsApp caiu. Acesse Configurações › WhatsApp para reconectar.',
           },
         }).catch(() => {});
-
         const { enviarEmailAlertaWA } = require('../lib/mailer');
         const admin = await prisma.user.findFirst({
-          where:   { tenantId: tenant.id, role: 'admin', ativo: true },
-          orderBy: { createdAt: 'asc' },
-          select:  { email: true, nome: true },
+          where: { tenantId: tenant.id, role: 'admin', ativo: true }, orderBy: { createdAt: 'asc' }, select: { email: true, nome: true },
         });
-        if (admin?.email) {
-          await enviarEmailAlertaWA({
-            para: admin.email, nome: admin.nome, tenantNome: tenant.nome, state, isBanned,
-          }).catch(() => {});
-        }
-        console.warn(`[webhook:connection] tenant="${req.params.slug}" state="${state}" banned=${isBanned}`);
+        if (admin?.email) await enviarEmailAlertaWA({ para: admin.email, nome: admin.nome, tenantNome: tenant.nome, state: connEvt.state, isBanned: connEvt.isBanned, tenantId: tenant.id }).catch(() => {});
       }
       return;
     }
 
-    if (event !== 'messages.upsert') return;
+    const parsed = parseEvolution(req.body);
+    if (!parsed) return;
+    await handleInboundMessage(tenant, parsed.from, parsed.text, parsed.pushName);
+  } catch { /* silencioso */ }
+});
 
-    const msg = req.body?.data;
-    if (!msg || msg.key?.fromMe) return; // ignora mensagens enviadas pelo próprio número
+// ── Meta (WhatsApp Cloud API) webhooks ───────────────────────────────────────
 
-    const remoteJid = msg.key?.remoteJid || '';
-    if (remoteJid.endsWith('@g.us')) return; // ignora mensagens de grupo
+// GET: verificação do webhook pela Meta
+router.get('/meta/:slug', async (req, res) => {
+  if (!/^[a-z0-9-]+$/.test(req.params.slug)) return res.status(400).send('');
+  const raw = await prisma.tenant.findFirst({ where: { slug: req.params.slug, ativo: true } });
+  if (!raw) return res.status(404).send('');
+  const tenant = decryptTenant(raw);
+  const cfg    = tenant.waConfig || {};
 
-    const phone = remoteJid.replace('@s.whatsapp.net', '');
-    const text  = msg.message?.conversation
-      || msg.message?.extendedTextMessage?.text
-      || msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
+  const mode      = req.query['hub.mode'];
+  const token     = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
 
-    if (!phone || !text) return;
+  if (mode === 'subscribe' && token === cfg.webhookVerifyToken) {
+    return res.status(200).send(challenge);
+  }
+  return res.status(403).send('');
+});
 
-    // Garante que qualquer contato WA vira lead (silencioso — não deve quebrar o bot)
-    const telefoneNorm = phone.replace(/\D/g, '');
-    prisma.lead.upsert({
-      where: { telefone_tenantId: { telefone: telefoneNorm, tenantId: tenant.id } },
-      update: {},
-      create: {
-        tenantId: tenant.id,
-        nome: msg.pushName || msg.notifyName || 'Cliente WhatsApp',
-        telefone: telefoneNorm,
-        fonte: 'api',
-        status: 'novo',
-        priority: 'normal',
-        origem: 'WhatsApp Bot',
-      },
-    }).catch(() => {});
+// POST: mensagens da Meta — body já chega como Buffer (express.raw montado no server.js antes do json global)
+router.post('/meta/:slug', async (req, res) => {
+    if (!/^[a-z0-9-]+$/.test(req.params.slug)) return res.status(400).json({ error: 'Slug inválido' });
+    res.json({ ok: true });
 
-    // Bot de agendamento tem prioridade; se não processar, cai no agente IA
-    const handled = await handleBotMessage(tenant, phone, text);
-    if (!handled) {
-      const agenteRespondeu = await handleMessage(tenant, phone, text);
+    try {
+      const raw    = await prisma.tenant.findFirst({ where: { slug: req.params.slug, ativo: true } });
+      if (!raw) return;
+      const tenant = decryptTenant(raw);
+      const cfg    = tenant.waConfig || {};
 
-      // Nenhum módulo automático respondeu → handoff para fila humana (wa_atendimento)
-      if (!agenteRespondeu) {
-        const modulos = Array.isArray(tenant.modulos) ? tenant.modulos : [];
-        if (modulos.includes('wa_atendimento')) {
-          const telefoneNorm = phone.replace(/\D/g, '');
-          const clienteNome  = msg.pushName || msg.notifyName || 'Cliente WhatsApp';
+      // Valida assinatura HMAC da Meta
+      const sig = req.headers['x-hub-signature-256'] || '';
+      if (cfg.appSecret && !validateMetaSignature(req.body, sig, cfg.appSecret)) {
+        console.warn(`[webhook:meta] assinatura inválida — tenant=${req.params.slug}`);
+        return;
+      }
 
-          // Abre sessão na fila — idempotente (não duplica se já existe)
-          const existente = await prisma.waFila.findFirst({
-            where: { tenantId: tenant.id, clienteTelefone: telefoneNorm, status: { in: ['aguardando', 'em_atendimento'] } },
-          });
+      const body   = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
+      const parsed = parseMeta(body);
+      if (!parsed) return;
 
-          if (!existente) {
-            const atendentes = await prisma.waAtendente.findMany({
-              where: { tenantId: tenant.id, ativo: true },
-              orderBy: { cargaAtual: 'asc' },
-            });
-            const atendente = atendentes.find(a => a.cargaAtual < a.cargaMaxima) || null;
+      await handleInboundMessage(tenant, parsed.from, parsed.text, parsed.pushName);
+    } catch { /* silencioso */ }
+  }
+);
 
-            await prisma.waFila.create({
-              data: {
-                tenantId: tenant.id,
-                clienteTelefone: telefoneNorm,
-                clienteNome,
-                atendenteId: atendente?.id || null,
-                status: atendente ? 'em_atendimento' : 'aguardando',
-              },
-            });
+// ── Twilio WhatsApp webhooks ──────────────────────────────────────────────────
 
-            if (atendente) {
-              await prisma.waAtendente.update({
-                where: { id: atendente.id },
-                data: { cargaAtual: { increment: 1 } },
-              });
-            }
+// POST: mensagens Twilio — body form-encoded (express.urlencoded global já parseia)
+router.post('/twilio/:slug', async (req, res) => {
+    if (!/^[a-z0-9-]+$/.test(req.params.slug)) return res.status(400).json({ error: 'Slug inválido' });
+    res.status(204).send(); // Twilio espera 2xx imediatamente
 
-            // Notifica o tenant sobre nova sessão na fila
-            await prisma.notificacao.create({
-              data: {
-                tenantId: tenant.id,
-                tipo: 'wa_fila_nova',
-                titulo: '💬 Nova sessão na fila de atendimento',
-                corpo: `${clienteNome} (${telefoneNorm}) entrou na fila${atendente ? ` e foi atribuído a ${atendente.nome}` : ' aguardando atendente'}.`,
-              },
-            }).catch(() => {});
-          }
+    try {
+      const raw    = await prisma.tenant.findFirst({ where: { slug: req.params.slug, ativo: true } });
+      if (!raw) return;
+      const tenant = decryptTenant(raw);
+      const cfg    = tenant.waConfig || {};
+
+      // Valida assinatura Twilio (opcional — recomendado em produção)
+      if (cfg.authToken) {
+        const sig  = req.headers['x-twilio-signature'] || '';
+        const url  = `${process.env.APP_URL}/api/webhook/twilio/${req.params.slug}`;
+        if (!validateTwilioSignature(cfg.authToken, sig, url, req.body)) {
+          console.warn(`[webhook:twilio] assinatura inválida — tenant=${req.params.slug}`);
+          return;
         }
       }
-    }
-  } catch { /* silencioso — não expor erros internos */ }
+
+      const parsed = parseTwilio(req.body);
+      if (!parsed) return;
+
+      await handleInboundMessage(tenant, parsed.from, parsed.text, parsed.pushName);
+    } catch { /* silencioso */ }
+  }
+);
+
+// ── Z-API webhooks ────────────────────────────────────────────────────────────
+
+router.post('/zapi/:slug', async (req, res) => {
+  if (!/^[a-z0-9-]+$/.test(req.params.slug)) return res.status(400).json({ error: 'Slug inválido' });
+  res.json({ ok: true });
+
+  try {
+    const raw    = await prisma.tenant.findFirst({ where: { slug: req.params.slug, ativo: true } });
+    if (!raw) return;
+    const tenant = decryptTenant(raw);
+
+    const parsed = parseZApi(req.body);
+    if (!parsed) return;
+
+    await handleInboundMessage(tenant, parsed.from, parsed.text, parsed.pushName);
+  } catch { /* silencioso */ }
 });
 
 module.exports = router;

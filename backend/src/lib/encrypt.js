@@ -1,19 +1,14 @@
-/**
- * Criptografia AES-256-GCM para campos sensíveis no banco de dados.
- * Usa ENCRYPTION_KEY do ambiente (32 bytes em hex = 64 chars).
- *
- * Formato armazenado: "iv_hex:authTag_hex:ciphertext_hex"
- * Prefixo "enc:" diferencia valores criptografados de plaintext legado.
- */
 const crypto = require('crypto');
 
-const ALGORITHM  = 'aes-256-gcm';
-const PREFIX     = 'enc:';
+const ALGORITHM = 'aes-256-gcm';
+const PREFIX    = 'enc:';
 
-function getKey() {
-  const raw = process.env.ENCRYPTION_KEY || '';
+function getKey(envVar = 'ENCRYPTION_KEY') {
+  const raw = process.env[envVar] || '';
   if (!raw || raw.length < 64) {
-    // Em dev sem chave configurada, usa uma chave determinística (não segura para produção)
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`[FATAL] ${envVar} não configurada ou inválida — mínimo 64 chars hex`);
+    }
     return Buffer.from('agendix_dev_key_NOT_FOR_PRODUCTION_USE_SET_ENCRYPTION_KEY_ENV_!', 'utf8').subarray(0, 32);
   }
   return Buffer.from(raw.slice(0, 64), 'hex');
@@ -21,57 +16,83 @@ function getKey() {
 
 function encrypt(plaintext) {
   if (!plaintext) return plaintext;
-  // Já criptografado — não re-criptografa
   if (plaintext.startsWith(PREFIX)) return plaintext;
 
-  const key = getKey();
-  const iv  = crypto.randomBytes(12); // 96 bits para GCM
+  const key = getKey('ENCRYPTION_KEY');
+  const iv  = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const authTag   = cipher.getAuthTag();
-
   return `${PREFIX}${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
+function _decryptWithKey(value, keyEnv) {
+  const parts = value.slice(PREFIX.length).split(':');
+  if (parts.length !== 3) return null;
+  const [ivHex, authTagHex, ciphertextHex] = parts;
+  const key        = getKey(keyEnv);
+  const iv         = Buffer.from(ivHex, 'hex');
+  const authTag    = Buffer.from(authTagHex, 'hex');
+  const ciphertext = Buffer.from(ciphertextHex, 'hex');
+  const decipher   = crypto.createDecipheriv(ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+}
+
+// Tenta chave atual; se falhar, tenta chave anterior (rotação sem downtime)
 function decrypt(value) {
   if (!value) return value;
-  // Valor legado (plaintext) — retorna como está
-  if (!value.startsWith(PREFIX)) return value;
+  if (!value.startsWith(PREFIX)) return value; // plaintext legado
 
   try {
-    const parts = value.slice(PREFIX.length).split(':');
-    if (parts.length !== 3) return value;
-
-    const [ivHex, authTagHex, ciphertextHex] = parts;
-    const key        = getKey();
-    const iv         = Buffer.from(ivHex, 'hex');
-    const authTag    = Buffer.from(authTagHex, 'hex');
-    const ciphertext = Buffer.from(ciphertextHex, 'hex');
-
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-    decipher.setAuthTag(authTag);
-
-    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+    return _decryptWithKey(value, 'ENCRYPTION_KEY');
   } catch {
-    // Falha na descriptografia (chave trocada, dado corrompido)
+    if (process.env.ENCRYPTION_KEY_PREV) {
+      try {
+        return _decryptWithKey(value, 'ENCRYPTION_KEY_PREV');
+      } catch { /* chave anterior também falhou */ }
+    }
     return null;
   }
 }
 
-/**
- * Descriptografa os campos sensíveis de um tenant vindo do banco.
- * Chamado pelo middleware de tenant e pelo apiTokenAuth do n8n/webhook.
- */
+function normalizarModulos(m) {
+  if (Array.isArray(m)) return m;
+  if (!m) return ['leads', 'agendamentos'];
+  if (typeof m === 'string') {
+    try { return JSON.parse(m); } catch {
+      return m.split(',').map(s => s.trim()).filter(Boolean);
+    }
+  }
+  return ['leads', 'agendamentos'];
+}
+
+// Campos criptografados expandidos (Sprint 2): cnpj, telefone, email, mpAccessToken, webhookSecret
 function decryptTenant(tenant) {
   if (!tenant) return tenant;
+
+  // wa_config armazenado como JSON criptografado (TEXT)
+  let waConfig = null;
+  if (tenant.waConfig) {
+    const decryptedJson = decrypt(tenant.waConfig);
+    if (decryptedJson) {
+      try { waConfig = JSON.parse(decryptedJson); } catch { waConfig = null; }
+    }
+  }
+
   return {
     ...tenant,
-    modulos: typeof tenant.modulos === 'string' ? JSON.parse(tenant.modulos || '[]') : (tenant.modulos || []),
+    modulos:         normalizarModulos(tenant.modulos),
     evolutionApiKey: decrypt(tenant.evolutionApiKey),
     n8nApiKey:       decrypt(tenant.n8nApiKey),
     smtpPass:        decrypt(tenant.smtpPass),
+    cnpj:            decrypt(tenant.cnpj),
+    telefone:        decrypt(tenant.telefone),
+    email:           decrypt(tenant.email),
+    mpAccessToken:   decrypt(tenant.mpAccessToken),
+    webhookSecret:   decrypt(tenant.webhookSecret),
+    waConfig,
   };
 }
 
-module.exports = { encrypt, decrypt, decryptTenant };
+module.exports = { encrypt, decrypt, decryptTenant, normalizarModulos };
