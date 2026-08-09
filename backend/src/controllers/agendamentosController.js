@@ -1,4 +1,5 @@
 const { validationResult } = require('express-validator');
+const { randomUUID } = require('crypto');
 const prisma = require('../lib/prisma');
 const { criar: criarAgendamento } = require('../services/agendamentoService');
 const { notificarAgendamento } = require('../services/notificacaoService');
@@ -65,8 +66,50 @@ exports.criar = async (req, res, next) => {
 
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
 
+    // Recorrência
+    const { recorrencia } = req.body; // { tipo: 'semanal'|'mensal', ocorrencias: 2..52 }
+    if (recorrencia?.tipo && recorrencia?.ocorrencias > 1) {
+      const tipo_r = recorrencia.tipo;
+      const qtd    = Math.min(Math.max(parseInt(recorrencia.ocorrencias) || 2, 2), 52);
+      const rid    = randomUUID(); // id de grupo
+
+      const agendamentos = [];
+      let dataAtual = data;
+
+      for (let i = 0; i < qtd; i++) {
+        try {
+          const ag = await criarAgendamento(
+            {
+              tenantId, leadId, data: dataAtual, hora,
+              tipo: tipo || 'reunião', status: status || 'marcado', observacoes,
+              cancelToken: randomUUID(),
+              recorrenciaId: rid,
+              recorrenciaTipo: tipo_r,
+            },
+            tenant.plano,
+            { incluir: incluirLead }
+          );
+          agendamentos.push(ag);
+        } catch (err) {
+          if (err.status === 409) { /* slot ocupado nessa data — pula */ }
+          else throw err;
+        }
+        // Avança data
+        const d = new Date(dataAtual + 'T12:00:00');
+        if (tipo_r === 'semanal') d.setDate(d.getDate() + 7);
+        else d.setMonth(d.getMonth() + 1);
+        dataAtual = d.toISOString().split('T')[0];
+      }
+
+      if (agendamentos[0]) {
+        notificarAgendamento(tenant, agendamentos[0]).catch(() => {});
+      }
+      return res.status(201).json({ agendamentos, recorrenciaId: rid, criados: agendamentos.length });
+    }
+
+    // Agendamento simples (sem recorrência)
     const agendamento = await criarAgendamento(
-      { tenantId, leadId, data, hora, tipo: tipo || 'reunião', status: status || 'marcado', observacoes },
+      { tenantId, leadId, data, hora, tipo: tipo || 'reunião', status: status || 'marcado', observacoes, cancelToken: randomUUID() },
       tenant.plano,
       { incluir: incluirLead }
     );
@@ -147,5 +190,32 @@ exports.deletar = async (req, res, next) => {
     }).catch(err => console.error('[push/deletar]', err.message));
 
     res.json({ message: 'Agendamento removido' });
+  } catch (err) { next(err); }
+};
+
+// DELETE /agendamentos/:id/serie — cancela este e todos os seguintes da mesma série
+exports.deletarSerie = async (req, res, next) => {
+  try {
+    const tenantId = req.user.tenantId;
+    const id = Number(req.params.id);
+
+    const origem = await prisma.agendamento.findFirst({
+      where: { id, tenantId },
+    });
+    if (!origem) return res.status(404).json({ error: 'Agendamento não encontrado' });
+    if (!origem.recorrenciaId) return res.status(400).json({ error: 'Este agendamento não faz parte de uma série.' });
+
+    // Cancela este e todos os da série com data >= este
+    const result = await prisma.agendamento.updateMany({
+      where: {
+        tenantId,
+        recorrenciaId: origem.recorrenciaId,
+        data: { gte: origem.data },
+        status: { notIn: ['cancelado', 'realizado'] },
+      },
+      data: { status: 'cancelado' },
+    });
+
+    res.json({ message: `${result.count} agendamento(s) da série cancelado(s).`, count: result.count });
   } catch (err) { next(err); }
 };

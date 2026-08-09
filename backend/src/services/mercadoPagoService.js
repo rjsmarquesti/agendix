@@ -7,27 +7,106 @@ const PLANO_MP_ID = {
   business: process.env.MP_PLAN_BUSINESS_ID,
 };
 
+const PLANO_MP_ID_ANUAL = {
+  solo:     process.env.MP_PLAN_SOLO_ANUAL_ID,
+  pro:      process.env.MP_PLAN_PRO_ANUAL_ID,
+  business: process.env.MP_PLAN_BUSINESS_ANUAL_ID,
+};
+
 function getClient() {
   if (!process.env.MP_ACCESS_TOKEN) throw new Error('MP_ACCESS_TOKEN não configurado');
   return new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
 }
 
-async function criarAssinatura(tenant, plano) {
-  const planId = PLANO_MP_ID[plano];
-  if (!planId) throw new Error(`Plano MP não configurado para: ${plano}`);
+// Valores por plano/ciclo (inline — não depende de planos cadastrados no MP)
+const PRECOS = {
+  solo:     { mensal: 39.00,   anual: 374.40 },
+  pro:      { mensal: 59.00,   anual: 566.40 },
+  business: { mensal: 99.00,   anual: 950.40 },
+};
 
-  const client = getClient();
-  const preApproval = new PreApproval(client);
+const RAZOES = {
+  solo:     { mensal: 'Agendix Solo — R$39/mês',    anual: 'Agendix Solo Anual — R$374,40/ano' },
+  pro:      { mensal: 'Agendix Pro — R$59/mês',     anual: 'Agendix Pro Anual — R$566,40/ano' },
+  business: { mensal: 'Agendix Business — R$99/mês', anual: 'Agendix Business Anual — R$950,40/ano' },
+};
 
-  const result = await preApproval.create({
-    body: {
-      preapproval_plan_id: planId,
-      external_reference: String(tenant.id),
-      back_url: `${process.env.APP_URL}/pagamento/retorno?status=approved`,
+async function criarAssinatura(tenant, plano, payerEmail, ciclo = 'mensal') {
+  if (!PRECOS[plano]) throw new Error(`Plano inválido: ${plano}`);
+
+  const token = process.env.APP_URL ? process.env.MP_ACCESS_TOKEN : null;
+  const accessToken = token || process.env.MP_ACCESS_TOKEN;
+  if (!accessToken) throw new Error('MP_ACCESS_TOKEN não configurado');
+
+  const valor = PRECOS[plano][ciclo];
+  const razao = RAZOES[plano][ciclo];
+  const freq  = ciclo === 'anual' ? 12 : 1;
+
+  // Assinatura inline — gera init_point sem depender de plano cadastrado no MP
+  const appUrl = process.env.APP_URL || 'https://agendix.divulgabr.com.br';
+  const payload = {
+    reason:             razao,
+    payer_email:        payerEmail,
+    external_reference: String(tenant.id),
+    back_url:           `${appUrl}/pagamento/retorno?status=approved`,
+    notification_url:   `${appUrl}/api/payments/webhook`,
+    status:             'pending',
+    auto_recurring: {
+      frequency:          freq,
+      frequency_type:     'months',
+      transaction_amount: valor,
+      currency_id:        'BRL',
     },
+  };
+
+  console.log('[MP criarAssinatura] payload:', JSON.stringify(payload));
+
+  const res = await fetch('https://api.mercadopago.com/preapproval', {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
   });
 
-  return { id: result.id, init_point: result.init_point };
+  const data = await res.json();
+  console.log('[MP criarAssinatura] resposta:', JSON.stringify({ status: res.status, id: data.id, init_point: data.init_point, message: data.message }));
+
+  if (!res.ok) {
+    const err = new Error(data.message || `MP API ${res.status}`);
+    err.status = res.status;
+    err.body = data;
+    throw err;
+  }
+
+  return { id: data.id, init_point: data.init_point };
+}
+
+// Verifica se os planos MP estão acessíveis com o token atual
+async function verificarPlanos() {
+  const client = getClient();
+  const plan = new PreApprovalPlan(client);
+  const results = { mensal: {}, anual: {} };
+  for (const [nome, id] of Object.entries(PLANO_MP_ID)) {
+    if (!id) { results.mensal[nome] = { ok: false, error: 'ID não configurado' }; continue; }
+    try {
+      const r = await plan.get({ id });
+      results.mensal[nome] = { ok: true, status: r.status, name: r.reason };
+    } catch (e) {
+      results.mensal[nome] = { ok: false, error: e.message, status: e.status };
+    }
+  }
+  for (const [nome, id] of Object.entries(PLANO_MP_ID_ANUAL)) {
+    if (!id) { results.anual[nome] = { ok: false, error: 'ID não configurado' }; continue; }
+    try {
+      const r = await plan.get({ id });
+      results.anual[nome] = { ok: true, status: r.status, name: r.reason };
+    } catch (e) {
+      results.anual[nome] = { ok: false, error: e.message, status: e.status };
+    }
+  }
+  return results;
 }
 
 function getPlanNameFromId(planId) {
@@ -74,4 +153,4 @@ function verificarWebhookSignature(req) {
   return crypto.timingSafeEqual(Buffer.from(v1), Buffer.from(computed));
 }
 
-module.exports = { criarAssinatura, cancelarAssinatura, buscarAssinatura, verificarWebhookSignature, getPlanNameFromId };
+module.exports = { criarAssinatura, cancelarAssinatura, buscarAssinatura, verificarWebhookSignature, getPlanNameFromId, verificarPlanos };

@@ -6,7 +6,7 @@ const authMiddleware = require('../middlewares/auth');
 const { requireRole } = require('../middlewares/auth');
 const audit = require('../lib/audit');
 
-const BACKUP_DIR = path.join(__dirname, '..', '..', '..', 'backups');
+const BACKUP_DIR = path.join(__dirname, '..', '..', 'backups');
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
 router.use(authMiddleware, requireRole('super_admin'));

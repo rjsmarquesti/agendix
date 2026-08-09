@@ -168,3 +168,99 @@ exports.deletar = async (req, res, next) => {
     res.json({ message: 'Lançamento removido' });
   } catch (err) { next(err); }
 };
+
+exports.fluxoCaixa = async (req, res, next) => {
+  try {
+    const meses = [];
+    const hoje = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      meses.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+
+    const rows = await prisma.lancamentoFinanceiro.findMany({
+      where: {
+        tenantId: req.tenant.id,
+        status: { not: 'cancelado' },
+        data: { gte: `${meses[0]}-01`, lte: `${meses[11]}-31` },
+      },
+      select: { tipo: true, valor: true, data: true },
+    });
+
+    let saldoAcumulado = 0;
+    const dados = meses.map(mes => {
+      const do_mes = rows.filter(r => r.data.startsWith(mes));
+      const receita = do_mes.filter(r => r.tipo === 'receita').reduce((s, r) => s + Number(r.valor), 0);
+      const despesa = do_mes.filter(r => r.tipo === 'despesa').reduce((s, r) => s + Number(r.valor), 0);
+      const saldo = receita - despesa;
+      saldoAcumulado += saldo;
+      return { mes, receita, despesa, saldo, saldoAcumulado };
+    });
+
+    res.json(dados);
+  } catch (err) { next(err); }
+};
+
+exports.relatorio = async (req, res, next) => {
+  try {
+    const { de, ate } = req.query;
+    const baseWhere = { tenantId: req.tenant.id, status: { not: 'cancelado' } };
+    if (de || ate) {
+      baseWhere.data = {};
+      if (de)  baseWhere.data.gte = de;
+      if (ate) baseWhere.data.lte = ate;
+    }
+
+    const [receitas, despesas] = await Promise.all([
+      prisma.lancamentoFinanceiro.findMany({
+        where: { ...baseWhere, tipo: 'receita' },
+        select: {
+          id: true, data: true, descricao: true, valor: true, categoria: true, status: true,
+          lead:    { select: { nome: true } },
+          servico: { select: { nome: true } },
+        },
+        orderBy: { data: 'asc' },
+      }),
+      prisma.lancamentoFinanceiro.findMany({
+        where: { ...baseWhere, tipo: 'despesa' },
+        select: {
+          id: true, data: true, descricao: true, valor: true, categoria: true, status: true,
+        },
+        orderBy: { data: 'asc' },
+      }),
+    ]);
+
+    const porServico = {};
+    receitas.forEach(r => {
+      const key = r.servico?.nome || '(sem serviço)';
+      porServico[key] = (porServico[key] || 0) + Number(r.valor);
+    });
+
+    const porCategoria = {};
+    receitas.forEach(r => {
+      const key = r.categoria || '(sem categoria)';
+      porCategoria[key] = (porCategoria[key] || 0) + Number(r.valor);
+    });
+
+    const toArray = obj =>
+      Object.entries(obj)
+        .map(([nome, total]) => ({ nome, total }))
+        .sort((a, b) => b.total - a.total);
+
+    const totalReceita = receitas.reduce((s, r) => s + Number(r.valor), 0);
+    const totalDespesa = despesas.reduce((s, r) => s + Number(r.valor), 0);
+
+    res.json({
+      porServico: toArray(porServico),
+      porCategoria: toArray(porCategoria),
+      totalReceita,
+      totalDespesa,
+      saldo: totalReceita - totalDespesa,
+      qtdReceitas: receitas.length,
+      qtdDespesas: despesas.length,
+      lancamentos: [...receitas.map(r => ({ ...r, tipo: 'receita' })), ...despesas.map(r => ({ ...r, tipo: 'despesa' }))].sort((a, b) => a.data.localeCompare(b.data)),
+      de: de || null,
+      ate: ate || null,
+    });
+  } catch (err) { next(err); }
+};

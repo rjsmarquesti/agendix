@@ -2,6 +2,7 @@
 // Garante: delay aleatório 2-5s entre envios + teto de MAX_PER_HOUR msg/hora por número.
 // Motivação: disparos em lote (lembretes) sem delay são o principal vetor de ban no WhatsApp Baileys.
 
+const { decrypt } = require('./encrypt');
 const queues = new Map(); // slug → { items, processing, sentAt[] }
 
 const MAX_PER_HOUR = 20;
@@ -31,7 +32,7 @@ async function rawSend(tenant, phone, text) {
     try {
       res = await fetch(url, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', apikey: tenant.evolutionApiKey },
+        headers: { 'Content-Type': 'application/json', apikey: decrypt(tenant.evolutionApiKey) || tenant.evolutionApiKey },
         body:    JSON.stringify({ number: phone, text }),
         signal:  AbortSignal.timeout(10_000),
       });

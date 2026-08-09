@@ -1,7 +1,10 @@
+const { decrypt } = require('../lib/encrypt');
+
 const EVOLUTION_BASE = process.env.EVOLUTION_BASE_URL || 'https://api.divulgabr.com.br';
 const GLOBAL_API_KEY = () => process.env.EVOLUTION_GLOBAL_API_KEY || '';
 
 async function evFetch(method, path, body, apiKey) {
+  const resolvedKey = apiKey ? (decrypt(apiKey) || apiKey) : GLOBAL_API_KEY();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
@@ -12,7 +15,7 @@ async function evFetch(method, path, body, apiKey) {
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': apiKey || GLOBAL_API_KEY(),
+        'apikey': resolvedKey,
       },
       body: body ? JSON.stringify(body) : undefined,
     });

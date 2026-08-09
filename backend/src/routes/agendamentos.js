@@ -13,6 +13,7 @@ router.get('/',    auth, ctrl.listar);
 router.get('/:id', auth, ctrl.buscarPorId);
 router.post('/',   auth, validar, ctrl.criar);
 router.put('/:id', auth, validar, ctrl.atualizar);
+router.delete('/:id/serie', auth, ctrl.deletarSerie);
 router.delete('/:id', auth, ctrl.deletar);
 
 module.exports = router;

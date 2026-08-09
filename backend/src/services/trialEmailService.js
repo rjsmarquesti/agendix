@@ -17,7 +17,7 @@ async function processarTenant(tenant, adminEmail, adminNome) {
 
   // D3: entre 3 e 4 dias após criação
   if (dias >= 3 && dias < 4 && !tenant.trialEmailD3EnviadoEm) {
-    await enviarEmailTrialD3({ para: adminEmail, nome: adminNome, slug });
+    await enviarEmailTrialD3({ para: adminEmail, nome: adminNome, slug, tenantId: tenant.id });
     await prisma.tenant.update({
       where: { id: tenant.id },
       data: { trialEmailD3EnviadoEm: new Date() },
@@ -26,25 +26,25 @@ async function processarTenant(tenant, adminEmail, adminNome) {
     return;
   }
 
-  // D15: entre 15 e 16 dias após criação
-  if (dias >= 15 && dias < 16 && !tenant.trialEmailD10EnviadoEm) {
-    await enviarEmailTrialD10({ para: adminEmail, nome: adminNome, slug });
+  // D7: entre 7 e 8 dias após criação (metade do trial)
+  if (dias >= 7 && dias < 8 && !tenant.trialEmailD10EnviadoEm) {
+    await enviarEmailTrialD10({ para: adminEmail, nome: adminNome, slug, tenantId: tenant.id });
     await prisma.tenant.update({
       where: { id: tenant.id },
       data: { trialEmailD10EnviadoEm: new Date() },
     });
-    console.log(`[trialEmail] D15 enviado → ${adminEmail}`);
+    console.log(`[trialEmail] D7 enviado → ${adminEmail}`);
     return;
   }
 
-  // D28: entre 28 e 29 dias após criação
-  if (dias >= 28 && dias < 29 && !tenant.trialEmailD13EnviadoEm) {
-    await enviarEmailTrialD13({ para: adminEmail, nome: adminNome });
+  // D12: entre 12 e 13 dias após criação (2 dias antes do fim do trial de 14d)
+  if (dias >= 12 && dias < 13 && !tenant.trialEmailD13EnviadoEm) {
+    await enviarEmailTrialD13({ para: adminEmail, nome: adminNome, tenantId: tenant.id });
     await prisma.tenant.update({
       where: { id: tenant.id },
       data: { trialEmailD13EnviadoEm: new Date() },
     });
-    console.log(`[trialEmail] D28 enviado → ${adminEmail}`);
+    console.log(`[trialEmail] D12 enviado → ${adminEmail}`);
   }
 }
 
@@ -80,13 +80,13 @@ async function executarEmailsTrial() {
 }
 
 function agendarCronTrial() {
-  // Roda uma vez por dia às 10h
-  cron.schedule('0 10 * * *', () => {
+  // Roda a cada hora — garante que trials expirados sejam bloqueados em até 1h (não 24h)
+  cron.schedule('5 * * * *', () => {
     executarEmailsTrial().catch(err =>
       console.error('[trialEmail] Erro no cron:', err.message)
     );
   });
-  console.log('[trialEmail] Cron de emails de trial agendado (diário às 10h)');
+  console.log('[trialEmail] Cron de trial agendado (a cada hora, no minuto 5)');
 }
 
 module.exports = { agendarCronTrial, executarEmailsTrial };

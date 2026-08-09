@@ -2,9 +2,11 @@ const router = require('express').Router();
 const ctrl = require('../controllers/settingsController');
 const auth = require('../middlewares/auth');
 const { requireRole } = auth;
+const { checkPermission } = require('../lib/permissions');
 const { NICHOS } = require('../config/nichos');
 const { getConnectionState, getQRCode, logoutInstance } = require('../services/evolutionService');
 const upload = require('../middlewares/upload');
+const { validateMagicBytes } = require('../middlewares/upload');
 const prisma = require('../lib/prisma');
 
 router.get('/nichos', auth, (req, res) => {
@@ -12,6 +14,7 @@ router.get('/nichos', auth, (req, res) => {
     id,
     label: n.label,
     modulosExtras: n.modulosExtras,
+    subnichos: n.subnichos || [],
   })));
 });
 
@@ -75,10 +78,10 @@ router.post('/whatsapp/disconnect', auth, requireRole('admin', 'super_admin'), a
 });
 
 // Upload de logo
-router.post('/upload-logo', auth, requireRole('admin', 'super_admin'), (req, res) => {
+router.post('/upload-logo', auth, requireRole('admin', 'super_admin'), (req, res, next) => {
   upload.single('logo')(req, res, (err) => {
     if (err) {
-      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Arquivo muito grande. Máximo 2MB.' : `Erro: ${err.message}`;
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Arquivo muito grande. Máximo 5MB.' : `Erro: ${err.message}`;
       return res.status(400).json({ error: msg });
     }
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo recebido.' });
@@ -98,13 +101,13 @@ router.post('/upload-logo', auth, requireRole('admin', 'super_admin'), (req, res
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
     fs.writeFileSync(nodePath.join(uploadDir, filename), req.file.buffer);
 
-    const url = `${process.env.APP_URL}/api/uploads/logos/${filename}`;
+    const url = `/api/uploads/logos/${filename}`;
     res.json({ url });
   });
 });
 
 // Backup — exportar todos os dados do tenant
-router.get('/backup', auth, requireRole('admin', 'super_admin'), async (req, res, next) => {
+router.get('/backup', auth, checkPermission('backup', 'view'), async (req, res, next) => {
   try {
     const tenantId = req.tenant.id;
     const [leads, agendamentos, servicos, config, bloqueios, lancamentos] = await Promise.all([
@@ -123,7 +126,7 @@ router.get('/backup', auth, requireRole('admin', 'super_admin'), async (req, res
 });
 
 // Restore — reimportar backup (apaga dados atuais e reimporta)
-router.post('/restore', auth, requireRole('admin', 'super_admin'), async (req, res, next) => {
+router.post('/restore', auth, checkPermission('backup', 'create'), async (req, res, next) => {
   try {
     const { version, leads = [], agendamentos = [], servicos = [], config, bloqueios = [], lancamentos = [] } = req.body;
     if (version !== 1) return res.status(400).json({ error: 'Formato de backup inválido.' });

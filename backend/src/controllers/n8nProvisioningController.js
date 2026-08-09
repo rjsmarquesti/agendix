@@ -1,7 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
 const { provisionarWorkflows, removerWorkflows } = require('../services/n8nProvisioningService');
-
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 exports.status = async (req, res, next) => {
   try {

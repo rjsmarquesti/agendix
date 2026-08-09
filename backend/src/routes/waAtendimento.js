@@ -1,7 +1,10 @@
 const router = require('express').Router();
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
+const auth = require('../middlewares/auth');
 
-const prisma = new PrismaClient();
+// Todo o módulo exige usuário autenticado (achado C1 da auditoria de 31/07/2026 —
+// o router nunca exigia auth, expondo conversas de WhatsApp de clientes sem login).
+router.use(auth);
 
 // Guard: apenas planos pro e business
 function requirePlano(req, res, next) {
@@ -125,11 +128,12 @@ router.post('/fila', requirePlano, async (req, res) => {
     });
     if (existente) return res.json({ fila: existente, novo: false });
 
-    // Rodízio: atendente ativo com menor carga
-    const atendente = await prisma.waAtendente.findFirst({
-      where: { tenantId: req.tenant.id, ativo: true, cargaAtual: { lt: prisma.waAtendente.fields.cargaMaxima } },
+    // Rodízio: atendente ativo com menor carga que ainda tem capacidade
+    const atendentesDisponiveis = await prisma.waAtendente.findMany({
+      where: { tenantId: req.tenant.id, ativo: true },
       orderBy: { cargaAtual: 'asc' },
     });
+    const atendente = atendentesDisponiveis.find(a => a.cargaAtual < a.cargaMaxima) || null;
 
     const fila = await prisma.waFila.create({
       data: {

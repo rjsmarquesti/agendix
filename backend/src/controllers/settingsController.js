@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const prisma = require('../lib/prisma');
-const { encrypt, decrypt, decryptTenant } = require('../lib/encrypt');
+const { encrypt, decrypt, decryptTenant, normalizarModulos } = require('../lib/encrypt');
 const { modulosPorNicho, UNIVERSAIS } = require('../config/nichos');
 
 exports.get = async (req, res, next) => {
@@ -14,10 +14,12 @@ exports.get = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const { nome, logo, corPrimaria, modulos, nicho, n8nWebhookUrl, n8nApiKey, nichoLabel,
+    const { nome, logo, corPrimaria, modulos, nicho, subnicho, n8nWebhookUrl, n8nApiKey, nichoLabel,
             evolutionInstance, evolutionApiKey, evolutionBaseUrl,
+            waProvider, waConfig,
             lembretesDiretosAtivo,
-            smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom } = req.body;
+            smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom,
+            telefone } = req.body;
 
     let modulosFinais = modulos;
     let nichoLabelFinal = nichoLabel;
@@ -25,18 +27,16 @@ exports.update = async (req, res, next) => {
     if (nicho !== undefined) {
       nichoLabelFinal = nicho;
       const tenantAtual = await prisma.tenant.findUnique({ where: { id: req.user.tenantId }, select: { modulos: true } });
-      const atual = JSON.parse(tenantAtual?.modulos || '[]');
-      // Preserva extras que não são universais nem do nicho anterior (ex: financeiro por plano)
-      const extras = atual.filter(m => !UNIVERSAIS.includes(m) && !modulosPorNicho('geral').includes(m) === false
-        ? !UNIVERSAIS.includes(m)
-        : false
-      );
+      // modulos pode ser array (JSONB array) ou string (legado) — normaliza para array
+      const rawMods = tenantAtual?.modulos;
+      const atual = normalizarModulos(rawMods);
       const base = modulosPorNicho(nicho);
       const naoUniversaisAtuais = atual.filter(m => !UNIVERSAIS.includes(m));
       // Mantém módulos que já existiam e não são do mapeamento de nicho (ex: financeiro)
       const todosNichosExtras = Object.values(require('../config/nichos').NICHOS).flatMap(n => n.modulosExtras);
       const preservados = naoUniversaisAtuais.filter(m => !todosNichosExtras.includes(m));
-      modulosFinais = JSON.stringify([...new Set([...base, ...preservados])]);
+      // Armazena como array (não como string JSON) para compatibilidade com o campo Json do Prisma
+      modulosFinais = [...new Set([...base, ...preservados])];
     }
 
     const raw = await prisma.tenant.update({
@@ -47,15 +47,22 @@ exports.update = async (req, res, next) => {
         // Criptografa campos sensíveis antes de persistir
         n8nApiKey:        n8nApiKey       ? encrypt(n8nApiKey)       : null,
         nichoLabel: nichoLabelFinal || null,
+        subnicho: subnicho !== undefined ? (subnicho || null) : undefined,
         evolutionInstance: evolutionInstance || null,
         evolutionApiKey:  evolutionApiKey  ? encrypt(evolutionApiKey)  : null,
         evolutionBaseUrl: evolutionBaseUrl || null,
+        waProvider: waProvider || 'evolution',
+        // waConfig: só sobrescreve se vier com dados reais — objeto vazio não apaga credenciais anteriores
+        ...(waConfig && typeof waConfig === 'object' && Object.keys(waConfig).length > 0
+          ? { waConfig: encrypt(JSON.stringify(waConfig)) }
+          : {}),
         lembretesDiretosAtivo: lembretesDiretosAtivo === true,
         smtpHost: smtpHost || null,
         smtpPort: smtpPort ? Number(smtpPort) : null,
         smtpUser: smtpUser || null,
         smtpPass:         smtpPass        ? encrypt(smtpPass)        : null,
         smtpFrom: smtpFrom || null,
+        telefone: telefone || null,
       },
     });
     // Retorna com valores descriptografados para o frontend atualizar o form

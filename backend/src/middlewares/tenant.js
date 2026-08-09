@@ -36,6 +36,13 @@ module.exports = async (req, res, next) => {
       res.setHeader('X-Plano-Aviso', 'Pagamento em atraso. Acesso será suspenso em breve.');
     }
 
+    // Se o usuário já foi autenticado (auth rodou antes nesta rota), o tenant do header
+    // precisa bater com o tenant do JWT — senão qualquer usuário logado poderia acessar
+    // dados de outro tenant só trocando X-Tenant-Slug (achado C2 da auditoria de 31/07/2026).
+    if (req.user && req.user.tenantId !== tenant.id) {
+      return res.status(403).json({ error: 'Acesso negado: tenant não corresponde ao usuário autenticado.' });
+    }
+
     req.tenant = tenant;
     next();
   } catch (err) {

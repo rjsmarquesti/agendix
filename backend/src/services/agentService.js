@@ -1,6 +1,7 @@
 const https = require('https');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
+const { registrar: logMensagem } = require('../lib/mensagemLog');
+const { enfileirar } = require('./waQueue');
 
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutos
 
@@ -58,32 +59,6 @@ function callClaude(systemPrompt, messages) {
   });
 }
 
-async function sendWhatsApp(tenant, phone, text) {
-  const instance = tenant.evolutionInstance;
-  const apiKey   = tenant.evolutionApiKey;
-  const baseUrl  = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';
-
-  if (!instance || !apiKey) return;
-
-  const body = JSON.stringify({ number: phone, text });
-  const url = new URL(`${baseUrl}/message/sendText/${instance}`);
-
-  return new Promise(resolve => {
-    const req = https.request({
-      hostname: url.hostname,
-      path: url.pathname,
-      method: 'POST',
-      headers: {
-        'apikey': apiKey,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, res => { res.resume(); res.on('end', resolve); });
-    req.on('error', resolve);
-    req.write(body);
-    req.end();
-  });
-}
 
 async function loadSession(tenantId, phone) {
   const now = new Date();
@@ -127,14 +102,14 @@ async function markCheckoutSent(tenantId, phone) {
 
 async function handleMessage(tenant, phone, text) {
   const config = await prisma.agentConfig.findUnique({ where: { tenantId: tenant.id } });
-  if (!config || !config.ativo) return;
+  if (!config || !config.ativo) return false;
 
   // Fora do horário
   if (!isOpen(config)) {
     const msg = config.msgForaHorario ||
       `Olá! No momento estou fora do horário de atendimento. Retorno em breve! 😊`;
-    await sendWhatsApp(tenant, phone, msg);
-    return;
+    await enfileirar(tenant, phone, msg);
+    return true; // respondeu (msg fora de horário), não escalar para fila
   }
 
   const messages = await loadSession(tenant.id, phone);
@@ -152,15 +127,23 @@ async function handleMessage(tenant, phone, text) {
   if (!lead?.sentCheckout && messages.length >= 8 && isPurchaseIntent(text)) {
     await markCheckoutSent(tenant.id, phone);
     await saveSession(tenant.id, phone, messages);
-    const checkoutMsg = `Ótimo! Aqui está o link para você começar:\n\n${config.promptBase.match(/https?:\/\/\S+/)?.[0] || ''}\n\nQualquer dúvida, é só chamar! 💪`;
-    await sendWhatsApp(tenant, phone, checkoutMsg);
-    return;
+    // Prioriza checkoutUrl dedicada; fallback para primeira URL encontrada no prompt
+    const checkoutLink = config.checkoutUrl?.trim()
+      || config.promptBase.match(/https?:\/\/\S+/)?.[0]
+      || '';
+    const checkoutMsg = checkoutLink
+      ? `Ótimo! Aqui está o link para você começar:\n\n${checkoutLink}\n\nQualquer dúvida, é só chamar! 💪`
+      : `Ótimo! Para começar, entre em contato com a gente pelo nosso atendimento. Qualquer dúvida, é só chamar! 💪`;
+    await enfileirar(tenant, phone, checkoutMsg);
+    return true;
   }
 
   const reply = await callClaude(config.promptBase, messages);
   messages.push({ role: 'assistant', content: reply });
   await saveSession(tenant.id, phone, messages);
-  await sendWhatsApp(tenant, phone, reply);
+  await enfileirar(tenant, phone, reply);
+  logMensagem({ tenantId: tenant.id, meio: 'whatsapp', para: phone, corpo: reply, origem: 'agente_ia' });
+  return true;
 }
 
 module.exports = { handleMessage };

@@ -21,9 +21,12 @@ model Tenant {
   n8nApiKey       String?  @map("n8n_api_key")
   apiToken        String?  @unique @map("api_token")
   nichoLabel        String?  @map("nicho_label")
+  subnicho          String?  @map("subnicho")
   evolutionInstance String?  @map("evolution_instance")
   evolutionApiKey   String?  @map("evolution_api_key")
   evolutionBaseUrl  String?  @map("evolution_base_url")
+  waProvider        String   @default("evolution") @map("wa_provider")
+  waConfig          String?  @map("wa_config")
   planoStatus       String   @default("trial") @map("plano_status")
   planoVencimento   DateTime? @map("plano_vencimento")
   mpCustomerId          String?  @map("mp_customer_id")
@@ -42,8 +45,10 @@ model Tenant {
   trialEmailD3EnviadoEm  DateTime? @map("trial_email_d3_enviado_em")
   trialEmailD10EnviadoEm DateTime? @map("trial_email_d10_enviado_em")
   trialEmailD13EnviadoEm DateTime? @map("trial_email_d13_enviado_em")
-  planoDowngradePendente Plano?    @map("plano_downgrade_pendente")
-  planoDowngradeData     DateTime? @map("plano_downgrade_data")
+  planoDowngradePendente  Plano?    @map("plano_downgrade_pendente")
+  planoDowngradeData      DateTime? @map("plano_downgrade_data")
+  cicloBilhagem           String    @default("mensal") @map("ciclo_bilhagem")
+  renovacaoEmailEnviadoEm DateTime? @map("renovacao_email_enviado_em")
   // Dados de contato e legais
   email          String?
   telefone       String?
@@ -57,6 +62,7 @@ model Tenant {
   estado         String?
   cep            String?
   cadastroCompleto Boolean @default(false) @map("cadastro_completo")
+  webhookSecret    String? @map("webhook_secret")
   createdAt              DateTime @default(now()) @map("created_at")
 
   users              User[]
@@ -76,6 +82,15 @@ model Tenant {
   pushSubscriptions  PushSubscription[]
   waAtendentes       WaAtendente[]
   waFilas            WaFila[]
+  fichas             FichaCliente[]
+  anamneses          Anamnese[]
+  orcamentos         Orcamento[]
+  ordensServico      OrdemServico[]
+  prontuarios        Prontuario[]
+  documentos         Documento[]
+  processos          Processo[]
+  leadAtividades     LeadAtividade[]
+  mensagemLogs       MensagemLog[]
   @@map("tenants")
 }
 
@@ -99,9 +114,41 @@ model User {
   totpAtivo            Boolean  @default(false) @map("totp_ativo")
 
   pushSubscriptions  PushSubscription[]
+  atividades         LeadAtividade[]
+  permissions        UserPermission[]
 
   @@unique([email, tenantId])
   @@map("users")
+}
+
+// ─── SecurityIncident (SIEM Sprint 4) ────────────────────────────────────────
+model SecurityIncident {
+  id           Int       @id @default(autoincrement())
+  tipo         String
+  severidade   String    @default("medium")
+  ip           String?
+  tenantId     Int?      @map("tenant_id")
+  userId       Int?      @map("user_id")
+  detalhes     Json?
+  status       String    @default("open")
+  resolvidoPor String?   @map("resolvido_por")
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+  resolvidoEm  DateTime? @map("resolvido_em")
+
+  @@map("security_incidents")
+}
+
+// ─── UserPermission (RBAC granular) ──────────────────────────────────────────
+model UserPermission {
+  id       Int     @id @default(autoincrement())
+  userId   Int     @map("user_id")
+  resource String
+  action   String
+  granted  Boolean @default(true)
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, resource, action], name: "userId_resource_action")
+  @@map("user_permissions")
 }
 
 // ─── Lead ────────────────────────────────────────────────────────────────────
@@ -148,8 +195,15 @@ model Lead {
   especialidades String?
 
   // Disparo
-  disparo   String?
-  mensagem  String?
+  disparo       String?
+  disparoCiclo  Int     @default(0) @map("disparo_ciclo")
+  respondeuWa   Boolean @default(false) @map("respondeu_wa")
+  mensagem      String?
+  respostaWa    String? @map("resposta_wa")
+
+  // Cliente (pós-conversão)
+  servicosContratados Json    @default("[]") @map("servicos_contratados")
+  clienteStatus       String? @default("ativo") @map("cliente_status")
 
   // Funil
   ultimoContato  DateTime? @map("ultimo_contato")
@@ -159,6 +213,15 @@ model Lead {
   updatedAt   DateTime   @updatedAt @map("updated_at")
   agendamentos Agendamento[]
   lancamentos  LancamentoFinanceiro[]
+  fichas       FichaCliente[]
+  anamneses    Anamnese[]
+  orcamentos    Orcamento[]
+  ordensServico OrdemServico[]
+  prontuarios   Prontuario[]
+  documentos    Documento[]
+  processos     Processo[]
+  atividades    LeadAtividade[]
+  mensagemLogs  MensagemLog[]
 
   @@unique([placeId, tenantId])
   @@index([tenantId, status])
@@ -194,6 +257,9 @@ model Agendamento {
   lembrete3dEnviado  Boolean @default(false) @map("lembrete_3d_enviado")
   lembrete1dEnviado  Boolean @default(false) @map("lembrete_1d_enviado")
   lembreteDiaEnviado Boolean @default(false) @map("lembrete_dia_enviado")
+  cancelToken        String? @unique @map("cancel_token")
+  recorrenciaId      String? @map("recorrencia_id")
+  recorrenciaTipo    String? @map("recorrencia_tipo") // semanal | mensal
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
@@ -440,6 +506,7 @@ model AgentConfig {
   horarioFim      String   @default("18:00") @map("horario_fim")
   diasUteis       String   @default("1,2,3,4,5") @map("dias_uteis")
   msgForaHorario  String?  @db.Text @map("msg_fora_horario")
+  checkoutUrl     String?  @map("checkout_url")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -567,6 +634,285 @@ enum FonteMsg {
   bot
   humano
   gemini
+}
+
+// ─── Orcamento (orçamento de serviço por nicho) ───────────────────────────────
+model Orcamento {
+  id          Int             @id @default(autoincrement())
+  tenantId    Int             @map("tenant_id")
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId      Int?            @map("lead_id")
+  lead        Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  numero      String          // ex: "ORC-2026-001"
+  clienteNome String          @map("cliente_nome")
+  clienteTel  String?         @map("cliente_tel")
+  descricao   String?         @db.Text
+  itens       Json            @default("[]") // [{descricao, qtd, valorUnit}]
+  valorTotal  Decimal         @default(0) @db.Decimal(10,2) @map("valor_total")
+  status      StatusOrcamento @default(rascunho)
+  validadeAte String?         @map("validade_ate") // data YYYY-MM-DD
+  observacoes String?         @db.Text
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+  @@map("orcamentos")
+}
+
+enum StatusOrcamento {
+  rascunho
+  enviado
+  aprovado
+  recusado
+  expirado
+}
+
+// ─── FichaCliente (ficha cadastral por nicho) ─────────────────────────────────
+model FichaCliente {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId      Int?     @map("lead_id")
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  nome        String
+  telefone    String?
+  email       String?
+  campos      Json     @default("{}") // campos específicos por nicho
+  observacoes String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  anamneses   Anamnese[]
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, leadId])
+  @@map("fichas_clientes")
+}
+
+// ─── Anamnese (questionário clínico/estético/físico por nicho) ────────────────
+model Anamnese {
+  id          Int           @id @default(autoincrement())
+  tenantId    Int           @map("tenant_id")
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fichaId     Int?          @map("ficha_id")
+  ficha       FichaCliente? @relation(fields: [fichaId], references: [id], onDelete: SetNull)
+  leadId      Int?          @map("lead_id")
+  lead        Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  nomeCliente String        @map("nome_cliente")
+  campos      Json          @default("{}") // campos específicos por nicho
+  observacoes String?       @db.Text
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, fichaId])
+  @@map("anamneses")
+}
+
+// ─── Prontuario (histórico clínico evolutivo — Saúde) ────────────────────────
+model Prontuario {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId      Int?     @map("lead_id")
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  // Dados do paciente
+  nomeCliente  String   @map("nome_cliente")
+  telefone     String?
+  email        String?
+  dataNascimento String? @map("data_nascimento")
+  convenio     String?
+  numeroCarteirinha String? @map("numero_carteirinha")
+
+  // Campos extras dinâmicos por subnicho
+  campos       Json     @default("{}")
+
+  // Histórico de evoluções: [{data, texto, profissional}]
+  evolucoes    Json     @default("[]")
+
+  // Diagnóstico e conduta
+  diagnostico  String?  @db.Text
+  observacoes  String?  @db.Text
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, leadId])
+  @@map("prontuarios")
+}
+
+// ─── Documento (contratos, propostas, documentos jurídicos — Serviços Profissionais) ─
+model Documento {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId      Int?     @map("lead_id")
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  titulo      String
+  tipo        String   @default("contrato") // contrato | proposta | procuracao | relatorio | outro
+  clienteNome String   @map("cliente_nome")
+  clienteTel  String?  @map("cliente_tel")
+  conteudo    String?  @db.Text
+  observacoes String?  @db.Text
+  status      StatusDocumento @default(rascunho)
+  dataVencimento String? @map("data_vencimento")
+  arquivo     String?  // URL/path do arquivo enviado (opcional)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+  @@map("documentos")
+}
+
+enum StatusDocumento {
+  rascunho
+  ativo
+  vencido
+  cancelado
+}
+
+// ─── LeadAtividade ────────────────────────────────────────────────────────────
+model LeadAtividade {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int      @map("tenant_id")
+  leadId    Int      @map("lead_id")
+  userId    Int?     @map("user_id")
+  tipo      String   // ligacao | whatsapp | email | visita | observacao
+  descricao String?
+  data      DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([tenantId])
+  @@map("lead_atividades")
+}
+
+// ─── MensagemLog (auditoria completa de envios email/whatsapp) ───────────────
+model MensagemLog {
+  id        Int         @id @default(autoincrement())
+  tenantId  Int?        @map("tenant_id")
+  tenant    Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId    Int?        @map("lead_id")
+  lead      Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  meio      MeioEnvio
+  status    StatusEnvio @default(enviado)
+  para      String
+  assunto   String?
+  corpo     String      @db.Text
+  origem    String      @default("manual")
+  erroMsg   String?     @map("erro_msg")
+  usuarioId Int?        @map("usuario_id")
+  criadoEm  DateTime    @default(now()) @map("criado_em")
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([criadoEm(sort: Desc)])
+  @@index([meio])
+  @@index([origem])
+  @@map("mensagem_logs")
+}
+
+enum MeioEnvio {
+  email
+  whatsapp
+}
+
+enum StatusEnvio {
+  enviado
+  erro
+  pendente
+}
+
+// ─── OrdemServico (OS para nichos residencial, automotivo, técnico) ──────────
+model OrdemServico {
+  id               Int                @id @default(autoincrement())
+  tenantId         Int                @map("tenant_id")
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId           Int?               @map("lead_id")
+  lead             Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  numero           String             // ex: "OS-2026-0001"
+  clienteNome      String             @map("cliente_nome")
+  clienteTel       String?            @map("cliente_tel")
+  clienteEndereco  String?            @map("cliente_endereco") @db.Text
+  descricaoServico String?            @map("descricao_servico") @db.Text
+  itens            Json               @default("[]") // [{descricao, qtd, valorUnit}]
+  valorTotal       Decimal            @default(0) @db.Decimal(10,2) @map("valor_total")
+  status           StatusOrdemServico @default(aberta)
+  dataAbertura     String?            @map("data_abertura")   // YYYY-MM-DD
+  dataPrevista     String?            @map("data_prevista")   // YYYY-MM-DD
+  dataConclusao    String?            @map("data_conclusao")  // YYYY-MM-DD
+  tecnicoNome      String?            @map("tecnico_nome")
+  garantiaDias     Int?               @map("garantia_dias")
+  observacoes      String?            @db.Text
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+  @@map("ordens_servico")
+}
+
+enum StatusOrdemServico {
+  aberta
+  em_andamento
+  aguardando_peca
+  concluida
+  cancelada
+}
+
+// ─── Processo (módulo jurídico — Serviços Profissionais) ─────────────────────
+model Processo {
+  id          Int            @id @default(autoincrement())
+  tenantId    Int            @map("tenant_id")
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadId      Int?           @map("lead_id")
+  lead        Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  numero      String         // PROC-YYYY-NNNN (auto)
+  titulo      String
+  tipo        String         @default("outro") // acao_civil | trabalhista | criminal | familia | previdenciario | consumidor | outro
+  status      StatusProcesso @default(ativo)
+
+  vara        String?
+  comarca     String?
+  clienteNome String         @map("cliente_nome")
+  clienteTel  String?        @map("cliente_tel")
+  parteContraria String?     @map("parte_contraria")
+  advogado    String?
+
+  dataAbertura       String?  @map("data_abertura")
+  prazoProximo       String?  @map("prazo_proximo")
+  dataEncerramento   String?  @map("data_encerramento")
+
+  valorCausa  Float?         @map("valor_causa")
+  honorarios  Float?
+
+  observacoes    String?   @db.Text
+  movimentacoes  Json      @default("[]")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+  @@map("processos")
+}
+
+enum StatusProcesso {
+  ativo
+  suspenso
+  encerrado
+  arquivado
 }
 
 // ─── AuditLog (registro de ações críticas) ────────────────────────────────────

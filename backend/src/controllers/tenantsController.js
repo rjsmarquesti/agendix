@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
+const { normalizarModulos } = require('../lib/encrypt');
 const { provisionarWorkflows, removerWorkflows, desativarWorkflows, ativarWorkflows } = require('../services/n8nProvisioningService');
 const { createInstance, deleteInstance, setWebhook } = require('../services/evolutionService');
 const audit = require('../lib/audit');
@@ -8,9 +9,18 @@ exports.listar = async (req, res, next) => {
   try {
     const tenants = await prisma.tenant.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { users: true, leads: true } } },
+      include: {
+        _count: { select: { users: true, leads: true } },
+        users: { where: { role: 'admin' }, select: { email: true, whatsapp: true }, take: 1 },
+      },
     });
-    res.json({ tenants });
+    // Preenche email/telefone do tenant a partir do usuário admin se não preenchidos diretamente
+    const result = tenants.map(t => ({
+      ...t,
+      email:    t.email    || t.users?.[0]?.email    || null,
+      telefone: t.telefone || t.users?.[0]?.whatsapp || null,
+    }));
+    res.json({ tenants: result });
   } catch (err) { next(err); }
 };
 
@@ -28,16 +38,28 @@ exports.buscarPorId = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Módulos adicionais liberados por padrão conforme plano
+function modulosPorPlano(plano) {
+  const base = [];
+  if (['pro', 'business'].includes(plano))          base.push('financeiro');
+  if (['pro', 'business', 'trial'].includes(plano)) base.push('wa_atendimento', 'agente_ia');
+  return base;
+}
+
 exports.criar = async (req, res, next) => {
   try {
     const { nome, slug, logo, corPrimaria, plano, modulos } = req.body;
+    const planoFinal = plano || 'solo';
+    const modulosBase = modulos || ['leads', 'agendamentos'];
+    // Adiciona módulos extras do plano que ainda não estejam na lista
+    const extras = modulosPorPlano(planoFinal).filter(m => !modulosBase.includes(m));
     const tenant = await prisma.tenant.create({
       data: {
         nome, slug,
         logo: logo || null,
         corPrimaria: corPrimaria || '#2563eb',
-        plano: plano || 'solo',
-        modulos: modulos || ['leads', 'agendamentos'],
+        plano: planoFinal,
+        modulos: [...modulosBase, ...extras],
       },
     });
     // Provisioning n8n — fire-and-forget
@@ -88,7 +110,8 @@ exports.criar = async (req, res, next) => {
 exports.atualizar = async (req, res, next) => {
   try {
     const { nome, slug, logo, corPrimaria, plano, modulos, ativo, planoStatus, planoVencimento, n8nAtivo,
-            email, telefone, cnpj, razaoSocial, logradouro, numero, complemento, bairro, cidade, estado, cep, cadastroCompleto } = req.body;
+            email, telefone, cnpj, razaoSocial, logradouro, numero, complemento, bairro, cidade, estado, cep, cadastroCompleto,
+            nicho, subnicho } = req.body;
     const id = Number(req.params.id);
 
     const tenantAntes = await prisma.tenant.findUnique({
@@ -103,7 +126,18 @@ exports.atualizar = async (req, res, next) => {
     if (logo       !== undefined) updateData.logo        = logo || null;
     if (corPrimaria!== undefined) updateData.corPrimaria = corPrimaria;
     if (plano      !== undefined) updateData.plano       = plano;
-    if (modulos    !== undefined) updateData.modulos     = modulos;
+    // Nicho primeiro: auto-popula módulos base; override manual de modulos vem logo depois
+    if (nicho !== undefined) {
+      updateData.nichoLabel = nicho || null;
+      if (nicho) {
+        const { modulosPorNicho } = require('../config/nichos');
+        updateData.modulos = modulosPorNicho(nicho);
+      }
+    }
+    if (modulos    !== undefined) {
+      // Garante que modulos é sempre um array válido para o campo Json do Prisma
+      updateData.modulos = normalizarModulos(modulos);
+    }
     if (ativo      !== undefined) updateData.ativo       = ativo;
     if (planoStatus!== undefined) updateData.planoStatus = planoStatus;
     if (planoVencimento !== undefined) {
@@ -123,6 +157,7 @@ exports.atualizar = async (req, res, next) => {
     if (estado          !== undefined) updateData.estado          = estado || null;
     if (cep             !== undefined) updateData.cep             = cep || null;
     if (cadastroCompleto!== undefined) updateData.cadastroCompleto = Boolean(cadastroCompleto);
+    if (subnicho        !== undefined) updateData.subnicho         = subnicho || null;
 
     const tenant = await prisma.tenant.update({ where: { id }, data: updateData });
 
@@ -190,6 +225,8 @@ exports.deletar = async (req, res, next) => {
         console.error(`[evolution] Falha ao deletar instância de ${tenant.slug}:`, err.message);
       }
     }
+    // Deleta usuários do tenant antes de deletar o tenant (schema usa onDelete: SetNull)
+    await prisma.user.deleteMany({ where: { tenantId: id } });
     await prisma.tenant.delete({ where: { id } });
     audit.log('tenant_deletado', { entidade: 'tenant', entidadeId: id, userId: req.user?.id, ip: req.ip, detalhes: { nome: tenant?.nome, slug: tenant?.slug } });
     res.json({ message: 'Empresa removida' });
@@ -223,7 +260,13 @@ exports.criarEvolution = async (req, res, next) => {
     const tenant = await prisma.tenant.findUnique({ where: { id: Number(req.params.id) } });
     if (!tenant) return res.status(404).json({ error: 'Empresa não encontrada' });
     // Garante que instância anterior seja removida antes de criar (evita conflito no Evolution API)
-    await deleteInstance(tenant.slug, tenant.evolutionApiKey).catch(() => {});
+    // Usa a global key como fallback para garantir que o delete funcione mesmo sem evolutionApiKey
+    const { decrypt } = require('../lib/encrypt');
+    const instApiKey = decrypt(tenant.evolutionApiKey);
+    const globalKey  = process.env.EVOLUTION_GLOBAL_API_KEY;
+    // Tenta deletar com a key do tenant e depois com a global (Evolution retorna 403 em create se instância já existe)
+    await deleteInstance(tenant.slug, instApiKey).catch(() => {});
+    await deleteInstance(tenant.slug, globalKey).catch(() => {});
     const result = await createInstance(tenant.slug);
     const apiKey = result?.hash?.apikey || result?.apikey || null;
     const updated = await prisma.tenant.update({

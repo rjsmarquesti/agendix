@@ -162,6 +162,37 @@ exports.adicionarAtividade = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.disparos = async (req, res, next) => {
+  try {
+    const tenantId = req.tenant.id;
+    const { nicho, status, pagina = 1, limite = 50 } = req.query;
+    const skip = (parseInt(pagina) - 1) * parseInt(limite);
+
+    const where = { tenantId, disparo: { not: null } };
+    if (nicho) where.nicho = { contains: nicho, mode: 'insensitive' };
+    if (status) where.status = status;
+
+    const [leads, total, totalDisparados, totalComSite] = await Promise.all([
+      prisma.lead.findMany({
+        where,
+        select: {
+          id: true, nome: true, nicho: true, website: true, telefone: true,
+          rating: true, reviewsCount: true, mensagem: true, disparo: true,
+          status: true, updatedAt: true, cidade: true, estado: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: parseInt(limite),
+      }),
+      prisma.lead.count({ where }),
+      prisma.lead.count({ where: { tenantId, disparo: { not: null } } }),
+      prisma.lead.count({ where: { tenantId, disparo: { not: null }, website: { not: null } } }),
+    ]);
+
+    res.json({ leads, total, totalDisparados, totalComSite });
+  } catch (err) { next(err); }
+};
+
 exports.stats = async (req, res, next) => {
   try {
     const tenantId = req.tenant.id;

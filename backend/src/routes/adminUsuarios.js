@@ -128,4 +128,38 @@ router.post('/:id/mensagem', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST /api/admin/usuarios — criar super_admin (sem tenant)
+router.post('/', async (req, res) => {
+  try {
+    const { nome, email, senha, whatsapp } = req.body;
+    if (!nome || !email || !senha) return res.status(400).json({ error: 'nome, email e senha são obrigatórios' });
+    if (senha.length < 6) return res.status(400).json({ error: 'Senha mínimo 6 caracteres' });
+
+    const bcrypt = require('bcryptjs');
+    const hash = await bcrypt.hash(senha, 10);
+    const user = await prisma.user.create({
+      data: { nome, email, senha: hash, role: 'super_admin', ativo: true, whatsapp: whatsapp || null },
+    });
+    res.status(201).json({ ok: true, user: { id: user.id, nome: user.nome, email: user.email, role: user.role } });
+  } catch (err) {
+    if (err.code === 'P2002') return res.status(400).json({ error: 'Email já cadastrado' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/usuarios/:id — deletar usuário do sistema (super_admin sem tenant)
+router.delete('/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    // Impede auto-deleção
+    if (id === req.user.id) return res.status(400).json({ error: 'Você não pode deletar seu próprio usuário' });
+
+    const user = await prisma.user.findUnique({ where: { id }, select: { id: true, role: true, tenantId: true } });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    await prisma.user.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

@@ -1,10 +1,21 @@
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const { authenticator } = require('otplib');
 const prisma = require('../lib/prisma');
 const audit  = require('../lib/audit');
-const { decrypt } = require('../lib/encrypt');
+const { decrypt, normalizarModulos } = require('../lib/encrypt');
+const { generateAccessToken, generateRefreshToken } = require('../lib/tokenService');
+
+function setRefreshCookie(res, token) {
+  const isProd = process.env.NODE_ENV === 'production';
+  res.cookie('refreshToken', token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'strict' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/api/auth/refresh',
+  });
+}
 
 exports.login = async (req, res, next) => {
   try {
@@ -14,7 +25,6 @@ exports.login = async (req, res, next) => {
     const { email, senha } = req.body;
     const tenantId = req.tenant?.id || null;
 
-    // Busca por email + tenant (ou super_admin sem tenant)
     const user = await prisma.user.findFirst({
       where: tenantId
         ? { email, tenantId }
@@ -22,27 +32,39 @@ exports.login = async (req, res, next) => {
       include: { tenant: { select: { nome: true, slug: true, corPrimaria: true, logo: true, modulos: true, plano: true, planoStatus: true, planoVencimento: true, cadastroCompleto: true } } },
     });
 
-    if (!user) return res.status(401).json({ error: 'Email ou senha incorretos' });
+    if (!user) {
+      audit.log(audit.EVENTS.LOGIN_FAIL, { ip: req.ip, detalhes: { email, motivo: 'usuario_nao_encontrado' } });
+      return res.status(401).json({ error: 'Email ou senha incorretos' });
+    }
     if (!user.ativo) return res.status(401).json({ error: 'Conta não ativada. Verifique seu email e WhatsApp para o link de ativação.', code: 'INACTIVE' });
 
     const ok = await bcrypt.compare(senha, user.senha);
-    if (!ok) return res.status(401).json({ error: 'Email ou senha incorretos' });
+    if (!ok) {
+      audit.log(audit.EVENTS.LOGIN_FAIL, { entidade: 'user', entidadeId: user.id, tenantId: user.tenantId, ip: req.ip, detalhes: { email } });
+      return res.status(401).json({ error: 'Email ou senha incorretos' });
+    }
 
-    // 2FA obrigatório para super_admin se ativado
-    if (user.role === 'super_admin' && user.totpAtivo) {
+    // TOTP obrigatório para super_admin e admin (quando totpAtivo = true)
+    if ((user.role === 'super_admin' || user.role === 'admin') && user.totpAtivo) {
       const { totp } = req.body;
       if (!totp) return res.status(403).json({ error: '2FA obrigatório', code: 'TOTP_REQUIRED' });
       const totpValido = authenticator.verify({ token: String(totp).replace(/\s/g, ''), secret: decrypt(user.totpSecret) });
-      if (!totpValido) return res.status(403).json({ error: 'Código 2FA inválido', code: 'TOTP_INVALID' });
+      if (!totpValido) {
+        audit.log(audit.EVENTS.TWO_FA_FAIL, { entidade: 'user', entidadeId: user.id, userId: user.id, ip: req.ip });
+        return res.status(403).json({ error: 'Código 2FA inválido', code: 'TOTP_INVALID' });
+      }
     }
 
-    const token = jwt.sign(
-      { id: user.id, nome: user.nome, email: user.email, role: user.role, tenantId: user.tenantId },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
+    // totpAtivo incluído no payload para o guard TOTP_MANDATORY funcionar sem DB query
+    const accessToken = generateAccessToken({
+      id: user.id, nome: user.nome, email: user.email,
+      role: user.role, tenantId: user.tenantId, totpAtivo: user.totpAtivo,
+    });
+    const refreshToken = generateRefreshToken(user.id);
 
-    audit.log('login', {
+    setRefreshCookie(res, refreshToken);
+
+    audit.log(audit.EVENTS.LOGIN_OK, {
       entidade: 'user', entidadeId: user.id,
       tenantId: user.tenantId || null,
       userId: user.id, ip: req.ip,
@@ -50,11 +72,13 @@ exports.login = async (req, res, next) => {
     });
 
     res.json({
-      token,
+      token: accessToken,
+      accessToken,
+      expiresIn: 900,
       user: { id: user.id, nome: user.nome, email: user.email, role: user.role },
       tenant: user.tenant ? {
         ...user.tenant,
-        modulos: typeof user.tenant.modulos === 'string' ? JSON.parse(user.tenant.modulos || '[]') : (user.tenant.modulos || []),
+        modulos: normalizarModulos(user.tenant.modulos),
       } : null,
     });
   } catch (err) { next(err); }

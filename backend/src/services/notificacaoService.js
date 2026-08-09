@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const prisma = require('../lib/prisma');
 const { executarAgendaDia } = require('./agendaDiaService');
 const { enfileirar } = require('./waQueue');
+const { registrar: logMensagem } = require('../lib/mensagemLog');
 
 function hoje() {
   return new Date().toISOString().split('T')[0];
@@ -18,7 +19,14 @@ function montarMensagem(template, agendamento) {
   const hora = agendamento.hora || '';
   const nome = agendamento.clienteNome || agendamento.lead?.nome || '';
   const servico = agendamento.servico?.nome || agendamento.tipo || 'atendimento';
-  return (template || 'Olá {{nome}}! Lembrete do seu {{servico}} em {{data}} às {{hora}}.')
+  // Templates humanizados padrão (variado para parecer mais natural)
+  const templatesPadrao = [
+    'Oi {{nome}}! Passando pra te lembrar do seu {{servico}} agendado para {{data}} às {{hora}}. Qualquer dúvida é só chamar! 😊',
+    'Olá {{nome}}, tudo bem? Seu {{servico}} está confirmado para {{data}} às {{hora}}. Te esperamos! 👋',
+    'Oi {{nome}}! Lembrete: {{servico}} marcado para amanhã, {{data}}, às {{hora}}. Até lá! 🗓️',
+  ];
+  const tmpl = template || templatesPadrao[Math.floor(Math.random() * templatesPadrao.length)];
+  return tmpl
     .replace(/\{\{nome\}\}/g, nome)
     .replace(/\{\{data\}\}/g, data)
     .replace(/\{\{hora\}\}/g, hora)
@@ -63,6 +71,7 @@ async function processarTenant(tenant) {
 
     try {
       await enfileirar(tenant, telefone, mensagem);
+      logMensagem({ tenantId: tenant.id, leadId: ag.leadId || null, meio: 'whatsapp', para: telefone, corpo: mensagem, origem: 'lembrete' });
 
       await prisma.agendamento.update({
         where: { id: ag.id },
@@ -132,15 +141,23 @@ async function notificarAgendamento(tenant, agendamento) {
   const nomeServico = agendamento.servico?.nome || agendamento.tipo || '';
 
   const phoneCliente = agendamento.lead?.telefone || agendamento.clienteTelefone;
-  if (phoneCliente && config.mensagemWaConfirmacao) {
-    const msg = config.mensagemWaConfirmacao
+  const templateConfirmacaoPadrao = 'Oi {{nome}}! Seu {{servico}} foi agendado para {{data}} às {{hora}}. Qualquer dúvida é só chamar. Até lá! 😊';
+  if (phoneCliente && (config.mensagemWaConfirmacao || templateConfirmacaoPadrao)) {
+    let msg = (config.mensagemWaConfirmacao || templateConfirmacaoPadrao)
       .replace(/\{\{nome\}\}/g, nomeCliente)
       .replace(/\{\{data\}\}/g, dataBr)
       .replace(/\{\{hora\}\}/g, hora)
       .replace(/\{\{servico\}\}/g, nomeServico);
-    enfileirar(tenant, phoneCliente, msg).catch(e =>
-      console.error('[notificarAgendamento] cliente:', e.message)
-    );
+
+    // Adiciona link de cancelamento se o agendamento tiver token
+    if (agendamento.cancelToken) {
+      const appUrl = process.env.APP_URL || 'https://agendix.divulgabr.com.br';
+      msg += `\n\nPrecisando cancelar? Acesse: ${appUrl}/cancelar/${agendamento.cancelToken}`;
+    }
+
+    enfileirar(tenant, phoneCliente, msg)
+      .then(() => logMensagem({ tenantId: tenant.id, leadId: agendamento.leadId || null, meio: 'whatsapp', para: phoneCliente, corpo: msg, origem: 'confirmacao' }))
+      .catch(e => console.error('[notificarAgendamento] cliente:', e.message));
   }
 
   if (config.whatsappAdmin) {

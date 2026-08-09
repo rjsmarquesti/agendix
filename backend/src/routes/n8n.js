@@ -39,7 +39,18 @@ router.get('/leads', apiTokenAuth, async (req, res, next) => {
     const { status, telefone, limite = 50 } = req.query;
     const where = { tenantId: req.tenant.id };
     if (status)   where.status = status;
-    if (telefone) where.telefone = telefone.replace(/\D/g, '');
+    if (telefone) {
+      const tel = telefone.replace(/\D/g, '');
+      const telSem55 = tel.startsWith('55') && tel.length > 11 ? tel.slice(2) : tel;
+      const telCom55 = tel.startsWith('55') ? tel : '55' + tel;
+      // endsWith cobre formatos como "+021..." gravados pelo extrator Google Maps
+      where.OR = [
+        { telefone: tel },
+        { telefone: telSem55 },
+        { telefone: telCom55 },
+        { telefone: { endsWith: telSem55 } },
+      ];
+    }
     const leads = await prisma.lead.findMany({ where, orderBy: { createdAt: 'desc' }, take: Number(limite) });
     res.json({ leads });
   } catch (err) { next(err); }
@@ -328,6 +339,7 @@ router.get('/settings', apiTokenAuth, async (req, res, next) => {
     const config = await prisma.configuracaoAgenda.findUnique({ where: { tenantId: req.tenant.id } });
     res.json({
       tenantNome: req.tenant.nome,
+      telefone:   req.tenant.telefone   || null,
       nichoLabel: req.tenant.nichoLabel || 'atendimento',
       evolutionInstance: req.tenant.evolutionInstance || null,
       evolutionApiKey:   req.tenant.evolutionApiKey   || null,

@@ -1,15 +1,18 @@
 const prisma = require('../lib/prisma');
 const { getSlots } = require('./disponibilidadeService');
 const { LIMITE_AGENDAMENTOS } = require('../config/planos');
-// Usa a fila centralizada para garantir delay anti-ban e teto de volume
-const { enqueueSend } = require('../lib/waQueue');
+// Usa a fila Sprint 3 — janela 08-20h, dedup, circuit breaker, reputação
+const { enfileirar, registrarEnvioDireto } = require('./waQueue');
+const { getWaProvider, getProviderKey } = require('../lib/wa/index');
+const { registrar: logMensagem } = require('../lib/mensagemLog');
 
 const TTL_MS = 30 * 60 * 1000; // 30 minutos
 
 // ─── Envio via waQueue (anti-ban) ────────────────────────────────────────────
 
-async function sendWA(tenant, phone, text) {
-  const result = await enqueueSend(tenant, phone, text);
+async function sendWA(tenant, phone, text, { leadId, origem } = {}) {
+  const result = await enfileirar(tenant, phone, text);
+  logMensagem({ tenantId: tenant.id, leadId: leadId || null, meio: 'whatsapp', para: phone, corpo: text, origem: origem || 'confirmacao' });
   return { ok: result.ok };
 }
 
@@ -18,28 +21,28 @@ async function sendWAList(tenant, phone, slots, data) {
                   '1️⃣1️⃣','1️⃣2️⃣','1️⃣3️⃣','1️⃣4️⃣','1️⃣5️⃣','1️⃣6️⃣','1️⃣7️⃣','1️⃣8️⃣','1️⃣9️⃣','2️⃣0️⃣',
                   '2️⃣1️⃣','2️⃣2️⃣','2️⃣3️⃣','2️⃣4️⃣','2️⃣5️⃣','2️⃣6️⃣','2️⃣7️⃣','2️⃣8️⃣','2️⃣9️⃣','3️⃣0️⃣','3️⃣1️⃣'];
 
-  // sendList não passa pelo waQueue (endpoint diferente), mas usa fetch direto com timeout
-  const base     = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';
-  const instance = tenant.evolutionInstance;
-  const apikey   = tenant.evolutionApiKey;
+  // Respeita a janela horária anti-ban (08–20h BRT = 11–23 UTC)
+  const hora = new Date().getHours();
+  if (hora < 11 || hora >= 23) {
+    // Fora da janela — usa fallback de texto simples (já passa pelo waQueue com delay correto)
+    const lista = slots.map((s, i) => `${emojis[i] || (i + 1) + '.'} ${s}`).join('\n');
+    await sendWA(tenant, phone, `📅 Horários disponíveis para *${formatDataBR(data)}*:\n\n${lista}\n\nDigite o número ou o horário desejado.`);
+    return;
+  }
+
+  // Verifica hard limit e rate limit antes de enviar via adapter
+  const instanceKey = getProviderKey(tenant);
+  if (!registrarEnvioDireto(instanceKey)) {
+    const lista = slots.map((s, i) => `${emojis[i] || (i + 1) + '.'} ${s}`).join('\n');
+    await sendWA(tenant, phone, `📅 Horários disponíveis para *${formatDataBR(data)}*:\n\n${lista}\n\nDigite o número ou o horário desejado.`);
+    return;
+  }
 
   let ok = false;
   try {
-    const res = await fetch(`${base}/message/sendList/${instance}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey },
-      body: JSON.stringify({
-        number: phone,
-        title: `📅 Horários — ${formatDataBR(data)}`,
-        description: 'Toque em um horário para selecioná-lo:',
-        buttonText: 'Ver horários',
-        footerText: 'AgendaBot',
-        sections: [{ title: 'Disponíveis', rows: slots.map(s => ({ title: s, rowId: s })) }],
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    ok = res.ok;
-    if (!ok) console.error('[sendWAList] status:', res.status, await res.text().catch(() => ''));
+    const adapter = getWaProvider(tenant);
+    await adapter.sendList(phone, slots, formatDataBR(data));
+    ok = true;
   } catch (e) {
     console.error('[sendWAList] erro:', e.message);
   }

@@ -11,6 +11,7 @@
  */
 
 const nodemailer = require('nodemailer');
+const { getWaProvider, getProviderKey } = require('../lib/wa/index');
 
 const THRESHOLD        = 5;               // erros consecutivos antes de suspender
 const SUSPEND_DURATION = 2 * 60 * 60 * 1000; // 2 horas de cooldown
@@ -63,7 +64,7 @@ async function notificarAdmin(instance, tenantNome, liberaEm) {
   const t = nodemailer.createTransport({
     host:   process.env.SMTP_HOST || 'smtp.hostinger.com',
     port:   Number(process.env.SMTP_PORT || 465),
-    secure: true,
+    secure: process.env.SMTP_SECURE !== 'false',
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
 
@@ -90,27 +91,68 @@ async function notificarAdmin(instance, tenantNome, liberaEm) {
 }
 
 /**
- * Wrapper sobre a Evolution API com circuit breaker integrado.
- * Use este no lugar de chamar fetch diretamente.
+ * Wrapper multi-provider com circuit breaker integrado.
+ * Usa o adapter correto baseado em tenant.waProvider.
  */
 async function enviarMensagemWA(tenant, telefone, mensagem) {
-  const instance = tenant.evolutionInstance;
-  const base     = tenant.evolutionBaseUrl || process.env.EVOLUTION_BASE_URL || 'https://api.divulgabr.com.br';
-  const apikey   = tenant.evolutionApiKey;
+  const adapter = getWaProvider(tenant);
+  const key     = getProviderKey(tenant);
 
-  const res = await fetch(`${base}/message/sendText/${instance}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey },
-    body: JSON.stringify({ number: telefone, text: mensagem }),
-  });
-
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    registrarErro(instance, tenant.nome);
-    throw new Error(`Evolution API ${res.status}: ${txt}`);
+  try {
+    await adapter.send(telefone, mensagem);
+    registrarSucesso(key);
+  } catch (err) {
+    registrarErro(key, tenant.nome);
+    throw err;
   }
-
-  registrarSucesso(instance);
 }
 
-module.exports = { enviarMensagemWA, isSuspensa, registrarErro, registrarSucesso };
+/** Libera manualmente uma instância suspensa (reset do circuit breaker). */
+function liberarInstancia(instance) {
+  const s = getState(instance);
+  const eraCounted = s.errors;
+  const eraAte     = s.suspendedUntil;
+  s.errors        = 0;
+  s.suspendedUntil = null;
+  console.log(`[waWatchdog] ${instance} liberada manualmente (erros=${eraCounted}, suspenso=${eraAte ? new Date(eraAte).toLocaleString('pt-BR') : 'não'})`);
+  return { instance, errosResetados: eraCounted, suspendidoAte: eraAte ? new Date(eraAte).toISOString() : null };
+}
+
+/** Retorna status de todas as instâncias rastreadas pelo circuit breaker. */
+function statsWatchdog() {
+  const resultado = [];
+  for (const [instance, s] of state) {
+    const suspensa = s.suspendedUntil && Date.now() < s.suspendedUntil;
+    resultado.push({
+      instance,
+      erros:       s.errors,
+      suspensa:    suspensa || false,
+      suspensaAte: s.suspendedUntil ? new Date(s.suspendedUntil).toISOString() : null,
+      threshold:   THRESHOLD,
+    });
+  }
+  return resultado;
+}
+
+/** Retorna status de uma instância específica. */
+function statsInstanciaWatchdog(instance) {
+  const s = getState(instance);
+  const suspensa = s.suspendedUntil && Date.now() < s.suspendedUntil;
+  return {
+    instance,
+    erros:       s.errors,
+    suspensa:    suspensa || false,
+    suspensaAte: s.suspendedUntil ? new Date(s.suspendedUntil).toISOString() : null,
+    threshold:   THRESHOLD,
+  };
+}
+
+module.exports = {
+  enviarMensagemWA,
+  isSuspensa,
+  registrarErro,
+  registrarSucesso,
+  liberarInstancia,
+  statsWatchdog,
+  statsInstanciaWatchdog,
+};

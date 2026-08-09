@@ -3,12 +3,37 @@ const router = express.Router();
 const prisma = require('../lib/prisma');
 const authMiddleware = require('../middlewares/auth');
 const tenantMiddleware = require('../middlewares/tenant');
+
+// Módulos base garantidos em qualquer plano
+const MODULOS_BASE = ['leads', 'agendamentos'];
+// Módulos extras liberados por plano
+const MODULOS_POR_PLANO = {
+  solo:     [],
+  pro:      ['financeiro', 'wa_atendimento', 'agente_ia'],
+  business: ['financeiro', 'wa_atendimento', 'agente_ia'],
+};
+// Todos os módulos controlados por plano (para remoção no downgrade/cancelamento)
+const MODULOS_PAGOS = ['financeiro', 'wa_atendimento', 'agente_ia'];
+
+function calcularModulos(plano, modulosAtuais) {
+  const base = Array.isArray(modulosAtuais) ? modulosAtuais : [];
+  // Remove módulos pagos e re-adiciona apenas os do novo plano
+  const semPagos = base.filter(m => !MODULOS_PAGOS.includes(m));
+  const extras = MODULOS_POR_PLANO[plano] || [];
+  return [...new Set([...MODULOS_BASE, ...semPagos, ...extras])];
+}
+
+function modulosSemPagos(modulosAtuais) {
+  const base = Array.isArray(modulosAtuais) ? modulosAtuais : [];
+  return base.filter(m => !MODULOS_PAGOS.includes(m));
+}
 const {
   criarAssinatura,
   cancelarAssinatura,
   buscarAssinatura,
   verificarWebhookSignature,
   getPlanNameFromId,
+  verificarPlanos,
 } = require('../services/mercadoPagoService');
 const audit = require('../lib/audit');
 const { enviarEmailOnboardingPago, enviarEmailAdminNovoPagamento } = require('../lib/mailer');
@@ -16,23 +41,71 @@ const { enviarEmailOnboardingPago, enviarEmailAdminNovoPagamento } = require('..
 // POST /api/payments/assinar — cria assinatura MP e retorna init_point
 router.post('/assinar', authMiddleware, tenantMiddleware, async (req, res) => {
   try {
-    const { plano } = req.body;
+    const { plano, ciclo = 'mensal' } = req.body;
     const planosValidos = ['solo', 'pro', 'business'];
-    if (!planosValidos.includes(plano)) {
-      return res.status(400).json({ error: 'Plano inválido' });
-    }
+    const ciclosValidos = ['mensal', 'anual'];
+    if (!planosValidos.includes(plano)) return res.status(400).json({ error: 'Plano inválido' });
+    if (!ciclosValidos.includes(ciclo))  return res.status(400).json({ error: 'Ciclo inválido' });
 
     const tenant = req.tenant;
-    const { id: subscriptionId, init_point } = await criarAssinatura(tenant, plano);
+
+    // Cancela assinatura existente antes de criar nova (evita erro card_token_id do MP)
+    if (tenant.mpSubscriptionId) {
+      try { await cancelarAssinatura(tenant.mpSubscriptionId); } catch (e) {
+        console.warn('[payments/assinar] falha ao cancelar assinatura anterior:', e.message);
+      }
+    }
+
+    // JWT não contém email — busca do banco para garantir payer_email ao MP
+    const userDb = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { email: true },
+    });
+    const payerEmail = userDb?.email || tenant.email || null;
+    if (!payerEmail) return res.status(400).json({ error: 'Email do usuário não encontrado. Atualize seu cadastro antes de assinar.' });
+
+    const { id: subscriptionId, init_point } = await criarAssinatura(tenant, plano, payerEmail, ciclo);
+
+    const planEnvKey = ciclo === 'anual'
+      ? `MP_PLAN_${plano.toUpperCase()}_ANUAL_ID`
+      : `MP_PLAN_${plano.toUpperCase()}_ID`;
 
     await prisma.tenant.update({
       where: { id: tenant.id },
-      data: { mpSubscriptionId: subscriptionId, mpPlanId: process.env[`MP_PLAN_${plano.toUpperCase()}_ID`] },
+      data: {
+        mpSubscriptionId: subscriptionId,
+        mpPlanId: process.env[planEnvKey],
+        cicloBilhagem: ciclo,
+      },
     });
 
     res.json({ init_point, subscriptionId });
   } catch (err) {
-    console.error('[payments/assinar]', err.message);
+    // Log completo para diagnóstico (o mercadoPagoService já loga o detalhe completo)
+    console.error('[payments/assinar] status=%s msg=%s', err.status, err.message);
+    const msg = err.message || '';
+    if (msg.includes('MP_ACCESS_TOKEN') || msg.includes('access_token'))
+      return res.status(500).json({ error: 'Token do Mercado Pago não configurado.' });
+    if (msg.includes('Plano MP não configurado'))
+      return res.status(400).json({ error: 'Plano não configurado no Mercado Pago. Contate o suporte.' });
+    // Repassa a mensagem real do MP para facilitar diagnóstico em produção
+    const mpDetail = err.cause ? JSON.stringify(err.cause) : (err.body ? JSON.stringify(err.body) : msg);
+    res.status(err.status || 500).json({ error: `Erro MP: ${mpDetail}` });
+  }
+});
+
+// GET /api/payments/diagnostico — verifica se os planos MP existem (somente super_admin)
+const { requireRole } = require('../middlewares/auth');
+router.get('/diagnostico', authMiddleware, requireRole('super_admin'), async (req, res) => {
+  try {
+    const planos = await verificarPlanos();
+    const token = process.env.MP_ACCESS_TOKEN;
+    res.json({
+      token_configurado: !!token,
+      token_preview: token ? `${token.slice(0, 8)}...${token.slice(-4)}` : null,
+      planos,
+    });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -68,6 +141,7 @@ router.get('/status', authMiddleware, tenantMiddleware, async (req, res) => {
       planoStatus: tenant.planoStatus,
       planoVencimento: tenant.planoVencimento,
       mpSubscriptionId: tenant.mpSubscriptionId || null,
+      cicloBilhagem: tenant.cicloBilhagem || 'mensal',
     };
 
     if (tenant.mpSubscriptionId) {
@@ -87,7 +161,7 @@ router.get('/status', authMiddleware, tenantMiddleware, async (req, res) => {
   }
 });
 
-const PRECO_PLANO = { solo: 49, pro: 89, business: 149 };
+const PRECO_PLANO = { solo: 39, pro: 59, business: 99 };
 const ORDEM_PLANO = { solo: 0, pro: 1, business: 2 };
 
 // POST /api/payments/mudar-plano — admin inicia upgrade ou agenda downgrade
@@ -217,18 +291,34 @@ router.post('/webhook', async (req, res) => {
           planoStatus = 'inadimplente';
         }
 
-        const planName = getPlanNameFromId(sub.preapproval_plan_id);
+        // Para assinaturas inline (sem preapproval_plan_id), deriva o plano pelo valor ou reason
+        let planName = getPlanNameFromId(sub.preapproval_plan_id);
+        if (!planName) {
+          const valor = sub.auto_recurring?.transaction_amount;
+          const reason = (sub.reason || '').toLowerCase();
+          if (reason.includes('business') || valor === 99 || valor === 950.40) planName = 'business';
+          else if (reason.includes('pro')      || valor === 59 || valor === 566.40) planName = 'pro';
+          else if (reason.includes('solo')     || valor === 39 || valor === 374.40) planName = 'solo';
+        }
 
         const tenantAtual = await prisma.tenant.findUnique({
           where: { id: tenantId },
-          select: { nome: true, slug: true, plano: true, planoStatus: true, planoDowngradePendente: true, mpSubscriptionId: true },
+          select: { nome: true, slug: true, plano: true, planoStatus: true, planoDowngradePendente: true, mpSubscriptionId: true, modulos: true },
         });
+
+        const modulosAtuais = Array.isArray(tenantAtual?.modulos) ? tenantAtual.modulos : MODULOS_BASE;
 
         let updateData = {
           planoStatus,
           planoVencimento,
           mpSubscriptionId: data.id,
           ...(planName ? { plano: planName } : {}),
+          // Atualiza módulos conforme novo plano (mantém nicho-específicos, ajusta os pagos)
+          ...(planName ? { modulos: calcularModulos(planName, modulosAtuais) } : {}),
+          // Cancelamento/inadimplência: remove módulos pagos
+          ...(sub.status === 'cancelled' || sub.status === 'paused'
+            ? { modulos: modulosSemPagos(modulosAtuais) }
+            : {}),
         };
 
         // Aplica downgrade pendente quando o ciclo é renovado com sucesso
@@ -241,7 +331,8 @@ router.post('/webhook', async (req, res) => {
               plano: tenantAtual.planoDowngradePendente,
               mpSubscriptionId: nova.id,
               mpPlanId: process.env[`MP_PLAN_${tenantAtual.planoDowngradePendente.toUpperCase()}_ID`],
-              planoStatus: 'aguardando_pagamento',
+              planoStatus: 'ativo',
+              modulos: calcularModulos(tenantAtual.planoDowngradePendente, modulosAtuais),
               planoDowngradePendente: null,
               planoDowngradeData: null,
             };
@@ -268,6 +359,7 @@ router.post('/webhook', async (req, res) => {
               nome: adminUser.nome,
               slug: tenantAtual.slug,
               plano: planoFinal,
+              tenantId,
             }).catch(err => console.error('[webhook/onboarding-email]', err.message));
           }
           enviarEmailAdminNovoPagamento({
@@ -275,6 +367,7 @@ router.post('/webhook', async (req, res) => {
             tenantSlug: tenantAtual.slug,
             plano: planoFinal,
             adminEmail: adminUser?.email,
+            tenantId,
           }).catch(err => console.error('[webhook/admin-notif]', err.message));
         }
 

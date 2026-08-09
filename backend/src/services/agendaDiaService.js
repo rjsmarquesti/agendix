@@ -3,7 +3,8 @@ const https = require('https');
 const http = require('http');
 const prisma = require('../lib/prisma');
 const { enviarEmailTenant } = require('../lib/mailer');
-const { enviarMensagemWA } = require('./waWatchdogService');
+const { enfileirar, registrarEnvioDireto } = require('./waQueue');
+const { decrypt } = require('../lib/encrypt');
 
 function hoje() {
   return new Date().toISOString().split('T')[0];
@@ -111,11 +112,17 @@ function gerarHtmlAgenda(tenant, agendamentos, dataFormatada) {
 }
 
 async function enviarPdfViaWhatsApp(tenant, telefone, pdfBuffer, dataFormatada) {
+  const digits = (telefone || '').replace(/\D/g, '');
+  telefone = digits.startsWith('55') ? digits : '55' + digits;
+  // sendMedia não suporta fila de texto — registra nos contadores para respeitar hard limit
+  if (!registrarEnvioDireto(tenant.evolutionInstance)) {
+    throw new Error('Limite diário ou por hora de mensagens WhatsApp atingido');
+  }
   const base = tenant.evolutionBaseUrl || 'https://api.divulgabr.com.br';
   const base64 = pdfBuffer.toString('base64');
   const res = await fetch(`${base}/message/sendMedia/${tenant.evolutionInstance}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: tenant.evolutionApiKey },
+    headers: { 'Content-Type': 'application/json', apikey: decrypt(tenant.evolutionApiKey) || tenant.evolutionApiKey },
     body: JSON.stringify({
       number: telefone,
       mediatype: 'document',
@@ -129,7 +136,7 @@ async function enviarPdfViaWhatsApp(tenant, telefone, pdfBuffer, dataFormatada) 
 }
 
 async function enviarTextoWA(tenant, telefone, mensagem) {
-  await enviarMensagemWA(tenant, telefone, mensagem);
+  await enfileirar(tenant, telefone, mensagem);
 }
 
 async function enviarAgendaDiaTenant(tenant, config) {
@@ -187,7 +194,7 @@ async function executarAgendaDia() {
   const hora = horaAtual();
 
   const configs = await prisma.configuracaoAgenda.findMany({
-    where: { agendaDiaAtivo: true },
+    where: { agendaDiaAtivo: true, _skipTenantCheck: true },
     include: { tenant: true },
   });
 

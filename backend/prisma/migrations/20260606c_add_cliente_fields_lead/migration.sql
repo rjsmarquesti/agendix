@@ -1,0 +1,2 @@
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS servicos_contratados JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS cliente_status TEXT DEFAULT 'ativo';
