@@ -1,0 +1,25 @@
+{
+  "title": "Agendix — Tenant Activity",
+  "uid": "agendix-tenants",
+  "tags": ["agendix", "tenants"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "1m",
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Requests por Tenant (última hora)",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+      "targets": [{ "expr": "count_over_time({app=\"agendix-backend\"} | json | tenantId != \"\" [5m]) by (tenantId)", "legendFormat": "Tenant {{tenantId}}", "datasource": { "type": "loki", "uid": "loki" } }]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Erros 4xx/5xx por Tenant",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [{ "expr": "count_over_time({app=\"agendix-backend\"} | json | status >= 400 [5m]) by (tenantId)", "legendFormat": "Tenant {{tenantId}}", "datasource": { "type": "loki", "uid": "loki" } }]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Agendamentos Criados por Hora",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [{ "expr": "count_over_time({app=\"agendix-backend\"} |= \"/api/agendamentos\" |= \"POST\" |= \"201\" [1h])", "legendFormat": "Novos agendamentos", "datasource": { "type": "loki", "uid": "loki" } }]
+    }
+  ]
+}

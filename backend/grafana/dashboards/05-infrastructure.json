@@ -1,0 +1,30 @@
+{
+  "title": "Agendix — Infrastructure",
+  "uid": "agendix-infra",
+  "tags": ["agendix", "infrastructure"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Latência p50/p95 por Rota (ms)",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+      "targets": [
+        { "expr": "quantile_over_time(0.50, {app=\"agendix-backend\"} | json | unwrap ms [5m])", "legendFormat": "p50", "datasource": { "type": "loki", "uid": "loki" } },
+        { "expr": "quantile_over_time(0.95, {app=\"agendix-backend\"} | json | unwrap ms [5m])", "legendFormat": "p95", "datasource": { "type": "loki", "uid": "loki" } }
+      ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Taxa de Erros por Rota",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [{ "expr": "count_over_time({app=\"agendix-backend\"} | json | status >= 500 [5m]) by (url)", "legendFormat": "{{url}}", "datasource": { "type": "loki", "uid": "loki" } }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Uptime (último restart)",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [{ "expr": "count_over_time({app=\"agendix-backend\"} |= \"Backend rodando na porta\" [7d])", "legendFormat": "Restarts (7d)", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "colorMode": "background" },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 2 }, { "color": "red", "value": 5 }] } } }
+    }
+  ]
+}

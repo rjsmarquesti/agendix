@@ -1,0 +1,28 @@
+{
+  "title": "Agendix — Anomaly Feed",
+  "uid": "agendix-anomaly",
+  "tags": ["agendix", "security", "anomaly"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1, "type": "logs", "title": "TOTP Failures",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [{ "expr": "{app=\"agendix-backend\"} |= \"two_fa_fail\"", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "showTime": true, "wrapLogMessage": true }
+    },
+    {
+      "id": 2, "type": "logs", "title": "Rate Limit Hits",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [{ "expr": "{app=\"agendix-backend\"} | json | status = 429", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "showTime": true, "wrapLogMessage": true }
+    },
+    {
+      "id": 3, "type": "logs", "title": "Isolation Violations",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "targets": [{ "expr": "{app=\"agendix-backend\"} |= \"ISOLATION_WARN\"", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "showTime": true, "wrapLogMessage": true }
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "title": "Agendix — Security Overview",
+  "uid": "agendix-security",
+  "tags": ["agendix", "security"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "IPs Bloqueados (24h)",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "count_over_time({app=\"agendix-backend\"} |= \"ip_blocked\" [24h])", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Honeypot Hits (24h)",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "count_over_time({app=\"agendix-backend\"} |= \"honeypot_hit\" [24h])", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "colorMode": "background" },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } } }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Falhas de Login (1h)",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "count_over_time({app=\"agendix-backend\"} |= \"login_fail\" [1h])", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "colorMode": "background" },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 }] } } }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Webhook Forjado (24h)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "count_over_time({app=\"agendix-backend\"} |= \"webhook_forge_attempt\" [24h])", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "colorMode": "background" },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } } }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Tentativas de Login por Hora",
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 8 },
+      "targets": [
+        { "expr": "count_over_time({app=\"agendix-backend\"} |= \"login_ok\" [1h])", "legendFormat": "Sucesso", "datasource": { "type": "loki", "uid": "loki" } },
+        { "expr": "count_over_time({app=\"agendix-backend\"} |= \"login_fail\" [1h])", "legendFormat": "Falha", "datasource": { "type": "loki", "uid": "loki" } }
+      ]
+    },
+    {
+      "id": 6, "type": "logs", "title": "Eventos de Segurança Recentes",
+      "gridPos": { "x": 0, "y": 12, "w": 24, "h": 10 },
+      "targets": [{ "expr": "{app=\"agendix-backend\"} |= \"security\"", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "showTime": true, "showLabels": false, "wrapLogMessage": true }
+    }
+  ]
+}

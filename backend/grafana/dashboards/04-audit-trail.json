@@ -1,0 +1,28 @@
+{
+  "title": "Agendix — Audit Trail",
+  "uid": "agendix-audit",
+  "tags": ["agendix", "audit"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "1m",
+  "panels": [
+    {
+      "id": 1, "type": "logs", "title": "Ações Destrutivas (DELETE / restore / plan_change)",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 10 },
+      "targets": [{ "expr": "{app=\"agendix-backend\"} |~ \"(tenant_delete|user_delete|backup_restore|plan_downgrade|subscription_cancel)\"", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "showTime": true, "wrapLogMessage": true }
+    },
+    {
+      "id": 2, "type": "logs", "title": "Alterações de Plano",
+      "gridPos": { "x": 0, "y": 10, "w": 12, "h": 8 },
+      "targets": [{ "expr": "{app=\"agendix-backend\"} |~ \"(plan_upgrade|plan_downgrade|tenant_plan_change)\"", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "showTime": true, "wrapLogMessage": true }
+    },
+    {
+      "id": 3, "type": "logs", "title": "Backups e Restores",
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 8 },
+      "targets": [{ "expr": "{app=\"agendix-backend\"} |~ \"(backup_create|backup_restore|backup_delete|backup_download)\"", "datasource": { "type": "loki", "uid": "loki" } }],
+      "options": { "showTime": true, "wrapLogMessage": true }
+    }
+  ]
+}
