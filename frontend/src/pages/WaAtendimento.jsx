@@ -14,7 +14,7 @@ const STATUS_LABEL = {
 export default function WaAtendimento() {
   const { tenant } = useAuth();
   const plano = tenant?.plano;
-  const liberado = plano === 'pro' || plano === 'business';
+  const liberado = ['pro', 'business', 'trial'].includes(plano);
 
   const [tab, setTab] = useState('dashboard');
   const [dashboard, setDashboard] = useState(null);
@@ -31,30 +31,38 @@ export default function WaAtendimento() {
 
   async function carregarDashboard() {
     try {
-      const { data } = await api.get('/wa-atendimento/dashboard');
+      const data = await api.get('/wa-atendimento/dashboard');
       setDashboard(data);
-    } catch { /* silencioso */ }
+    } catch (err) {
+      console.error('[WaAtendimento] dashboard:', err.message);
+    }
   }
 
   async function carregarFila() {
     try {
-      const { data } = await api.get('/wa-atendimento/fila');
-      setFila(data.fila || []);
-    } catch { /* silencioso */ }
+      const data = await api.get('/wa-atendimento/fila');
+      setFila(data?.fila || []);
+    } catch (err) {
+      console.error('[WaAtendimento] fila:', err.message);
+    }
   }
 
   async function carregarHistorico() {
     try {
-      const { data } = await api.get('/wa-atendimento/fila/historico?limit=30');
-      setHistorico(data.fila || []);
-    } catch { /* silencioso */ }
+      const data = await api.get('/wa-atendimento/fila/historico?limit=30');
+      setHistorico(data?.fila || []);
+    } catch (err) {
+      console.error('[WaAtendimento] historico:', err.message);
+    }
   }
 
   async function carregarAtendentes() {
     try {
-      const { data } = await api.get('/wa-atendimento/atendentes');
-      setAtendentes(data.atendentes || []);
-    } catch { /* silencioso */ }
+      const data = await api.get('/wa-atendimento/atendentes');
+      setAtendentes(data?.atendentes || []);
+    } catch (err) {
+      toast.error(err.message || 'Erro ao carregar atendentes');
+    }
   }
 
   useEffect(() => {
@@ -110,7 +118,7 @@ export default function WaAtendimento() {
 
   async function verLogs(sessao) {
     try {
-      const { data } = await api.get(`/wa-atendimento/fila/${sessao.id}/logs`);
+      const data = await api.get(`/wa-atendimento/fila/${sessao.id}/logs`);
       setLogsModal(data);
     } catch { toast.error('Erro ao carregar logs'); }
   }

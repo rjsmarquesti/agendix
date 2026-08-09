@@ -12,9 +12,11 @@ import Financeiro   from './pages/Financeiro';
 import Fichas       from './pages/Fichas';
 import Prontuarios  from './pages/Prontuarios';
 import Anamnese     from './pages/Anamnese';
-import Processos    from './pages/Processos';
-import Orcamentos   from './pages/Orcamentos';
-import Documentos   from './pages/Documentos';
+import Processos     from './pages/Processos';
+import Orcamentos    from './pages/Orcamentos';
+import OrdemServico  from './pages/OrdemServico';
+import Documentos    from './pages/Documentos';
+import Clientes      from './pages/Clientes';
 import AgendaHoje              from './pages/AgendaHoje';
 import CalendarioAgendamentos from './pages/CalendarioAgendamentos';
 import ForgotPassword from './pages/ForgotPassword';
@@ -36,9 +38,17 @@ import AdminFluxoCaixa             from './pages/admin/AdminFluxoCaixa';
 import AdminBackups                from './pages/admin/AdminBackups';
 import AdminConsumo                from './pages/admin/AdminConsumo';
 import AdminLogs                   from './pages/admin/AdminLogs';
+import AdminMensagens              from './pages/admin/AdminMensagens';
 import AdminUsuarios               from './pages/admin/AdminUsuarios';
 import AdminForgotPassword         from './pages/admin/AdminForgotPassword';
+import AdminWaAntiban              from './pages/admin/AdminWaAntiban';
 import WaAtendimento               from './pages/WaAtendimento';
+import WaFila                      from './pages/WaFila';
+import Prospeccao                  from './pages/Prospeccao';
+import Mensagens                  from './pages/Mensagens';
+import AgenteIA                   from './pages/AgenteIA';
+import CancelamentoPublico          from './pages/CancelamentoPublico';
+import Manual                      from './pages/Manual';
 const PLANOS_COM_FINANCEIRO = ['pro', 'business'];
 
 function PrivateRoute({ children, roles, planos }) {
@@ -74,6 +84,7 @@ export default function App() {
         <Route path="/trial-expirado"      element={<TrialExpirado />} />
         <Route path="/pagamento/retorno"   element={<PagamentoRetorno />} />
         <Route path="/agendar/:slug"       element={<AgendamentoPublico />} />
+        <Route path="/cancelar/:token"     element={<CancelamentoPublico />} />
         <Route path="/termos"              element={<Termos />} />
         <Route path="/privacidade"         element={<Privacidade />} />
 
@@ -90,10 +101,17 @@ export default function App() {
         <Route path="/fichas"       element={<PrivateRoute><Fichas /></PrivateRoute>} />
         <Route path="/prontuarios"  element={<PrivateRoute><Prontuarios /></PrivateRoute>} />
         <Route path="/anamnese"     element={<PrivateRoute><Anamnese /></PrivateRoute>} />
-        <Route path="/processos"    element={<PrivateRoute><Processos /></PrivateRoute>} />
-        <Route path="/orcamentos"   element={<PrivateRoute><Orcamentos /></PrivateRoute>} />
-        <Route path="/documentos"      element={<PrivateRoute><Documentos /></PrivateRoute>} />
+        <Route path="/processos"      element={<PrivateRoute><Processos /></PrivateRoute>} />
+        <Route path="/orcamentos"     element={<PrivateRoute><Orcamentos /></PrivateRoute>} />
+        <Route path="/ordem-servico"  element={<PrivateRoute><OrdemServico /></PrivateRoute>} />
+        <Route path="/documentos"     element={<PrivateRoute><Documentos /></PrivateRoute>} />
+        <Route path="/clientes"       element={<PrivateRoute><Clientes /></PrivateRoute>} />
         <Route path="/wa-atendimento"  element={<PrivateRoute><WaAtendimento /></PrivateRoute>} />
+        <Route path="/agente-ia"       element={<PrivateRoute><AgenteIA /></PrivateRoute>} />
+        <Route path="/prospeccao"      element={<PrivateRoute><Prospeccao /></PrivateRoute>} />
+        <Route path="/mensagens"       element={<PrivateRoute><Mensagens /></PrivateRoute>} />
+        <Route path="/wa-fila"         element={<PrivateRoute roles={['admin','super_admin']}><WaFila /></PrivateRoute>} />
+        <Route path="/manual"          element={<PrivateRoute><Manual /></PrivateRoute>} />
 
         {/* Rotas super admin */}
         <Route path="/admin"                        element={<AdminRoute><AdminDashboard /></AdminRoute>} />
@@ -105,7 +123,9 @@ export default function App() {
         <Route path="/admin/backups" element={<AdminRoute><AdminBackups /></AdminRoute>} />
         <Route path="/admin/consumo" element={<AdminRoute><AdminConsumo /></AdminRoute>} />
         <Route path="/admin/logs"      element={<AdminRoute><AdminLogs /></AdminRoute>} />
-        <Route path="/admin/usuarios"  element={<AdminRoute><AdminUsuarios /></AdminRoute>} />
+        <Route path="/admin/mensagens"   element={<AdminRoute><AdminMensagens /></AdminRoute>} />
+        <Route path="/admin/usuarios"    element={<AdminRoute><AdminUsuarios /></AdminRoute>} />
+        <Route path="/admin/wa-antiban"  element={<AdminRoute><AdminWaAntiban /></AdminRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

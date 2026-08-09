@@ -11,7 +11,7 @@ const STATUS_OPTIONS = ['marcado', 'confirmado', 'cancelado', 'realizado'];
 const CANAL_OPTIONS  = ['manual', 'web', 'whatsapp'];
 const hoje = new Date().toISOString().split('T')[0];
 const EMPTY_FORM      = { lead_id: '', data: hoje, hora: '', tipo: '', status: 'marcado', observacoes: '' };
-const EMPTY_CRIAR     = { nome: '', telefone: '', email: '', data: hoje, hora: '', tipo: '', status: 'marcado', observacoes: '' };
+const EMPTY_CRIAR     = { nome: '', telefone: '', email: '', data: hoje, hora: '', tipo: '', status: 'marcado', observacoes: '', recorrencia: null };
 
 // Badge de canal de origem
 const CANAL_STYLE = {
@@ -191,10 +191,57 @@ function AgendFormCriar({ form, setForm, leads, onSubmit, loading }) {
           onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
           className={cls + ' resize-none'} />
       </div>
+      {/* Recorrência */}
+      <div className="border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setForm(f => ({ ...f, recorrencia: f.recorrencia ? null : { tipo: 'semanal', ocorrencias: 4 } }))}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            🔁 <span className="font-medium">Repetir agendamento</span>
+          </span>
+          <span className="text-gray-400">{form.recorrencia ? '▲' : '▼'}</span>
+        </button>
+        {form.recorrencia && (
+          <div className="px-4 pb-4 pt-2 bg-gray-50 dark:bg-gray-700/30 space-y-3 border-t border-gray-200 dark:border-gray-600">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Frequência</label>
+                <select
+                  value={form.recorrencia.tipo}
+                  onChange={e => setForm(f => ({ ...f, recorrencia: { ...f.recorrencia, tipo: e.target.value } }))}
+                  className={cls}
+                >
+                  <option value="semanal">Semanal</option>
+                  <option value="mensal">Mensal</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Ocorrências <span className="text-gray-400 font-normal">(máx. {form.recorrencia.tipo === 'semanal' ? 52 : 12})</span>
+                </label>
+                <input
+                  type="number"
+                  min={2}
+                  max={form.recorrencia.tipo === 'semanal' ? 52 : 12}
+                  value={form.recorrencia.ocorrencias}
+                  onChange={e => setForm(f => ({ ...f, recorrencia: { ...f.recorrencia, ocorrencias: parseInt(e.target.value) || 2 } }))}
+                  className={cls}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Serão criados <strong>{form.recorrencia.ocorrencias}</strong> agendamentos {form.recorrencia.tipo === 'semanal' ? 'semanais' : 'mensais'} a partir de <strong>{form.data || '—'}</strong>.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="flex justify-end pt-2">
         <button type="submit" disabled={loading}
           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl transition text-sm">
-          {loading ? 'Salvando...' : 'Salvar Agendamento'}
+          {loading ? 'Salvando...' : form.recorrencia ? `Criar ${form.recorrencia.ocorrencias}x agendamentos` : 'Salvar Agendamento'}
         </button>
       </div>
     </form>
@@ -363,8 +410,18 @@ export default function Agendamentos() {
         await api.put(`/agendamentos/${editId}`, form);
         toast.success('Agendamento atualizado!');
       } else {
-        await api.post('/agendamentos', form);
-        toast.success('Agendamento criado!');
+        const payload = { ...form };
+        if (form.recorrencia?.ocorrencias > 1) {
+          payload.recorrencia = form.recorrencia;
+        } else {
+          delete payload.recorrencia;
+        }
+        const resp = await api.post('/agendamentos', payload);
+        if (resp.agendamentos) {
+          toast.success(`${resp.criados} agendamentos criados! 🔁`);
+        } else {
+          toast.success('Agendamento criado!');
+        }
       }
       setModalOpen(false);
       loadItems();
@@ -372,7 +429,20 @@ export default function Agendamentos() {
     finally { setLoading(false); }
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(id, recorrenciaId) {
+    if (recorrenciaId) {
+      const opcao = window.confirm(
+        'Este agendamento faz parte de uma série.\n\nOK = Cancelar este e os seguintes\nCancelar = Remover somente este'
+      );
+      if (opcao) {
+        try {
+          const resp = await api.delete(`/agendamentos/${id}/serie`);
+          toast.success(resp.message || 'Série cancelada');
+          loadItems();
+        } catch (err) { toast.error(err.message); }
+        return;
+      }
+    }
     if (!confirm('Remover este agendamento?')) return;
     try {
       await api.delete(`/agendamentos/${id}`);
@@ -583,7 +653,7 @@ export default function Agendamentos() {
                 <button onClick={() => openEdit(a.id)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                 </button>
-                <button onClick={() => handleDelete(a.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg">
+                <button onClick={() => handleDelete(a.id, a.recorrenciaId)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
               </div>
@@ -592,6 +662,7 @@ export default function Agendamentos() {
               <span className="font-bold text-blue-600 text-lg">{a.hora}</span>
               <span className="text-gray-500">{formatDate(a.data)}</span>
               {a.tipo && <span className="text-gray-500">· {a.tipo}</span>}
+              {a.recorrenciaId && <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded-full">🔁 {a.recorrenciaTipo}</span>}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLOR_MOBILE[a.status] || ''}`}>{a.status}</span>
@@ -644,7 +715,12 @@ export default function Agendamentos() {
                     <span className="font-semibold text-blue-600">{a.hora}</span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{a.tipo || '-'}</td>
-                  <td className="px-6 py-4"><BadgeAgend status={a.status} /></td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <BadgeAgend status={a.status} />
+                      {a.recorrenciaId && <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded-full">🔁</span>}
+                    </div>
+                  </td>
                   <td className="px-6 py-4"><BadgeCanal canal={a.canalOrigem || 'manual'} /></td>
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">{a.observacoes || '-'}</td>
                   <td className="px-6 py-4 no-print">
@@ -656,7 +732,7 @@ export default function Agendamentos() {
                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button onClick={() => handleDelete(a.id)}
+                      <button onClick={() => handleDelete(a.id, a.recorrenciaId)}
                         className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

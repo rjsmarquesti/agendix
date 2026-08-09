@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import AuthLeft from '../components/AuthLeft';
@@ -6,7 +6,7 @@ import { useBrand } from '../hooks/useBrand';
 
 const LEFT_FEATURES = [
   {
-    text: 'Conta ativa com 30 dias grÃ¡tis para testar tudo',
+    text: 'Conta ativa com 14 dias grátis para testar tudo',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
         <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
@@ -14,7 +14,7 @@ const LEFT_FEATURES = [
     ),
   },
   {
-    text: 'Agendamentos, CRM e financeiro disponÃ­veis imediatamente',
+    text: 'Agendamentos, CRM e financeiro disponíveis imediatamente',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -22,7 +22,7 @@ const LEFT_FEATURES = [
     ),
   },
   {
-    text: 'Suporte por WhatsApp durante todo o perÃ­odo de teste',
+    text: 'Suporte por WhatsApp durante todo o período de teste',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
@@ -62,7 +62,7 @@ export default function Ativar() {
     const token = searchParams.get('token');
     if (!token) {
       setStatus('erro');
-      setMensagem('Link invÃ¡lido. Nenhum token encontrado.');
+      setMensagem('Link inválido. Nenhum token encontrado.');
       return;
     }
     fetch(`/api/auth/ativar?token=${token}`)
@@ -78,7 +78,7 @@ export default function Ativar() {
       })
       .catch(() => {
         setStatus('erro');
-        setMensagem('Erro de conexÃ£o. Tente novamente.');
+        setMensagem('Erro de conexão. Tente novamente.');
       });
   }, []);
 
@@ -87,8 +87,8 @@ export default function Ativar() {
       <ThemeToggle />
 
       <AuthLeft
-        title={'Quase lÃ¡!\nAtive sua\nconta.'}
-        subtitle="Um clique e vocÃª jÃ¡ pode comeÃ§ar a usar o Agendix com 30 dias grÃ¡tis."
+        title={'Quase lá!\nAtive sua\nconta.'}
+        subtitle="Um clique e você já pode começar a usar o Agendix com 14 dias grátis."
         features={LEFT_FEATURES}
         brand={brand}
       />
@@ -126,18 +126,18 @@ export default function Ativar() {
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Conta ativada!</h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{mensagem}</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    Agora vocÃª pode fazer login e comeÃ§ar a usar o Agendix com{' '}
-                    <strong className="text-gray-700 dark:text-gray-200">30 dias grÃ¡tis</strong>.
+                    Agora você pode fazer login e começar a usar o Agendix com{' '}
+                    <strong className="text-gray-700 dark:text-gray-200">14 dias grátis</strong>.
                   </p>
                 </div>
 
-                {/* PrÃ³ximos passos */}
+                {/* Próximos passos */}
                 <div className="rounded-2xl border border-gray-200 dark:border-gray-700 p-5 text-left space-y-3"
                   style={{ background: 'var(--g-dim)' }}>
                   <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">O que fazer agora</p>
                   {[
-                    'FaÃ§a login com seu email e senha',
-                    'Configure sua agenda e serviÃ§os',
+                    'Faça login com seu email e senha',
+                    'Configure sua agenda e serviços',
                     'Compartilhe seu link de agendamento',
                   ].map((step, i) => (
                     <div key={i} className="flex items-start gap-3">
@@ -170,7 +170,7 @@ export default function Ativar() {
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Link invÃ¡lido</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Link inválido</h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{mensagem}</p>
                 </div>
                 <div className="flex flex-col gap-3">
@@ -182,7 +182,7 @@ export default function Ativar() {
                   <Link to="/login"
                     className="text-sm font-medium hover:underline"
                     style={{ color: 'var(--g)' }}>
-                    JÃ¡ tenho conta ativada â†’ Entrar
+                    Já tenho conta ativada → Entrar
                   </Link>
                 </div>
               </>
@@ -193,4 +193,3 @@ export default function Ativar() {
     </div>
   );
 }
-

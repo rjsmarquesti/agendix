@@ -12,6 +12,8 @@ const nav = [
   { to: '/admin/financeiro/fluxo-caixa', label: 'Fluxo de Caixa', indent: true, icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /> },
   { to: '/admin/backups',                 label: 'Backups',       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /> },
   { to: '/admin/consumo',                 label: 'Consumo',       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
+  { to: '/admin/wa-antiban',               label: 'WA Anti-ban',   icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /> },
+  { to: '/admin/mensagens',               label: 'Mensagens',     icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /> },
   { to: '/admin/logs',                    label: 'Logs',          icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /> },
   { to: '/admin/perfil',                  label: 'Meu Perfil',    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /> },
 ];
@@ -23,7 +25,7 @@ export default function AdminLayout({ children, title, subtitle }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
+    <div className="admin-panel flex min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
 
       {/* Overlay mobile */}
       {sidebarOpen && (
@@ -49,11 +51,9 @@ export default function AdminLayout({ children, title, subtitle }) {
         {/* Brand */}
         <div className="p-5 border-b" style={{ borderColor: 'var(--bd)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: 'var(--g)' }}>
-              <svg className="w-5 h-5" fill="none" stroke="#08080C" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
+              <img src="/logo.png" alt="Agendix" className="w-9 h-9 object-cover" />
             </div>
             <div>
               <span className="font-bold text-base leading-tight" style={{ color: 'var(--tx)' }}>Agendix</span>

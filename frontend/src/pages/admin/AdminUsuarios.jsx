@@ -16,6 +16,8 @@ export default function AdminUsuarios() {
 
   const [modalReset, setModalReset] = useState(null);
   const [modalMsg, setModalMsg] = useState(null);
+  const [modalNovo, setModalNovo] = useState(false);
+  const [novoForm, setNovoForm] = useState({ nome: '', email: '', senha: '', whatsapp: '' });
   const [viaReset, setViaReset] = useState('email');
   const [msgCanal, setMsgCanal] = useState('email');
   const [msgAssunto, setMsgAssunto] = useState('');
@@ -62,6 +64,30 @@ export default function AdminUsuarios() {
     } catch (e) { setAcao({ loading: false, erro: e.message, ok: false }); }
   }
 
+  async function criarSuperAdmin() {
+    const { nome, email, senha } = novoForm;
+    if (!nome || !email || !senha) return setAcao({ loading: false, erro: 'Nome, email e senha são obrigatórios', ok: false });
+    setAcao({ loading: true, erro: '', ok: false });
+    try {
+      const res = await fetch('/api/admin/usuarios', {
+        method: 'POST', headers,
+        body: JSON.stringify(novoForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAcao({ loading: false, erro: '', ok: true });
+      setModalNovo(false);
+      setNovoForm({ nome: '', email: '', senha: '', whatsapp: '' });
+      carregar();
+    } catch (e) { setAcao({ loading: false, erro: e.message, ok: false }); }
+  }
+
+  async function deletarUsuario(u) {
+    if (!window.confirm(`Deletar o usuário "${u.nome}"? Esta ação não pode ser desfeita.`)) return;
+    await fetch(`/api/admin/usuarios/${u.id}`, { method: 'DELETE', headers });
+    setUsuarios(prev => prev.filter(x => x.id !== u.id));
+  }
+
   async function enviarMensagem() {
     if (!msgTexto.trim()) return;
     setAcao({ loading: true, erro: '', ok: false });
@@ -78,6 +104,13 @@ export default function AdminUsuarios() {
 
   return (
     <AdminLayout title="Usuários" subtitle="Todos os usuários de todos os tenants">
+      <div className="flex justify-end mb-4">
+        <button onClick={() => { setModalNovo(true); setAcao({ loading: false, erro: '', ok: false }); }}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-medium transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
+          Novo Super Admin
+        </button>
+      </div>
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 mb-6">
         <input
@@ -165,6 +198,12 @@ export default function AdminUsuarios() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                           </svg>
                         </button>
+                        <button onClick={() => deletarUsuario(u)} title="Deletar usuário"
+                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/30 rounded-lg transition-colors">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -239,6 +278,37 @@ export default function AdminUsuarios() {
               <button onClick={enviarMensagem} disabled={acao.loading || acao.ok || !msgTexto.trim()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm rounded-xl transition-colors font-medium">
                 {acao.loading ? 'Enviando...' : 'Enviar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Novo Super Admin */}
+      {modalNovo && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-white font-bold text-lg mb-4">Novo Super Admin</h3>
+            <div className="space-y-3 mb-4">
+              {[
+                { field: 'nome', label: 'Nome *', type: 'text', placeholder: 'Nome completo' },
+                { field: 'email', label: 'Email *', type: 'email', placeholder: 'email@exemplo.com' },
+                { field: 'senha', label: 'Senha *', type: 'password', placeholder: 'Mínimo 6 caracteres' },
+                { field: 'whatsapp', label: 'WhatsApp', type: 'text', placeholder: '5511999999999' },
+              ].map(({ field, label, type, placeholder }) => (
+                <div key={field}>
+                  <label className="block text-slate-400 text-xs mb-1">{label}</label>
+                  <input type={type} placeholder={placeholder} value={novoForm[field]}
+                    onChange={e => setNovoForm(f => ({ ...f, [field]: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                </div>
+              ))}
+            </div>
+            {acao.erro && <div className="bg-red-900/30 border border-red-700 text-red-400 px-3 py-2 rounded-xl text-sm mb-3">{acao.erro}</div>}
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setModalNovo(false)} className="px-4 py-2 text-slate-400 hover:text-white text-sm transition-colors">Cancelar</button>
+              <button onClick={criarSuperAdmin} disabled={acao.loading}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-sm rounded-xl transition-colors font-medium">
+                {acao.loading ? 'Criando...' : 'Criar'}
               </button>
             </div>
           </div>

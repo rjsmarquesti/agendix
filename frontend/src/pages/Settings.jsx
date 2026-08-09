@@ -23,6 +23,7 @@ const DIAS_SEMANA = [
 ];
 
 const DURACAO_OPTIONS = [
+  { value: 15,  label: '15 minutos' },
   { value: 30,  label: '30 minutos' },
   { value: 45,  label: '45 minutos' },
   { value: 60,  label: '1 hora' },
@@ -34,34 +35,161 @@ const TABS_BASE = [
   { id: 'empresa',       label: 'Empresa' },
   { id: 'agenda',        label: 'Agenda' },
   { id: 'email',         label: 'Email' },
+  { id: 'whatsapp',      label: 'WhatsApp' },
   { id: 'integracao',    label: 'Integração' },
   { id: 'n8n',           label: null }, // label dinâmica — calculada no componente
-  { id: 'agente-ia',     label: 'Agente IA' },
   { id: 'notificacoes',  label: 'Notificações' },
+  { id: 'seguranca',     label: 'Segurança' },
   { id: 'plano',         label: 'Plano' },
   { id: 'dados',         label: 'Dados' },
 ];
 
+const WA_PROVIDERS = [
+  { value: 'evolution', label: 'Evolution API',        icon: '⚡', desc: 'Self-hosted, número WhatsApp Web. Recomendado para quem já usa Evolution.' },
+  { value: 'meta',      label: 'Meta (Cloud API)',     icon: '🏢', desc: 'API oficial Meta/Facebook. Número verificado pelo WhatsApp Business.' },
+  { value: 'twilio',    label: 'Twilio',               icon: '📡', desc: 'Plataforma enterprise de comunicações. Suporte global e SLA.' },
+  { value: 'zapi',      label: 'Z-API',                icon: '🔗', desc: 'SaaS brasileiro. Fácil configuração, similar ao Evolution.' },
+];
+
 const PLANOS_MP = [
   {
-    id: 'solo', label: 'Solo', preco: 'R$ 49/mês',
-    descricao: '1 usuário · 100 agendamentos/mês · Confirmação WA',
-    features: ['1 usuário', '100 agendamentos/mês', 'Confirmação WA automática', 'Agendamento público online'],
+    id: 'solo', label: 'Solo', preco: 'R$ 39/mês',
+    descricao: '1 usuário · Agendamentos ilimitados · Confirmação WA',
+    features: ['1 usuário', 'Agendamentos ilimitados', 'Confirmação WA automática', 'Agendamento público online'],
   },
   {
-    id: 'pro', label: 'Pro', preco: 'R$ 89/mês',
-    descricao: '5 usuários · Ilimitado · Bot WA completo · Financeiro básico',
-    features: ['5 usuários', 'Agendamentos ilimitados', 'Bot WA completo', 'Módulo financeiro básico', 'Atendimento WA (fila)'],
+    id: 'pro', label: 'Pro', preco: 'R$ 59/mês',
+    descricao: '5 usuários · Ilimitado · Bot WA completo · Financeiro + Agente IA',
+    features: ['5 usuários', 'Agendamentos ilimitados', 'Bot WA completo', 'Financeiro completo', 'Atendimento WA (fila)', 'Agente IA'],
   },
   {
-    id: 'business', label: 'Business', preco: 'R$ 149/mês',
+    id: 'business', label: 'Business', preco: 'R$ 99/mês',
     descricao: 'Usuários ilimitados · Bot WA + Agente IA · Financeiro completo',
     features: ['Usuários ilimitados', 'Agendamentos ilimitados', 'Bot WA + Agente IA', 'Financeiro completo', 'Atendimento WA (fila humana)'],
   },
 ];
 
+function AbaSeguranca() {
+  const { user } = useAuth();
+  const [status, setStatus] = useState(null); // { totpAtivo }
+  const [qrcode, setQrcode] = useState(null);
+  const [secret, setSecret] = useState(null);
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState('idle'); // idle | setup | confirm | disable
+
+  useEffect(() => {
+    api.get('/auth/me').then(d => setStatus({ totpAtivo: d?.user?.totpAtivo ?? false })).catch(() => {});
+  }, []);
+
+  async function iniciarSetup() {
+    setLoading(true);
+    try {
+      const d = await api.get('/auth/2fa/setup');
+      setQrcode(d.qrcode);
+      setSecret(d.secret);
+      setStep('setup');
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  }
+
+  async function confirmarCodigo() {
+    if (!code || code.length < 6) return toast.error('Digite o código de 6 dígitos');
+    setLoading(true);
+    try {
+      await api.post('/auth/2fa/verify', { code });
+      toast.success('2FA ativado com sucesso!');
+      setStatus({ totpAtivo: true });
+      setStep('idle');
+      setQrcode(null); setSecret(null); setCode('');
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  }
+
+  async function desativar2FA() {
+    if (!code || code.length < 6) return toast.error('Digite o código de 6 dígitos');
+    setLoading(true);
+    try {
+      await api.post('/auth/2fa/disable', { code });
+      toast.success('2FA desativado');
+      setStatus({ totpAtivo: false });
+      setStep('idle'); setCode('');
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+        <div>
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">Autenticação em dois fatores (2FA)</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Proteja sua conta com um código TOTP gerado por aplicativo (Google Authenticator, Authy, etc).
+          </p>
+        </div>
+
+        {status === null && <p className="text-sm text-gray-400">Carregando...</p>}
+
+        {status !== null && step === 'idle' && (
+          <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40">
+            <div className="flex items-center gap-3">
+              <span aria-hidden="true" className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${status.totpAtivo ? 'bg-green-500' : 'bg-gray-400'}`} />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                {status.totpAtivo ? '2FA ativo' : '2FA inativo'}{' '}
+                <span className={`text-xs font-semibold ${status.totpAtivo ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                  ({status.totpAtivo ? 'Ativo' : 'Inativo'})
+                </span>
+              </span>
+            </div>
+            {status.totpAtivo
+              ? <button onClick={() => setStep('disable')} className="text-sm text-red-600 hover:underline">Desativar</button>
+              : <button onClick={iniciarSetup} disabled={loading} className="text-sm text-blue-600 hover:underline">Configurar agora</button>
+            }
+          </div>
+        )}
+
+        {step === 'setup' && qrcode && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Escaneie o QR Code com seu aplicativo autenticador:
+            </p>
+            <img src={qrcode} alt="QR Code 2FA" className="w-48 h-48 rounded-xl border border-gray-200 dark:border-gray-600" />
+            <p className="text-xs text-gray-400">Chave manual: <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">{secret}</code></p>
+            <div className="flex gap-2">
+              <input value={code} onChange={e => setCode(e.target.value)} maxLength={6}
+                placeholder="Código de 6 dígitos" className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+              <button onClick={confirmarCodigo} disabled={loading}
+                className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50">
+                {loading ? '...' : 'Ativar'}
+              </button>
+              <button onClick={() => { setStep('idle'); setQrcode(null); setCode(''); }}
+                className="px-4 py-2 text-sm text-gray-500 hover:underline">Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        {step === 'disable' && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600 dark:text-gray-400">Digite o código do seu autenticador para desativar:</p>
+            <div className="flex gap-2">
+              <input value={code} onChange={e => setCode(e.target.value)} maxLength={6}
+                placeholder="Código de 6 dígitos" className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+              <button onClick={desativar2FA} disabled={loading}
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50">
+                {loading ? '...' : 'Desativar'}
+              </button>
+              <button onClick={() => { setStep('idle'); setCode(''); }}
+                className="px-4 py-2 text-sm text-gray-500 hover:underline">Cancelar</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AbaNotificacoes() {
-  const { supported, permission, subscribed, loading, subscribe, unsubscribe } = usePushNotifications();
+  const { supported, permission, subscribed, loading, subscribe, unsubscribe, erro: pushErro } = usePushNotifications();
 
   return (
     <div className="space-y-6">
@@ -125,6 +253,15 @@ function AbaNotificacoes() {
           </div>
         )}
 
+        {pushErro && (
+          <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+            <svg className="w-4 h-4 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <p className="text-sm text-red-700 dark:text-red-400">{pushErro}</p>
+          </div>
+        )}
+
         <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
           <p className="text-xs text-gray-400 dark:text-gray-500">
             As notificações são por dispositivo e por usuário. Se você acessar em outro computador ou celular, precisará ativar novamente.
@@ -142,7 +279,7 @@ export default function Settings() {
   const TABS = useMemo(() => TABS_BASE.map(t =>
     t.id === 'n8n' ? { ...t, label: tenant?.n8nAtivo ? 'Bot / n8n' : 'Bot' } : t
   ), [tenant?.n8nAtivo]);
-  const [form, setForm]         = useState({ nome: '', logo: '', corPrimaria: '#2563eb', modulos: [], n8nWebhookUrl: '', n8nApiKey: '', nichoLabel: '', evolutionInstance: '', evolutionApiKey: '', evolutionBaseUrl: '', n8nWorkflowWaId: null, n8nWorkflowNotifId: null, lembretesDiretosAtivo: false, smtpHost: '', smtpPort: '', smtpUser: '', smtpPass: '', smtpFrom: '' });
+  const [form, setForm]         = useState({ nome: '', logo: '', corPrimaria: '#2563eb', modulos: [], n8nWebhookUrl: '', n8nApiKey: '', nichoLabel: '', evolutionInstance: '', evolutionApiKey: '', evolutionBaseUrl: '', n8nWorkflowWaId: null, n8nWorkflowNotifId: null, lembretesDiretosAtivo: false, smtpHost: '', smtpPort: '', smtpUser: '', smtpPass: '', smtpFrom: '', telefone: '', waProvider: 'evolution', waConfig: {} });
   const [agendaForm, setAgendaForm] = useState({
     horarioInicio: '08:00', horarioFim: '18:00', duracaoSlot: 60,
     diasUteis: '1,2,3,4,5', antecedenciaMin: 2, antecedenciaMax: 30,
@@ -155,6 +292,7 @@ export default function Settings() {
   const [loading, setLoading]     = useState(false);
   const [planoStatus, setPlanoStatus] = useState(null);
   const [planoLoading, setPlanoLoading] = useState(false);
+  const [cicloPlano,   setCicloPlano]   = useState('mensal');
   const [agendaLoading, setAL]    = useState(false);
   const [genLoading, setGL]       = useState(false);
   const [showToken, setShowToken]   = useState(false);
@@ -168,6 +306,7 @@ export default function Settings() {
   const [bloqueioLoading, setBloqueioLoading] = useState(false);
   const [nichos, setNichos]           = useState([]);
   const [nichoSel, setNichoSel]       = useState('');
+  const [subnichoSel, setSubnichoSel] = useState('');
   const [nichoLoading, setNichoLoading] = useState(false);
 
   // ── Agente IA ──
@@ -292,9 +431,13 @@ export default function Settings() {
         smtpUser: t.smtpUser || '',
         smtpPass: t.smtpPass || '',
         smtpFrom: t.smtpFrom || '',
+        telefone: t.telefone || '',
+        waProvider: t.waProvider || 'evolution',
+        waConfig: t.waConfig || {},
       });
       if (t.apiToken) setApiToken(t.apiToken);
       setNichoSel(t.nichoLabel || '');
+      setSubnichoSel(t.subnicho || '');
     }).catch(err => toast.error(err.message));
 
     api.get('/settings/agenda').then(d => {
@@ -356,7 +499,7 @@ export default function Settings() {
     if (!nichoSel) { toast.error('Selecione um nicho.'); return; }
     setNichoLoading(true);
     try {
-      const d = await api.put('/settings', { nicho: nichoSel });
+      const d = await api.put('/settings', { nicho: nichoSel, subnicho: subnichoSel || null });
       updateTenant(d.tenant);
       toast.success('Nicho salvo! Módulos atualizados.');
     } catch (err) { toast.error(err.message); }
@@ -473,6 +616,13 @@ export default function Settings() {
                   className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone <span className="text-gray-400 font-normal">(WhatsApp para notificações)</span></label>
+                <input value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))}
+                  placeholder="ex: 61999999999"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Usado para receber avisos automáticos via WhatsApp (ex: lead respondeu na prospecção).</p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Logo <span className="text-gray-400 font-normal">(opcional)</span></label>
                 <div className="flex items-center gap-2">
                   <input type="url" value={form.logo} onChange={e => setForm(f => ({ ...f, logo: e.target.value }))}
@@ -483,12 +633,37 @@ export default function Settings() {
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden"
                       onChange={async e => {
                         const file = e.target.files[0]; if (!file) return;
-                        const fd = new FormData(); fd.append('logo', file);
                         try {
-                          const d = await api.upload('/settings/upload-logo', fd);
-                          setForm(f => ({ ...f, logo: d.url }));
-                          toast.success('Logo enviada!');
-                        } catch (err) { toast.error(err.message); }
+                          // Converte para base64 no browser — sem upload, sem 413
+                          const dataUrl = await new Promise((resolve, reject) => {
+                            if (file.type.includes('svg')) {
+                              const reader = new FileReader();
+                              reader.onload = () => resolve(reader.result);
+                              reader.onerror = reject;
+                              reader.readAsDataURL(file);
+                              return;
+                            }
+                            const img = new Image();
+                            const url = URL.createObjectURL(file);
+                            img.onload = () => {
+                              URL.revokeObjectURL(url);
+                              const MAX = 400;
+                              let w = img.width, h = img.height;
+                              if (w > MAX || h > MAX) {
+                                if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+                                else       { w = Math.round(w * MAX / h); h = MAX; }
+                              }
+                              const canvas = document.createElement('canvas');
+                              canvas.width = w; canvas.height = h;
+                              canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                              resolve(canvas.toDataURL('image/webp', 0.80));
+                            };
+                            img.onerror = reject;
+                            img.src = url;
+                          });
+                          setForm(f => ({ ...f, logo: dataUrl }));
+                          toast.success('Logo carregada! Clique em Salvar para confirmar.');
+                        } catch (err) { toast.error('Erro ao processar imagem: ' + err.message); }
                         e.target.value = '';
                       }} />
                   </label>
@@ -528,7 +703,8 @@ export default function Settings() {
               </div>
               <div className="flex gap-3 items-end flex-wrap">
                 <div className="flex-1 min-w-48">
-                  <select value={nichoSel} onChange={e => setNichoSel(e.target.value)}
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Segmento principal</label>
+                  <select value={nichoSel} onChange={e => { setNichoSel(e.target.value); setSubnichoSel(''); }}
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                     <option value="">Selecione o nicho...</option>
                     {nichos.map(n => (
@@ -536,6 +712,18 @@ export default function Settings() {
                     ))}
                   </select>
                 </div>
+                {nichoSel && nichos.find(n => n.id === nichoSel)?.subnichos?.length > 0 && (
+                  <div className="flex-1 min-w-48">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tipo de negócio</label>
+                    <select value={subnichoSel} onChange={e => setSubnichoSel(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                      <option value="">Selecione o tipo...</option>
+                      {nichos.find(n => n.id === nichoSel).subnichos.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <button type="button" onClick={salvarNicho} disabled={nichoLoading || !nichoSel}
                   className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition whitespace-nowrap">
                   {nichoLoading ? 'Salvando...' : 'Aplicar nicho'}
@@ -916,6 +1104,175 @@ export default function Settings() {
           </form>
         )}
 
+        {/* ── ABA WHATSAPP ── */}
+        {tab === 'whatsapp' && (
+          <div className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+
+              {/* Selector de provider */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Provider de WhatsApp</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Escolha como o sistema enviará e receberá mensagens WhatsApp para este tenant.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {WA_PROVIDERS.map(p => (
+                    <button key={p.value} type="button"
+                      onClick={() => setForm(f => ({ ...f, waProvider: p.value }))}
+                      className={`text-left p-4 rounded-xl border-2 transition ${form.waProvider === p.value
+                        ? 'border-[var(--g)] bg-green-50 dark:bg-green-900/10'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xl">{p.icon}</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{p.label}</span>
+                        {form.waProvider === p.value && <span className="ml-auto text-[var(--g)] text-xs font-semibold">✓ Selecionado</span>}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{p.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Campos Evolution API */}
+              {form.waProvider === 'evolution' && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">⚡ Evolution API — Credenciais</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Configure a instância Evolution que enviará mensagens para este tenant.</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da instância</label>
+                    <input type="text" value={form.evolutionInstance}
+                      onChange={e => setForm(f => ({ ...f, evolutionInstance: e.target.value }))}
+                      placeholder="ex: minha-empresa"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
+                    <input type="password" value={form.evolutionApiKey}
+                      onChange={e => setForm(f => ({ ...f, evolutionApiKey: e.target.value }))}
+                      placeholder="Chave de acesso da instância"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base URL <span className="text-gray-400 font-normal">(opcional)</span></label>
+                    <input type="url" value={form.evolutionBaseUrl}
+                      onChange={e => setForm(f => ({ ...f, evolutionBaseUrl: e.target.value }))}
+                      placeholder="https://api.divulgabr.com.br"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                    <p className="text-xs text-gray-400 mt-1">Deixe em branco para usar o padrão.</p>
+                  </div>
+
+                  <div className="bg-gray-50 dark:bg-gray-900/40 rounded-xl p-4 text-xs text-gray-500 dark:text-gray-400 space-y-1.5">
+                    <p className="font-medium text-gray-700 dark:text-gray-300">URL do Webhook (configurar na Evolution API):</p>
+                    <code className="block bg-white dark:bg-gray-800 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-200 break-all">
+                      {`${window.location.origin.replace(':5173','').replace(':3000','')}/api/webhook/agente/${tenant?.slug || 'seu-slug'}`}
+                    </code>
+                    <p className="text-gray-400">Eventos necessários: <strong>messages.upsert</strong>, <strong>connection.update</strong></p>
+                  </div>
+                </div>
+              )}
+
+              {/* Campos Meta Cloud API */}
+              {form.waProvider === 'meta' && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">🏢 Meta Cloud API — Credenciais</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Acesse <strong>developers.facebook.com</strong> → seu App → WhatsApp → Configuração para obter as credenciais.
+                  </p>
+                  {[
+                    { field: 'phoneNumberId', label: 'Phone Number ID', placeholder: '1234567890123456', type: 'text' },
+                    { field: 'accessToken',   label: 'Access Token (permanente)', placeholder: 'EAAxxxxxxx...', type: 'password' },
+                    { field: 'appSecret',     label: 'App Secret (validação HMAC)', placeholder: 'abc123...', type: 'password' },
+                    { field: 'webhookVerifyToken', label: 'Webhook Verify Token (seu token)', placeholder: 'meu-token-secreto', type: 'text' },
+                  ].map(({ field, label, placeholder, type }) => (
+                    <div key={field}>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+                      <input type={type} value={form.waConfig[field] || ''}
+                        onChange={e => setForm(f => ({ ...f, waConfig: { ...f.waConfig, [field]: e.target.value } }))}
+                        placeholder={placeholder}
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                    </div>
+                  ))}
+                  <div className="bg-gray-50 dark:bg-gray-900/40 rounded-xl p-4 text-xs text-gray-500 dark:text-gray-400 space-y-1.5">
+                    <p className="font-medium text-gray-700 dark:text-gray-300">URL do Webhook (configurar no Meta Developers):</p>
+                    <code className="block bg-white dark:bg-gray-800 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-200 break-all">
+                      {`${window.location.origin.replace(':5173','').replace(':3000','')}/api/webhook/meta/${tenant?.slug || 'seu-slug'}`}
+                    </code>
+                    <p className="text-gray-400">Assinar o campo: <strong>messages</strong></p>
+                  </div>
+                </div>
+              )}
+
+              {/* Campos Twilio */}
+              {form.waProvider === 'twilio' && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">📡 Twilio — Credenciais</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Acesse <strong>console.twilio.com</strong> para obter as credenciais. O número deve ter WhatsApp ativado.
+                  </p>
+                  {[
+                    { field: 'accountSid',  label: 'Account SID',    placeholder: 'ACxxxxxxxxxxxxxxxx', type: 'text' },
+                    { field: 'authToken',   label: 'Auth Token',      placeholder: 'xxxxxxxxxxxxxxxx', type: 'password' },
+                    { field: 'fromNumber',  label: 'Número Twilio WA', placeholder: '+14155238886', type: 'text' },
+                  ].map(({ field, label, placeholder, type }) => (
+                    <div key={field}>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+                      <input type={type} value={form.waConfig[field] || ''}
+                        onChange={e => setForm(f => ({ ...f, waConfig: { ...f.waConfig, [field]: e.target.value } }))}
+                        placeholder={placeholder}
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                    </div>
+                  ))}
+                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-xs text-amber-700 dark:text-amber-400">
+                    <strong>Nota:</strong> Twilio não suporta listas interativas no WhatsApp. O bot de agendamento usará texto numerado automaticamente.
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-900/40 rounded-xl p-4 text-xs text-gray-500 dark:text-gray-400 space-y-1.5">
+                    <p className="font-medium text-gray-700 dark:text-gray-300">URL do Webhook (configurar no Twilio Console):</p>
+                    <code className="block bg-white dark:bg-gray-800 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-200 break-all">
+                      {`${window.location.origin.replace(':5173','').replace(':3000','')}/api/webhook/twilio/${tenant?.slug || 'seu-slug'}`}
+                    </code>
+                    <p className="text-gray-400">Método: <strong>HTTP POST</strong></p>
+                  </div>
+                </div>
+              )}
+
+              {/* Campos Z-API */}
+              {form.waProvider === 'zapi' && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">🔗 Z-API — Credenciais</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Acesse <strong>app.z-api.io</strong> para obter os dados da instância.
+                  </p>
+                  {[
+                    { field: 'instanceId',   label: 'Instance ID',    placeholder: 'XXXXXXXXXX', type: 'text' },
+                    { field: 'token',         label: 'Token',           placeholder: 'xxxxxxxxxxxxxxxx', type: 'password' },
+                    { field: 'clientToken',   label: 'Client Token',    placeholder: 'F...',        type: 'password' },
+                  ].map(({ field, label, placeholder, type }) => (
+                    <div key={field}>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+                      <input type={type} value={form.waConfig[field] || ''}
+                        onChange={e => setForm(f => ({ ...f, waConfig: { ...f.waConfig, [field]: e.target.value } }))}
+                        placeholder={placeholder}
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                    </div>
+                  ))}
+                  <div className="bg-gray-50 dark:bg-gray-900/40 rounded-xl p-4 text-xs text-gray-500 dark:text-gray-400 space-y-1.5">
+                    <p className="font-medium text-gray-700 dark:text-gray-300">URL do Webhook (configurar no Z-API):</p>
+                    <code className="block bg-white dark:bg-gray-800 px-3 py-2 rounded-lg text-gray-800 dark:text-gray-200 break-all">
+                      {`${window.location.origin.replace(':5173','').replace(':3000','')}/api/webhook/zapi/${tenant?.slug || 'seu-slug'}`}
+                    </code>
+                    <p className="text-gray-400">Tipo: <strong>Received</strong> (mensagem recebida)</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button type="submit" disabled={loading}
+                  className="btn-primary text-white font-semibold px-8 py-3 rounded-xl transition text-sm disabled:opacity-60">
+                  {loading ? 'Salvando...' : 'Salvar configuração'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         {/* ── ABA INTEGRAÇÃO ── */}
         {tab === 'integracao' && (
           <div className="space-y-6">
@@ -1022,7 +1379,7 @@ export default function Settings() {
 
               {waQrcode ? (
                 <div className="flex flex-col items-center gap-3 py-4">
-                  <img src={waQrcode} alt="QR Code WhatsApp" className="w-40 h-40 sm:w-52 sm:h-52 rounded-xl border-4 border-green-500" />
+                  <img src={waQrcode} alt="QR Code WhatsApp" className="w-40 h-40 sm:w-52 sm:h-52 rounded-xl border border-gray-200 bg-white p-2" />
                   <p className="text-sm text-gray-500 dark:text-gray-400 text-center">Abra o WhatsApp → Aparelhos conectados → Conectar aparelho</p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 animate-pulse">Aguardando conexão...</p>
                 </div>
@@ -1218,6 +1575,9 @@ export default function Settings() {
         {/* ── ABA NOTIFICAÇÕES ── */}
         {tab === 'notificacoes' && <AbaNotificacoes />}
 
+        {/* ── ABA SEGURANÇA ── */}
+        {tab === 'seguranca' && <AbaSeguranca />}
+
         {/* ── ABA PLANO ── */}
         {tab === 'plano' && (
           <div className="space-y-6">
@@ -1259,31 +1619,69 @@ export default function Settings() {
 
             {/* Escolher plano */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
-              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Escolher / trocar plano</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {PLANOS_MP.map(p => (
-                  <div key={p.id} className={`border rounded-xl p-4 flex flex-col gap-2 ${planoStatus?.plano === p.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600'}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">{p.label}</span>
-                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{p.preco}</span>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{p.descricao}</p>
-                    <button
-                      disabled={planoLoading || planoStatus?.plano === p.id}
-                      onClick={async () => {
-                        setPlanoLoading(true);
-                        try {
-                          const d = await api.post('/payments/assinar', { plano: p.id });
-                          if (d.init_point) window.open(d.init_point, '_blank');
-                          toast.success('Redirecionando para o Mercado Pago...');
-                        } catch (err) { toast.error(err.message); }
-                        finally { setPlanoLoading(false); }
-                      }}
-                      className={`mt-1 text-sm font-semibold py-1.5 rounded-lg transition ${planoStatus?.plano === p.id ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 cursor-default' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
-                      {planoStatus?.plano === p.id ? 'Plano atual' : 'Assinar'}
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Escolher / trocar plano</h2>
+                {/* Toggle mensal / anual */}
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+                  {['mensal', 'anual'].map(c => (
+                    <button key={c} onClick={() => setCicloPlano(c)}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${cicloPlano === c ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
+                      {c === 'mensal' ? 'Mensal' : (
+                        <span className="flex items-center gap-1.5">
+                          Anual
+                          <span className="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-xs font-bold px-1.5 py-0.5 rounded-full">-20%</span>
+                        </span>
+                      )}
                     </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              {cicloPlano === 'anual' && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-xl px-4 py-2.5">
+                  💰 Pague uma vez por ano e economize 2 meses. Preços com 20% de desconto.
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {PLANOS_MP.map(p => {
+                  const precoAnual = { solo: 'R$ 374,40/ano', pro: 'R$ 566,40/ano', business: 'R$ 950,40/ano' }[p.id];
+                  const precoMesAnual = { solo: 'R$ 31,20/mês', pro: 'R$ 47,20/mês', business: 'R$ 79,20/mês' }[p.id];
+                  // Só desabilita se já estiver ATIVO neste plano+ciclo (trial pode assinar qualquer plano)
+                  const isAtual = planoStatus?.planoStatus === 'ativo' && planoStatus?.plano === p.id && planoStatus?.cicloBilhagem === cicloPlano;
+                  return (
+                    <div key={p.id} className={`border rounded-xl p-4 flex flex-col gap-2 ${isAtual ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600'}`}>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{p.label}</span>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                            {cicloPlano === 'anual' ? precoAnual : p.preco}
+                          </div>
+                          {cicloPlano === 'anual' && (
+                            <div className="text-xs text-gray-400">{precoMesAnual}</div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{p.descricao}</p>
+                      <button
+                        disabled={planoLoading || isAtual}
+                        onClick={async () => {
+                          setPlanoLoading(true);
+                          // Abre janela ANTES do await — browsers bloqueiam window.open após operações async
+                          const win = window.open('', '_blank');
+                          try {
+                            const d = await api.post('/payments/assinar', { plano: p.id, ciclo: cicloPlano });
+                            if (d.init_point) { win.location.href = d.init_point; toast.success('Redirecionando para o Mercado Pago...'); }
+                            else { win.close(); toast.error('Link de pagamento não gerado.'); }
+                          } catch (err) { win.close(); toast.error(err.message); }
+                          finally { setPlanoLoading(false); }
+                        }}
+                        className={`mt-1 text-sm font-semibold py-1.5 rounded-lg transition ${isAtual ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 cursor-default' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                        {isAtual ? 'Plano atual' : 'Assinar'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1297,11 +1695,7 @@ export default function Settings() {
               <button
                 onClick={async () => {
                   try {
-                    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/settings/backup`, {
-                      headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'X-Tenant-Slug': localStorage.getItem('tenantSlug') || '' },
-                    });
-                    if (!res.ok) throw new Error('Erro ao gerar backup');
-                    const blob = await res.blob();
+                    const blob = await api.download('/settings/backup');
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;

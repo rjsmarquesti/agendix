@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import Layout from '../components/Layout';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 
 const STATUS = {
   marcado:    { label: 'Marcado',    bg: 'bg-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500' },
@@ -26,21 +26,26 @@ function formatHora(h) {
   return h?.slice(0, 5) || '';
 }
 
-function saudacao() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Bom dia';
-  if (h < 18) return 'Boa tarde';
-  return 'Boa noite';
-}
-
 export default function AgendaHoje() {
   const { user, tenant } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [agendamentos, setAgendamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [atualizando, setAtualizando] = useState(null);
   const [expandido, setExpandido] = useState(null);
+  const [gerando, setGerando] = useState(false);
+
+  async function imprimirAgenda() {
+    setGerando(true);
+    try {
+      const { gerarPdfAgendaDia } = await import('../utils/pdfGenerator');
+      await gerarPdfAgendaDia(agendamentos, tenant, hoje);
+    } catch (err) {
+      toast.error('Erro ao gerar PDF: ' + err.message);
+    } finally {
+      setGerando(false);
+    }
+  }
 
   const hoje = hojeStr();
   const dataFormatada = new Date(hoje + 'T12:00:00').toLocaleDateString('pt-BR', {
@@ -88,44 +93,32 @@ export default function AgendaHoje() {
   const pendentes  = agendamentos.filter(a => a.status === 'marcado').length;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
+    <Layout title="Agenda de Hoje" subtitle={dataFormatada}>
+      <div className="px-4 py-4 space-y-4">
 
-      {/* Header fixo */}
-      <div className="sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm px-4 pt-safe">
-        <div className="flex items-center justify-between py-3">
-          <button onClick={() => navigate('/')} className="text-gray-400 dark:text-gray-500 p-1 -ml-1">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div className="text-center">
-            <p className="text-xs text-gray-400 dark:text-gray-500">{saudacao()}, {user?.nome?.split(' ')[0]}</p>
-            <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 capitalize">{dataFormatada}</h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={toggleTheme} className="text-gray-400 dark:text-gray-500 p-1">
-              {theme === 'dark' ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </button>
-            <button onClick={carregar} className="text-gray-400 dark:text-gray-500 p-1 -mr-1">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        {/* Barra de ações */}
+        <div className="flex justify-end">
+          <button
+            onClick={imprimirAgenda}
+            disabled={gerando || loading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-gray-800
+                       border border-gray-200 dark:border-gray-700 text-sm font-medium
+                       text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50
+                       dark:hover:bg-gray-700 disabled:opacity-50 transition-colors">
+            {gerando ? (
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
               </svg>
-            </button>
-          </div>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+            )}
+            {gerando ? 'Gerando...' : 'Imprimir agenda'}
+          </button>
         </div>
-      </div>
-
-      <div className="px-4 py-4 space-y-4 pb-24">
 
         {/* Cards de resumo */}
         <div className="grid grid-cols-3 gap-3">
@@ -249,16 +242,6 @@ export default function AgendaHoje() {
         )}
       </div>
 
-      {/* Botão flutuante novo agendamento */}
-      <div className="fixed bottom-6 right-4 left-4 z-30">
-        <button onClick={() => navigate('/agendamentos')}
-          className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-lg text-sm active:scale-95 transition flex items-center justify-center gap-2">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Novo agendamento
-        </button>
-      </div>
-    </div>
+    </Layout>
   );
 }

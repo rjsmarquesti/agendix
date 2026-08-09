@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../components/Layout';
 import { api } from '../services/api';
 
@@ -364,6 +364,8 @@ export default function CalendarioAgendamentos() {
   const [agendamentos, setAgendamentos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [diaSelecionado, setDiaSelecionado] = useState(null);
+  const [dragOverDay, setDragOverDay] = useState(null);
+  const draggingAg = useRef(null);
 
   const ano = new Date(hoje.getFullYear(), hoje.getMonth() + offset, 1).getFullYear();
   const mes  = new Date(hoje.getFullYear(), hoje.getMonth() + offset, 1).getMonth();
@@ -384,6 +386,23 @@ export default function CalendarioAgendamentos() {
   }, [dataInicio, dataFim]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  async function moverAgendamento(ag, novaData) {
+    if (ag.data === novaData) return;
+    try {
+      await api.put(`/agendamentos/${ag.id}`, {
+        lead_id: ag.leadId,
+        data: novaData,
+        hora: ag.hora,
+        tipo: ag.tipo,
+        status: ag.status,
+        observacoes: ag.observacoes,
+      });
+      carregar();
+    } catch (err) {
+      alert('Erro ao mover agendamento: ' + err.message);
+    }
+  }
 
   const idx = agendamentos.reduce((acc, ag) => {
     if (!acc[ag.data]) acc[ag.data] = [];
@@ -459,11 +478,26 @@ export default function CalendarioAgendamentos() {
               const ags    = idx[isoStr] || [];
               const total  = ags.length;
 
+              const isDragOver = dragOverDay === isoStr;
+
               return (
                 <div key={isoStr}
                   onClick={() => setDiaSelecionado(isoStr)}
+                  onDragOver={e => { e.preventDefault(); setDragOverDay(isoStr); }}
+                  onDragLeave={() => setDragOverDay(null)}
+                  onDrop={e => {
+                    e.preventDefault();
+                    setDragOverDay(null);
+                    if (draggingAg.current) {
+                      moverAgendamento(draggingAg.current, isoStr);
+                      draggingAg.current = null;
+                    }
+                  }}
                   className={`min-h-[100px] border-b border-r border-gray-100 dark:border-gray-800 p-1.5
-                              cursor-pointer hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors group`}>
+                              cursor-pointer transition-colors group
+                              ${isDragOver
+                                ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-inset ring-blue-400'
+                                : 'hover:bg-blue-50/40 dark:hover:bg-blue-900/10'}`}>
                   <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold mb-1
                     ${isHoje
                       ? 'bg-blue-600 text-white'
@@ -473,7 +507,15 @@ export default function CalendarioAgendamentos() {
                   <div className="space-y-0.5">
                     {ags.slice(0, 3).map(ag => (
                       <div key={ag.id}
-                        className={`text-[10px] rounded px-1 py-0.5 border truncate leading-tight font-medium ${STATUS_COLOR[ag.status] || STATUS_COLOR.marcado}`}>
+                        draggable
+                        onDragStart={e => {
+                          e.stopPropagation();
+                          draggingAg.current = ag;
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        onDragEnd={() => { draggingAg.current = null; setDragOverDay(null); }}
+                        onClick={e => e.stopPropagation()}
+                        className={`text-[10px] rounded px-1 py-0.5 border truncate leading-tight font-medium cursor-grab active:cursor-grabbing ${STATUS_COLOR[ag.status] || STATUS_COLOR.marcado}`}>
                         {ag.hora} {ag.lead?.nome || ag.clienteNome || '—'}
                       </div>
                     ))}

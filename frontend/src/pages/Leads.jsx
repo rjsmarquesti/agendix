@@ -127,12 +127,14 @@ function buildLeadsPrintHTML(items, { busca, filtroStatus, filtroNicho, total },
 // ─── LeadForm ─────────────────────────────────────────────────────────────────
 function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
   const [buscandoCep, setBuscandoCep] = useState(false);
-  const categorias = nichos.find(n => n.nicho === form.nicho)?.categorias || [];
+  const nichoData    = nichos.find(n => n.nicho === form.nicho);
+  const categorias   = nichoData?.categorias || [];
+  const subcategorias = (nichoData?.subcategorias?.[form.categoria]) || [];
 
   const field = (id, label, type = 'text', extra = {}) => (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-      <input type={type} value={form[id]}
+      <label htmlFor={`lead-field-${id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+      <input id={`lead-field-${id}`} type={type} value={form[id]}
         onChange={e => setForm(f => ({ ...f, [id]: e.target.value }))}
         className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         {...extra} />
@@ -141,8 +143,8 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
 
   const sel = (id, label, options, labelMap = {}) => (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-      <select value={form[id]} onChange={e => setForm(f => ({ ...f, [id]: e.target.value }))}
+      <label htmlFor={`lead-sel-${id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+      <select id={`lead-sel-${id}`} value={form[id]} onChange={e => setForm(f => ({ ...f, [id]: e.target.value }))}
         className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
         {options.map(o => <option key={o} value={o}>{labelMap[o] || o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
       </select>
@@ -195,7 +197,7 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nicho</label>
             <select value={form.nicho}
-              onChange={e => setForm(f => ({ ...f, nicho: e.target.value, categoria: '' }))}
+              onChange={e => setForm(f => ({ ...f, nicho: e.target.value, categoria: '', subcategoria: '' }))}
               className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50">
               <option value="">-- selecione --</option>
               {nichos.map(n => <option key={n.nicho} value={n.nicho}>{n.nicho}</option>)}
@@ -204,7 +206,7 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
             <select value={form.categoria}
-              onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, categoria: e.target.value, subcategoria: '' }))}
               disabled={!form.nicho}
               className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 disabled:opacity-50">
               <option value="">-- selecione --</option>
@@ -213,7 +215,22 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {field('subcategoria', 'Subcategoria', 'text', { placeholder: 'Especialidade...' })}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subcategoria</label>
+            {subcategorias.length > 0 ? (
+              <select value={form.subcategoria}
+                onChange={e => setForm(f => ({ ...f, subcategoria: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <option value="">-- selecione --</option>
+                {subcategorias.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            ) : (
+              <input type="text" value={form.subcategoria}
+                onChange={e => setForm(f => ({ ...f, subcategoria: e.target.value }))}
+                placeholder="Especialidade..."
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+            )}
+          </div>
           {field('rating', 'Avaliação (0-5)', 'number', { min: 0, max: 5, step: 0.1, placeholder: '4.5' })}
         </div>
         <div className="mt-3">
@@ -297,45 +314,112 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
 }
 
 // ─── ImportModal ──────────────────────────────────────────────────────────────
-function ImportModal({ onClose, onDone }) {
-  const [json, setJson] = useState('');
+function ImportModal({ onClose, onDone, filtros }) {
+  const fileRef = useRef(null);
+  const [arquivo, setArquivo] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult]   = useState(null);
+  const [baixando, setBaixando] = useState(false);
 
   async function handleImport() {
-    let lista;
-    try { lista = JSON.parse(json); }
-    catch { toast.error('JSON inválido'); return; }
-    if (!Array.isArray(lista)) { toast.error('Envie um array JSON'); return; }
-
+    if (!arquivo) { toast.error('Selecione um arquivo'); return; }
     setLoading(true);
     try {
-      const data = await api.post('/leads/importar', { leads: lista });
+      const token     = localStorage.getItem('crm_token');
+      const rawTenant = localStorage.getItem('crm_tenant');
+      const slug      = rawTenant ? JSON.parse(rawTenant)?.slug : null;
+
+      const form = new FormData();
+      form.append('arquivo', arquivo);
+
+      const res = await fetch(
+        `/api/leads/importar-arquivo`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'x-tenant-slug': slug || '' }, body: form }
+      );
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || 'Erro ao importar'); return; }
       setResult(data);
       if (data.inseridos > 0) onDone();
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
   }
 
+  async function baixarModelo() {
+    setBaixando(true);
+    try {
+      const token     = localStorage.getItem('crm_token');
+      const rawTenant = localStorage.getItem('crm_tenant');
+      const slug      = rawTenant ? JSON.parse(rawTenant)?.slug : null;
+
+      const params = new URLSearchParams({ limite: 0, ...filtros });
+      const res = await fetch(`/api/leads/exportar?${params}`, {
+        headers: { Authorization: `Bearer ${token}`, 'x-tenant-slug': slug || '' },
+      });
+      if (!res.ok) {
+        let msg = 'Erro ao baixar modelo';
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch { /* ok */ }
+        toast.error(msg); return;
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'modelo-leads.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) { toast.error(err.message); }
+    finally { setBaixando(false); }
+  }
+
   return (
     <div className="space-y-4">
       {!result ? (
         <>
-          <p className="text-sm text-gray-600">
-            Cole um array JSON com até <strong>500 leads</strong>. Cada item deve ter ao menos <code className="bg-gray-100 px-1 rounded">nome</code>, <code className="bg-gray-100 px-1 rounded">estado</code> e <code className="bg-gray-100 px-1 rounded">nicho</code>.
-          </p>
-          <textarea rows={12} value={json} onChange={e => setJson(e.target.value)}
-            placeholder={'[\n  {\n    "nome": "Restaurante Exemplo",\n    "estado": "SP",\n    "cidade": "São Paulo",\n    "nicho": "Alimentação",\n    "telefone": "(11) 99999-0000",\n    "googleMapsUrl": "https://...",\n    "place_id": "ChIJ...",\n    "rating": 4.5\n  }\n]'}
-            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-mono bg-gray-50 resize-none" />
-          <div className="flex justify-end gap-3">
-            <button onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
-              Cancelar
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-sm text-blue-700">
+            <p className="font-medium mb-1">Importar via planilha (.xlsx, .xls, .csv)</p>
+            <p className="text-xs text-blue-600">Colunas obrigatórias: <strong>Nome</strong>. Recomendadas: Telefone, Email, Estado, Cidade, Nicho.</p>
+          </div>
+
+          {/* Upload */}
+          <div
+            onClick={() => fileRef.current?.click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setArquivo(f); }}
+            className="border-2 border-dashed border-gray-200 hover:border-green-400 rounded-xl p-6 text-center cursor-pointer transition-colors">
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
+              onChange={e => setArquivo(e.target.files[0] || null)} />
+            {arquivo ? (
+              <div className="text-sm font-medium text-green-700">
+                <div className="text-2xl mb-1">📄</div>
+                {arquivo.name}
+                <div className="text-xs text-gray-400 mt-1">{(arquivo.size / 1024).toFixed(1)} KB</div>
+              </div>
+            ) : (
+              <div className="text-gray-400">
+                <div className="text-3xl mb-2">📊</div>
+                <div className="text-sm">Clique ou arraste o arquivo aqui</div>
+                <div className="text-xs mt-1">.xlsx · .xls · .csv</div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <button onClick={baixarModelo} disabled={baixando}
+              className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 underline disabled:opacity-50">
+              {baixando ? 'Baixando...' : '⬇ Baixar modelo XLSX'}
             </button>
-            <button onClick={handleImport} disabled={loading || !json.trim()}
-              className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl transition text-sm">
-              {loading ? 'Importando...' : 'Importar'}
-            </button>
+            <div className="flex gap-2">
+              <button onClick={onClose}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
+                Cancelar
+              </button>
+              <button onClick={handleImport} disabled={loading || !arquivo}
+                className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl transition text-sm">
+                {loading ? 'Importando...' : 'Importar'}
+              </button>
+            </div>
           </div>
         </>
       ) : (
@@ -356,9 +440,7 @@ function ImportModal({ onClose, onDone }) {
           </div>
           {result.erros?.length > 0 && (
             <div className="bg-red-50 rounded-xl p-3 text-xs text-red-700 space-y-1 max-h-40 overflow-y-auto">
-              {result.erros.map((e, i) => (
-                <div key={i}><strong>{e.item}:</strong> {e.erro}</div>
-              ))}
+              {result.erros.map((e, i) => <div key={i}><strong>{e.item}:</strong> {e.erro}</div>)}
             </div>
           )}
           <div className="flex justify-end">
@@ -403,7 +485,14 @@ export default function Leads() {
   const [form, setForm]                 = useState(EMPTY_FORM);
   const [loading, setLoading]           = useState(false);
 
+  // modal converter em cliente
+  const [converterLead, setConverterLead]       = useState(null);
+  const [servicosDisponiveis, setServicosDisponiveis] = useState([]);
+  const [servicosSelecionados, setServicosSelecionados] = useState([]);
+  const [convertendo, setConvertendo]           = useState(false);
+
   const [selecionados, setSelecionados] = useState(new Set());
+  const [exportando, setExportando]     = useState(false);
   const tableRef       = useRef(null);
   const printHeaderRef = useRef(null);
 
@@ -477,6 +566,33 @@ export default function Leads() {
     setForm(EMPTY_FORM);
     setEditId(null);
     setModalOpen(true);
+  }
+
+  async function abrirConverter(lead) {
+    setConverterLead(lead);
+    setServicosSelecionados([]);
+    try {
+      const data = await api.get('/servicos');
+      setServicosDisponiveis(data.servicos || data || []);
+    } catch { setServicosDisponiveis([]); }
+  }
+
+  function toggleServico(id) {
+    setServicosSelecionados(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  }
+
+  async function confirmarConversao() {
+    if (!converterLead) return;
+    setConvertendo(true);
+    try {
+      await api.post(`/leads/${converterLead.id}/converter`, { servicosIds: servicosSelecionados });
+      toast.success(`${converterLead.nome} convertido em cliente!`);
+      setConverterLead(null);
+      loadLeads();
+    } catch (err) { toast.error(err.message); }
+    finally { setConvertendo(false); }
   }
 
   async function handleSubmit(e) {
@@ -559,6 +675,46 @@ export default function Leads() {
     }, { once: true });
   }
 
+  async function exportarXlsx() {
+    setExportando(true);
+    try {
+      const token     = localStorage.getItem('crm_token');
+      const rawTenant = localStorage.getItem('crm_tenant');
+      const slug      = rawTenant ? JSON.parse(rawTenant)?.slug : null;
+
+      const params = new URLSearchParams();
+      if (busca)           params.set('busca',      busca);
+      if (filtroStatus)    params.set('status',     filtroStatus);
+      if (filtroFonte)     params.set('fonte',      filtroFonte);
+      if (filtroPriority)  params.set('priority',   filtroPriority);
+      if (filtroEstado)    params.set('estado',     filtroEstado);
+      if (filtroMunicipio) params.set('municipio',  filtroMunicipio);
+      if (filtroBairro)    params.set('bairro',     filtroBairro);
+      if (filtroNicho)     params.set('nicho',      filtroNicho);
+      if (filtroCategoria) params.set('categoria',  filtroCategoria);
+
+      const res = await fetch(`/api/leads/exportar?${params}`, {
+        headers: { Authorization: `Bearer ${token}`, 'x-tenant-slug': slug || '' },
+      });
+      if (!res.ok) {
+        let msg = 'Erro ao exportar';
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch { /* ok */ }
+        toast.error(msg); return;
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `leads-${new Date().toISOString().slice(0,10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Planilha exportada!');
+    } catch (err) { toast.error(err.message); }
+    finally { setExportando(false); }
+  }
+
   return (
     <Layout title="Leads" subtitle="Gerencie seus contatos e oportunidades de venda">
 
@@ -608,6 +764,15 @@ export default function Leads() {
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
           Importar
+        </button>
+
+        <button onClick={exportarXlsx} disabled={exportando}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 text-sm font-medium transition">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          {exportando ? 'Exportando...' : 'Exportar'}
         </button>
 
         <button onClick={imprimirPDF}
@@ -902,6 +1067,12 @@ export default function Leads() {
                   </td>
                   <td className="px-5 py-3 no-print">
                     <div className="flex items-center gap-1">
+                      {l.status !== 'convertido' && (
+                        <button onClick={() => abrirConverter(l)}
+                          className="text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 px-2 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap" title="Converter em cliente">
+                          ✓ Cliente
+                        </button>
+                      )}
                       <button onClick={() => openEdit(l.id)}
                         className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Editar">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -951,9 +1122,69 @@ export default function Leads() {
 
       {/* Modal importação */}
       <Modal isOpen={importOpen} onClose={() => setImportOpen(false)}
-        title="Importar Leads (JSON)">
-        <ImportModal onClose={() => setImportOpen(false)} onDone={loadLeads} />
+        title="Importar Leads (XLSX / CSV)">
+        <ImportModal onClose={() => setImportOpen(false)} onDone={loadLeads}
+          filtros={{ busca, status: filtroStatus, fonte: filtroFonte, priority: filtroPriority,
+            estado: filtroEstado, municipio: filtroMunicipio, bairro: filtroBairro,
+            nicho: filtroNicho, categoria: filtroCategoria }} />
       </Modal>
+      {/* Modal — Converter em Cliente */}
+      {converterLead && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setConverterLead(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Converter em Cliente</h2>
+              <button onClick={() => setConverterLead(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+              <span className="font-medium text-gray-800 dark:text-gray-200">{converterLead.nome}</span> será movido para a aba Clientes.
+            </p>
+
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+              Serviços contratados {servicosSelecionados.length > 0 && <span className="text-emerald-600">({servicosSelecionados.length} selecionado{servicosSelecionados.length > 1 ? 's' : ''})</span>}
+            </p>
+
+            {servicosDisponiveis.length === 0 ? (
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic mb-5">Nenhum serviço cadastrado. Você pode converter sem selecionar.</p>
+            ) : (
+              <div className="space-y-2 max-h-56 overflow-y-auto mb-5 pr-1">
+                {servicosDisponiveis.map(s => {
+                  const sel = servicosSelecionados.includes(s.id);
+                  return (
+                    <button key={s.id} onClick={() => toggleServico(s.id)}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-all ${
+                        sel
+                          ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-400 text-emerald-700 dark:text-emerald-400'
+                          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-emerald-300'
+                      }`}>
+                      <span className="font-medium">{s.nome}</span>
+                      <div className="flex items-center gap-2">
+                        {s.preco > 0 && <span className="text-xs text-gray-400">R$ {Number(s.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>}
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${sel ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                          {sel && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={() => setConverterLead(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                Cancelar
+              </button>
+              <button onClick={confirmarConversao} disabled={convertendo}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-50">
+                {convertendo ? 'Convertendo...' : '✓ Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

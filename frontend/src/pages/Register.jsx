@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 /* ── Ícone calendário Agendix (colorido) ── */
 const IconCalendar = () => (
@@ -99,6 +100,7 @@ export default function Register() {
   const [sucesso, setSucesso] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const set = field => e => setForm(f => ({ ...f, [field]: e.target.value }));
@@ -122,7 +124,11 @@ export default function Register() {
         setSucesso(true);
       }
     } catch (err) {
-      setErro(err.message);
+      if (err.message.toLowerCase().includes('networkerror') || err.message.includes('fetch')) {
+        setErro('Não foi possível conectar ao servidor. Aguarde um instante e tente novamente.');
+      } else {
+        setErro(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -151,7 +157,7 @@ export default function Register() {
       <div className="relative z-10 space-y-8">
         <div>
           <h2 className="text-3xl font-bold leading-tight" style={{ color: 'var(--tx)' }}>
-            Comece grátis<br />por 30 dias.
+            Comece grátis<br />por 14 dias.
           </h2>
           <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--tx-md)' }}>
             O sistema de agendamento online que ajuda profissionais e empresas a economizar tempo, organizar atendimentos e crescer.
@@ -221,7 +227,17 @@ export default function Register() {
       <LeftPanel />
 
       {/* Painel direito */}
-      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto" style={{ backgroundColor: 'var(--bg)' }}>
+      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto relative" style={{ backgroundColor: 'var(--bg)' }}>
+
+        {/* Toggle tema */}
+        <button onClick={toggleTheme}
+          className="absolute top-5 right-5 w-9 h-9 rounded-xl flex items-center justify-center border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          {theme === 'dark'
+            ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          }
+        </button>
+
         <div className="w-full max-w-md py-8">
 
           {/* Header do formulário */}

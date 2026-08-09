@@ -4,9 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
 const PLANOS = [
-  { id: 'solo',     nome: 'Solo',     preco: 'R$ 49/mês',  desc: '1 usuário · 100 agendamentos/mês · Confirmação WA' },
-  { id: 'pro',      nome: 'Pro',      preco: 'R$ 89/mês',  desc: 'Ilimitado · 5 usuários · Bot WA completo', destaque: true },
-  { id: 'business', nome: 'Business', preco: 'R$ 149/mês', desc: 'Ilimitado · Usuários ilimitados · Bot WA + Agente IA' },
+  { id: 'solo',     nome: 'Solo',     preco: 'R$ 39/mês', desc: '1 usuário · Agendamentos ilimitados · Confirmação WA' },
+  { id: 'pro',      nome: 'Pro',      preco: 'R$ 59/mês', desc: 'Ilimitado · 5 usuários · Bot WA completo', destaque: true },
+  { id: 'business', nome: 'Business', preco: 'R$ 99/mês', desc: 'Ilimitado · Usuários ilimitados · Bot WA + Agente IA' },
 ];
 
 export default function TrialExpirado() {
@@ -52,7 +52,7 @@ export default function TrialExpirado() {
             Seu período de teste encerrou
           </h1>
           <p className="text-sm mb-4" style={{ color: 'var(--tx-md)' }}>
-            Os 30 dias gratuitos chegaram ao fim. Escolha um plano e continue sem perder nenhum dado.
+            Os 14 dias gratuitos chegaram ao fim. Escolha um plano e continue sem perder nenhum dado.
           </p>
 
           {uso && (

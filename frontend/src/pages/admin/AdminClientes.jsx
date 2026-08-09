@@ -8,15 +8,48 @@ const PLANO_COLOR  = { solo: 'bg-slate-700 text-slate-300', pro: 'bg-blue-900 te
 const STATUS_COLOR = { trial: 'bg-slate-700 text-slate-300', ativo: 'bg-green-900 text-green-300', inadimplente: 'bg-red-900 text-red-300', cancelado: 'bg-red-950 text-red-400', inativo: 'bg-gray-700 text-gray-400', aguardando_pagamento: 'bg-yellow-900 text-yellow-300' };
 const STATUS_LABEL = { trial: 'Trial', ativo: 'Ativo', inadimplente: 'Inadimplente', cancelado: 'Cancelado', inativo: 'Inativo', aguardando_pagamento: 'Aguardando pgto.' };
 const CORES = ['#2563eb','#7c3aed','#db2777','#dc2626','#ea580c','#16a34a','#0891b2','#1e293b'];
-const MODULOS = [{ id: 'leads', label: 'Leads' }, { id: 'agendamentos', label: 'Agendamentos' }];
+const GRUPOS_MODULOS = [
+  {
+    grupo: 'CRM',
+    itens: [
+      { id: 'leads',       label: 'Leads' },
+      { id: 'agendamentos', label: 'Agendamentos' },
+    ],
+  },
+  {
+    grupo: 'Clínico / Técnico',
+    itens: [
+      { id: 'fichas',         label: 'Fichas' },
+      { id: 'anamnese',       label: 'Anamnese' },
+      { id: 'prontuarios',    label: 'Prontuários' },
+      { id: 'orcamentos',     label: 'Orçamentos' },
+      { id: 'ordem_servico',  label: 'Ordem de Serviço' },
+    ],
+  },
+  {
+    grupo: 'Gestão',
+    itens: [
+      { id: 'financeiro',  label: 'Financeiro' },
+      { id: 'documentos',  label: 'Documentos' },
+      { id: 'processos',   label: 'Processos' },
+    ],
+  },
+  {
+    grupo: 'WhatsApp / IA',
+    itens: [
+      { id: 'wa_atendimento', label: 'Atendimento WA' },
+      { id: 'agente_ia',      label: 'Agente IA' },
+    ],
+  },
+];
 const ORDEM_PLANO = { solo: 0, pro: 1, business: 2 };
 const PLANOS_INFO = [
-  { value: 'solo',     label: 'Solo',     preco: 'R$ 49/mês' },
-  { value: 'pro',      label: 'Pro',      preco: 'R$ 89/mês' },
-  { value: 'business', label: 'Business', preco: 'R$ 149/mês' },
+  { value: 'solo',     label: 'Solo',     preco: 'R$ 39/mês' },
+  { value: 'pro',      label: 'Pro',      preco: 'R$ 59/mês' },
+  { value: 'business', label: 'Business', preco: 'R$ 99/mês' },
 ];
 
-const EMPTY_TENANT    = { nome: '', slug: '', logo: '', corPrimaria: '#2563eb', plano: 'solo', planoStatus: 'trial', planoVencimento: '', modulos: ['leads','agendamentos'], ativo: true, email: '', telefone: '' };
+const EMPTY_TENANT    = { nome: '', slug: '', logo: '', corPrimaria: '#2563eb', plano: 'solo', planoStatus: 'trial', planoVencimento: '', modulos: [], ativo: true, email: '', telefone: '', nicho: '', subnicho: '' };
 const EMPTY_USER      = { nome: '', email: '', senha: '', role: 'admin' };
 const EMPTY_SENHA     = { novaSenha: '', confirmar: '' };
 const EMPTY_EDIT_USER = { nome: '', email: '', whatsapp: '', role: 'atendente', ativo: true };
@@ -49,6 +82,7 @@ export default function AdminClientes() {
   const [editUserId, setEUID]   = useState(null);
   const [loading, setLoading]     = useState(false);
   const [waStatuses, setWaStatuses]   = useState({}); // { [tenantId]: 'open'|'close'|'error'|... }
+  const [waQueueStats, setWaQueueStats] = useState({}); // { [evolutionInstance]: stats }
   const [evoLoading, setEvoLoading]   = useState(null); // id do tenant em criação Evolution
   const [tenantPlano, setTenantPlano] = useState(null); // tenant sendo alterado de plano
   const [novoPlanoSel, setNovoPlanoSel] = useState(''); // plano selecionado no modal
@@ -58,6 +92,15 @@ export default function AdminClientes() {
   const [waAdminQrcode, setWaAdminQrcode] = useState(null);
   const [waAdminLoading, setWaAdminLoading] = useState(false);
   const waAdminPollRef = useState(null);
+  const [nichos, setNichos]           = useState([]);
+  const [nichosOk, setNichosOk]       = useState(false);
+  const [liberarTenant, setLiberarTenant] = useState(null);
+  const [liberarForm, setLiberarForm]     = useState({ plano: 'pro', planoStatus: 'ativo', planoVencimento: '' });
+  const [liberarLoading, setLiberarLoading] = useState(false);
+  const [msgTenant, setMsgTenant]   = useState(null);
+  const [msgForm, setMsgForm]       = useState({ meio: 'email', assunto: '', corpo: '' });
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [msgEnviado, setMsgEnviado] = useState(false);
 
   const loadWaStatuses = useCallback(async () => {
     try {
@@ -66,15 +109,30 @@ export default function AdminClientes() {
     } catch { /* silencioso */ }
   }, []);
 
+  const loadWaQueueStats = useCallback(async () => {
+    try {
+      const d = await api.get('/admin/tenants/wa-queue-stats');
+      const map = {};
+      (d.stats || []).forEach(s => { if (s) map[s.instance] = s; });
+      setWaQueueStats(map);
+    } catch { /* silencioso */ }
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const d = await api.get('/admin/tenants');
       setTenants(d.tenants);
       loadWaStatuses();
+      loadWaQueueStats();
     } catch (err) { toast.error(err.message); }
-  }, [loadWaStatuses]);
+  }, [loadWaStatuses, loadWaQueueStats]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    api.get('/nichos')
+      .then(d => { setNichos(d); setNichosOk(true); })
+      .catch(() => setNichosOk(true));
+  }, []);
 
   const filtrados = tenants.filter(t =>
     t.nome.toLowerCase().includes(busca.toLowerCase()) ||
@@ -83,7 +141,7 @@ export default function AdminClientes() {
 
   // ── Tenant ──────────────────────────────────────────────────────────────
   function abrirNovo()    { setFT(EMPTY_TENANT); setModal('novo'); }
-  function abrirEditar(t) { setFT({ nome: t.nome, slug: t.slug, logo: t.logo || '', corPrimaria: t.corPrimaria, plano: t.plano, planoStatus: t.planoStatus || 'trial', planoVencimento: t.planoVencimento ? t.planoVencimento.slice(0,10) : '', modulos: t.modulos || [], ativo: t.ativo, email: t.email || '', telefone: t.telefone || '' }); setSelected(t); setModal('editar'); }
+  function abrirEditar(t) { setFT({ nome: t.nome, slug: t.slug, logo: t.logo || '', corPrimaria: t.corPrimaria, plano: t.plano, planoStatus: t.planoStatus || 'trial', planoVencimento: t.planoVencimento ? t.planoVencimento.slice(0,10) : '', modulos: t.modulos || [], ativo: t.ativo, email: t.email || '', telefone: t.telefone || '', nicho: t.nichoLabel || '', subnicho: t.subnicho || '' }); setSelected(t); setModal('editar'); }
 
   async function salvarTenant(e) {
     e.preventDefault();
@@ -319,6 +377,54 @@ export default function AdminClientes() {
     }
   }
 
+  // ── Liberação Manual ─────────────────────────────────────────────────────
+  function abrirLiberar(t) {
+    setLiberarTenant(t);
+    setLiberarForm({ plano: t.plano || 'pro', planoStatus: 'ativo', planoVencimento: '' });
+    setModal('liberar-plano');
+  }
+
+  async function confirmarLiberar() {
+    if (!liberarTenant) return;
+    setLiberarLoading(true);
+    try {
+      await api.patch(`/admin/tenants/${liberarTenant.id}/liberar-plano`, liberarForm);
+      toast.success(`Plano ${liberarForm.plano} liberado para ${liberarTenant.nome}`);
+      setModal(null);
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLiberarLoading(false);
+    }
+  }
+
+  // ── Mensagem para Tenant ─────────────────────────────────────────────────
+  function abrirMensagem(t) {
+    setMsgTenant(t);
+    setMsgForm({ meio: 'email', assunto: '', corpo: '' });
+    setMsgEnviado(false);
+    setModal('mensagem-tenant');
+  }
+
+  async function enviarMensagemTenant() {
+    if (!msgForm.corpo.trim()) return toast.error('Corpo da mensagem é obrigatório.');
+    setMsgLoading(true);
+    try {
+      await api.post('/admin/mensagens/enviar-tenant', {
+        tenantId: msgTenant.id,
+        meio:     msgForm.meio,
+        assunto:  msgForm.meio === 'email' ? msgForm.assunto : undefined,
+        corpo:    msgForm.corpo,
+      });
+      setMsgEnviado(true);
+    } catch (e) {
+      toast.error(e.message || 'Erro ao enviar.');
+    } finally {
+      setMsgLoading(false);
+    }
+  }
+
   // ── WA status badge ───────────────────────────────────────────────────────
   function WaBadge({ tenantId, hasInstance, onClick, disabled }) {
     if (!hasInstance) {
@@ -441,6 +547,7 @@ export default function AdminClientes() {
                   className={`flex-1 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center ${t.n8nAtivo ? 'text-purple-400' : 'text-slate-500'}`}>
                   {t.n8nAtivo ? 'n8n ✓' : 'n8n'}
                 </button>
+                <button onClick={() => abrirLiberar(t)} className="flex-1 text-amber-400 hover:text-amber-300 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">Liberar</button>
                 <button onClick={() => deletarTenant(t)} className="flex-1 text-red-500 hover:text-red-400 text-xs py-1.5 rounded-lg hover:bg-slate-800 transition text-center">Remover</button>
               </div>
             </div>
@@ -539,6 +646,14 @@ export default function AdminClientes() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         </button>
                       )}
+                      <button onClick={() => abrirLiberar(t)} title="Liberar plano manualmente"
+                        className="text-amber-400 hover:text-amber-300 hover:bg-slate-700 p-2 rounded-lg transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                      </button>
+                      <button onClick={() => abrirMensagem(t)} title="Enviar mensagem"
+                        className="text-cyan-400 hover:text-cyan-300 hover:bg-slate-700 p-2 rounded-lg transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                      </button>
                       <button onClick={() => deletarTenant(t)} title="Remover"
                         className="text-red-500 hover:text-red-400 hover:bg-slate-700 p-2 rounded-lg transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -581,12 +696,26 @@ export default function AdminClientes() {
                 <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden"
                   onChange={async e => {
                     const file = e.target.files[0]; if (!file) return;
-                    const fd = new FormData(); fd.append('logo', file);
                     try {
-                      const d = await api.upload('/settings/upload-logo', fd);
-                      setFT(f => ({ ...f, logo: d.url }));
-                      toast.success('Logo enviada!');
-                    } catch (err) { toast.error(err.message); }
+                      const base64 = await new Promise((resolve, reject) => {
+                        const canvas = document.createElement('canvas');
+                        const img = new Image();
+                        const url = URL.createObjectURL(file);
+                        img.onload = () => {
+                          const MAX = 400;
+                          const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+                          canvas.width = Math.round(img.width * ratio);
+                          canvas.height = Math.round(img.height * ratio);
+                          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                          URL.revokeObjectURL(url);
+                          resolve(canvas.toDataURL('image/webp', 0.85));
+                        };
+                        img.onerror = reject;
+                        img.src = url;
+                      });
+                      setFT(f => ({ ...f, logo: base64 }));
+                      toast.success('Logo carregada!');
+                    } catch (err) { toast.error('Erro ao processar imagem'); }
                     e.target.value = '';
                   }} />
               </label>
@@ -648,13 +777,53 @@ export default function AdminClientes() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Módulos ativos</label>
-            <div className="flex gap-4">
-              {MODULOS.map(m => (
-                <label key={m.id} className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={formTenant.modulos.includes(m.id)} onChange={() => toggleModulo(m.id)} className="rounded" />
-                  <span className="text-sm text-gray-700">{m.label}</span>
-                </label>
+            <p className="text-xs text-gray-400 mb-3">Usuários e Configurações estão sempre disponíveis. Selecione os demais módulos que este tenant terá acesso.</p>
+            <div className="space-y-3">
+              {GRUPOS_MODULOS.map(grupo => (
+                <div key={grupo.grupo}>
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{grupo.grupo}</div>
+                  <div className="flex flex-wrap gap-3 pl-1">
+                    {grupo.itens.map(m => (
+                      <label key={m.id} className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={formTenant.modulos.includes(m.id)} onChange={() => toggleModulo(m.id)} className="rounded" />
+                        <span className="text-sm text-gray-700">{m.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               ))}
+            </div>
+          </div>
+          {/* Nicho / Subnicho */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nicho</label>
+              <select value={formTenant.nicho}
+                disabled={!nichosOk}
+                onChange={e => {
+                  const nichoId = e.target.value;
+                  const nicho = nichos.find(n => n.id === nichoId);
+                  const mods = nicho
+                    ? ['leads', 'agendamentos', ...(nicho.modulosExtras || [])]
+                    : ['leads', 'agendamentos'];
+                  setFT(f => ({ ...f, nicho: nichoId, subnicho: '', modulos: mods }));
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                <option value="">{nichosOk ? 'Selecione...' : 'Carregando...'}</option>
+                {nichos.map(n => <option key={n.id} value={n.id}>{n.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de negócio</label>
+              <select value={formTenant.subnicho}
+                onChange={e => setFT(f => ({ ...f, subnicho: e.target.value }))}
+                disabled={!formTenant.nicho || !(nichos.find(n => n.id === formTenant.nicho)?.subnichos?.length > 0)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                <option value="">Selecione...</option>
+                {(nichos.find(n => n.id === formTenant.nicho)?.subnichos || []).map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
           </div>
           {modal === 'editar' && (
@@ -852,6 +1021,44 @@ export default function AdminClientes() {
             )}
           </div>
 
+          {/* Stats anti-ban da fila */}
+          {waTenant?.evolutionInstance && (() => {
+            const st = waQueueStats[waTenant.evolutionInstance];
+            if (!st) return null;
+            const pctDia  = Math.round((st.sentToday  / st.limiteDia)  * 100);
+            const pctHora = Math.round((st.sentThisHour / st.limiteHora) * 100);
+            const corDia  = pctDia  >= 80 ? 'bg-red-500'    : pctDia  >= 50 ? 'bg-yellow-400' : 'bg-green-500';
+            const corHora = pctHora >= 80 ? 'bg-red-500'    : pctHora >= 50 ? 'bg-yellow-400' : 'bg-green-500';
+            return (
+              <div className="bg-slate-800/60 rounded-xl p-4 space-y-3 text-sm">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Fila Anti-ban</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-slate-400">Hoje</span>
+                      <span className="text-slate-200 font-mono">{st.sentToday} / {st.limiteDia}</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div className={`h-full ${corDia} rounded-full transition-all`} style={{ width: `${Math.min(pctDia,100)}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-slate-400">Esta hora</span>
+                      <span className="text-slate-200 font-mono">{st.sentThisHour} / {st.limiteHora}</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div className={`h-full ${corHora} rounded-full transition-all`} style={{ width: `${Math.min(pctHora,100)}%` }} />
+                    </div>
+                  </div>
+                </div>
+                {st.pendentes > 0 && (
+                  <p className="text-xs text-yellow-400">⏳ {st.pendentes} mensagem{st.pendentes > 1 ? 's' : ''} aguardando na fila</p>
+                )}
+              </div>
+            );
+          })()}
+
           {/* QR Code */}
           {waAdminQrcode ? (
             <div className="flex flex-col items-center gap-3 py-4">
@@ -967,6 +1174,135 @@ export default function AdminClientes() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* ── Modal: Liberação Manual de Plano ── */}
+      <Modal isOpen={modal === 'liberar-plano'} onClose={() => setModal(null)}
+        title={`Liberar plano — ${liberarTenant?.nome}`}>
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            Libera o plano diretamente no banco, sem passar pelo Mercado Pago. Os módulos são ajustados automaticamente conforme o plano escolhido.
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Plano</label>
+            <select value={liberarForm.plano} onChange={e => setLiberarForm(f => ({ ...f, plano: e.target.value }))}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2">
+              <option value="solo">Solo — R$39/mês</option>
+              <option value="pro">Pro — R$59/mês</option>
+              <option value="business">Business — R$99/mês</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select value={liberarForm.planoStatus} onChange={e => setLiberarForm(f => ({ ...f, planoStatus: e.target.value }))}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2">
+              <option value="ativo">Ativo</option>
+              <option value="trial">Trial</option>
+              <option value="inadimplente">Inadimplente</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Vence em <span className="text-gray-400">(opcional)</span></label>
+            <input type="date" value={liberarForm.planoVencimento}
+              onChange={e => setLiberarForm(f => ({ ...f, planoVencimento: e.target.value }))}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2" />
+            <p className="text-xs text-gray-400 mt-1">Deixe vazio para acesso sem data de vencimento fixa.</p>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setModal(null)}
+              className="px-5 py-2.5 rounded-xl text-sm border border-gray-200 text-gray-700 hover:bg-gray-50 transition">
+              Cancelar
+            </button>
+            <button type="button" onClick={confirmarLiberar} disabled={liberarLoading}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition disabled:opacity-60">
+              {liberarLoading ? 'Liberando...' : 'Liberar →'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: Mensagem para Tenant ── */}
+      <Modal isOpen={modal === 'mensagem-tenant'} onClose={() => { setModal(null); setMsgEnviado(false); }}
+        title={`Enviar mensagem — ${msgTenant?.nome}`}>
+        {msgEnviado ? (
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
+              <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-base font-semibold text-gray-800">Mensagem enviada!</p>
+            <p className="text-sm text-gray-500 text-center">
+              {msgForm.meio === 'email' ? `E-mail enviado para ${msgTenant?.email}` : `WhatsApp enviado para ${msgTenant?.telefone}`}
+            </p>
+            <button type="button" onClick={() => { setModal(null); setMsgEnviado(false); }}
+              className="mt-2 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold px-8 py-2.5 rounded-xl text-sm transition">
+              Fechar
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Canal</label>
+              <div className="flex gap-2 mb-2">
+                <button type="button"
+                  onClick={() => setMsgForm(f => ({ ...f, meio: 'email' }))}
+                  disabled={!msgTenant?.email}
+                  title={!msgTenant?.email ? 'Tenant sem e-mail cadastrado' : ''}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${msgForm.meio === 'email' ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}>
+                  ✉️ E-mail
+                </button>
+                <button type="button"
+                  onClick={() => setMsgForm(f => ({ ...f, meio: 'whatsapp' }))}
+                  disabled={!msgTenant?.telefone}
+                  title={!msgTenant?.telefone ? 'Tenant sem telefone cadastrado' : ''}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${msgForm.meio === 'whatsapp' ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}>
+                  💬 WhatsApp
+                </button>
+              </div>
+              <div className="flex gap-4 mt-1">
+                {msgTenant?.email && (
+                  <span className="flex items-center gap-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg px-2 py-1">
+                    ✉️ {msgTenant.email}
+                  </span>
+                )}
+                {msgTenant?.telefone && (
+                  <span className="flex items-center gap-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg px-2 py-1">
+                    💬 {msgTenant.telefone}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {msgForm.meio === 'email' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assunto</label>
+                <input value={msgForm.assunto} onChange={e => setMsgForm(f => ({ ...f, assunto: e.target.value }))}
+                  placeholder="Ex: Atualização importante sobre sua conta"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2" />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mensagem *</label>
+              <textarea value={msgForm.corpo} onChange={e => setMsgForm(f => ({ ...f, corpo: e.target.value }))}
+                rows={5} placeholder="Digite sua mensagem..."
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 resize-none" />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setModal(null)}
+                className="px-5 py-2.5 rounded-xl text-sm border border-gray-200 text-gray-700 hover:bg-gray-50 transition">
+                Cancelar
+              </button>
+              <button type="button" onClick={enviarMensagemTenant} disabled={msgLoading}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition disabled:opacity-60">
+                {msgLoading ? 'Enviando...' : 'Enviar →'}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </AdminLayout>
   );

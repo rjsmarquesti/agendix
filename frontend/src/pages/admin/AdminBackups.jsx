@@ -95,13 +95,20 @@ export default function AdminBackups() {
       const res = await fetch(`/api/admin/backups/${b.id}/download`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) { toast.error('Erro ao baixar backup'); return; }
+      if (!res.ok) {
+        let msg = 'Erro ao baixar backup';
+        try { const json = await res.json(); if (json?.error) msg = json.error; } catch { /* mantém msg genérica */ }
+        toast.error(msg);
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = b.nomeArquivo;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
       toast.error('Erro ao baixar backup');
@@ -136,8 +143,8 @@ export default function AdminBackups() {
           )}
 
           <div className="flex-1 min-w-[180px]">
-            <label className="block text-slate-400 text-xs mb-1">Descrição (opcional)</label>
-            <input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
+            <label className="block text-slate-400 text-xs mb-1">Nome / Descrição (opcional)</label>
+            <input type="text" value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
               placeholder="Ex: backup pré-atualização"
               className="w-full bg-slate-800 border border-slate-600 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500" />
           </div>

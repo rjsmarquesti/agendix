@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 
 const TIPO_ICON = {
-  lembrete_enviado: { icon: '✓', bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600 dark:text-green-400' },
-  lembrete_falhou:  { icon: '!', bg: 'bg-red-100 dark:bg-red-900/30',   text: 'text-red-600 dark:text-red-400' },
-  agendamento_hoje: { icon: '📅', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' },
+  lembrete_enviado: { icon: '✓',  bg: 'bg-green-100 dark:bg-green-900/30',  text: 'text-green-600 dark:text-green-400' },
+  lembrete_falhou:  { icon: '!',  bg: 'bg-red-100 dark:bg-red-900/30',      text: 'text-red-600 dark:text-red-400' },
+  agendamento_hoje: { icon: '📅', bg: 'bg-blue-100 dark:bg-blue-900/30',    text: 'text-blue-600 dark:text-blue-400' },
+  wa_bounce:        { icon: '⚠',  bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-600 dark:text-orange-400' },
 };
 
 function fmtTempo(iso) {
@@ -96,7 +97,11 @@ export default function NotificacaoBell() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-snug">{n.titulo}</p>
-                      {n.corpo && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{n.corpo}</p>}
+                      {n.corpo && (
+                        <p className={`text-xs text-gray-500 dark:text-gray-400 mt-0.5 ${n.tipo === 'wa_bounce' ? 'whitespace-normal' : 'truncate'}`}>
+                          {n.corpo}
+                        </p>
+                      )}
                     </div>
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5">{fmtTempo(n.createdAt)}</span>
                   </li>

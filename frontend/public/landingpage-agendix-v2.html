@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Agendix — Sistema de Agendamento Online e CRM para Pequenos Negócios</title>
-  <meta name="description" content="Agendix é o CRM completo com agendamento online, bot WhatsApp automático e módulo financeiro para salões, clínicas, pet shops e qualquer negócio que vive de agenda. Comece grátis por 30 dias." />
+  <meta name="description" content="Agendix é o CRM completo com agendamento online, bot WhatsApp automático e módulo financeiro para salões, clínicas, pet shops e qualquer negócio que vive de agenda. Comece grátis por 14 dias." />
   <meta name="keywords" content="agendamento online, CRM para pequenos negócios, bot WhatsApp agendamento, sistema de agenda, salão de beleza, clínica, pet shop, software agendamento Brasil" />
   <meta name="author" content="Agendix" />
   <meta name="robots" content="index, follow" />
@@ -13,7 +13,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://agendix.divulgabr.com.br/" />
   <meta property="og:title" content="Agendix — Sistema de Agendamento Online e CRM para Pequenos Negócios" />
-  <meta property="og:description" content="CRM completo com agendamento online, bot WhatsApp automático e módulo financeiro. Para salões, clínicas, pet shops e qualquer negócio que vive de agenda. 30 dias grátis." />
+  <meta property="og:description" content="CRM completo com agendamento online, bot WhatsApp automático e módulo financeiro. Para salões, clínicas, pet shops e qualquer negócio que vive de agenda. 14 dias grátis." />
   <meta property="og:image" content="https://agendix.divulgabr.com.br/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -23,7 +23,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:url" content="https://agendix.divulgabr.com.br/" />
   <meta name="twitter:title" content="Agendix — Sistema de Agendamento Online e CRM" />
-  <meta name="twitter:description" content="Agendamento online, bot WhatsApp e CRM para pequenos negócios. 30 dias grátis, sem cartão." />
+  <meta name="twitter:description" content="Agendamento online, bot WhatsApp e CRM para pequenos negócios. 14 dias grátis, sem cartão." />
   <meta name="twitter:image" content="https://agendix.divulgabr.com.br/og-image.png" />
 
   <script type="application/ld+json">
@@ -37,13 +37,13 @@
     "operatingSystem": "Web",
     "inLanguage": "pt-BR",
     "offers": [
-      { "@type": "Offer", "name": "Plano Básico", "price": "37.00", "priceCurrency": "BRL" },
-      { "@type": "Offer", "name": "Plano Pro",    "price": "57.00", "priceCurrency": "BRL" },
-      { "@type": "Offer", "name": "Plano Premium","price": "97.00", "priceCurrency": "BRL" },
-      { "@type": "Offer", "name": "Plano Business","price": "127.00","priceCurrency": "BRL" }
+      { "@type": "Offer", "name": "Plano Básico", "price": "39.00", "priceCurrency": "BRL" },
+      { "@type": "Offer", "name": "Plano Pro",    "price": "59.00", "priceCurrency": "BRL" },
+      { "@type": "Offer", "name": "Plano Premium","price": "99.00", "priceCurrency": "BRL" },
+      { "@type": "Offer", "name": "Plano Business","price": "99.00","priceCurrency": "BRL" }
     ],
     "publisher": { "@type": "Organization", "name": "DivulgaBR", "url": "https://divulgabr.com.br" },
-    "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.9", "ratingCount": "2400", "bestRating": "5" }
+    "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.9", "ratingCount": "200", "bestRating": "5" }
   }
   </script>
 
@@ -53,7 +53,7 @@
     "@type": "FAQPage",
     "mainEntity": [
       { "@type": "Question", "name": "O Agendix tem período de teste grátis?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Sim. Todos os planos incluem 30 dias de teste gratuito, sem necessidade de cartão de crédito." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Sim. Todos os planos incluem 14 dias de teste gratuito, sem necessidade de cartão de crédito." } },
       { "@type": "Question", "name": "Posso usar o Agendix para salão de beleza?",
         "acceptedAnswer": { "@type": "Answer", "text": "Sim. O Agendix foi desenvolvido para salões de beleza, clínicas, pet shops, estúdios, academias e qualquer negócio que trabalha com agendamentos." } },
       { "@type": "Question", "name": "O bot do WhatsApp é automático?",
@@ -67,9 +67,9 @@
   <!-- Restore tema antes de renderizar -->
   <script>
     (function(){
-      var t = localStorage.getItem('agendix-theme');
-      if(t==='light'||(!t&&window.matchMedia('(prefers-color-scheme: light)').matches))
-        document.documentElement.classList.add('light');
+      var t = localStorage.getItem('agendix-lp-theme');
+      // Padrão: light — só ativa dark se o visitante escolheu explicitamente
+      if(t !== 'dark') document.documentElement.classList.add('light');
     })();
   </script>
 
@@ -224,7 +224,7 @@
     }
 
     .hdr-logo{flex-shrink:0;margin-right:8px}
-    .hdr-logo img{height:28px;width:auto}
+    .hdr-logo img{height:50px;width:auto}
     html:not(.light) .logo-lt{display:none!important}
     html.light .logo-dk{display:none!important}
 
@@ -975,7 +975,7 @@
       align-items:center;gap:24px;
     }
 
-    .ft-brand img{height:26px;width:auto}
+    .ft-brand img{height:44px;width:auto}
 
     .ft-links{display:flex;justify-content:center;gap:24px;flex-wrap:wrap}
     .ft-links a{font-size:.875rem;color:var(--mt);transition:color .2s}
@@ -1121,7 +1121,7 @@
   <div class="hero-left">
     <div class="hero-eyebrow">
       <span class="ey-tag">Agendamento · CRM · Financeiro</span>
-      <span class="ey-live"><span class="live-dot"></span>+2.400 negócios ativos</span>
+      <span class="ey-live"><span class="live-dot"></span>+200 negócios ativos</span>
     </div>
 
     <h1 class="hero-h1">
@@ -1153,7 +1153,7 @@
         <div class="tav" style="background:linear-gradient(135deg,#10B981,#059669)">RC</div>
         <div class="tav" style="background:linear-gradient(135deg,#00C97A,#06B6D4)">CS</div>
       </div>
-      <p class="trust-txt"><b>+2.400 negócios</b> já deixaram de perder horário todo dia</p>
+      <p class="trust-txt"><b>+200 negócios</b> já deixaram de perder horário todo dia</p>
     </div>
   </div>
 
@@ -1295,11 +1295,11 @@
   <div class="w">
     <div class="proof-grid">
       <div class="proof-cell">
-        <div class="pc-num c-g">+2.400</div>
+        <div class="pc-num c-g">+200</div>
         <p class="pc-txt"><b>negócios ativos</b> que largaram o papel, o WhatsApp manual e a agenda de cabeça — e nunca voltaram.</p>
       </div>
       <div class="proof-cell">
-        <div class="pc-num c-t">30 dias</div>
+        <div class="pc-num c-t">14 dias</div>
         <p class="pc-txt"><b>de trial completo</b>, com todas as funcionalidades liberadas. Sem cartão. Sem conversa. Cancele com um clique.</p>
       </div>
       <div class="proof-cell">
@@ -1322,7 +1322,7 @@
         </p>
         <div class="roi-answer">
           <span class="roi-ans-lbl">Economia real com o Agendix Pro:</span>
-          <span class="roi-ans-val">+R$ 263/mês</span>
+          <span class="roi-ans-val">+R$ 261/mês</span>
         </div>
       </div>
 
@@ -1342,11 +1342,11 @@
         </div>
         <div class="roi-line">
           <span class="roi-line-l">Custo Agendix Pro</span>
-          <span class="roi-line-v neg">− R$ 57</span>
+          <span class="roi-line-v neg">− R$ 59</span>
         </div>
         <div class="roi-result">
           <div class="roi-r-lbl">Lucro líquido do investimento</div>
-          <div class="roi-r-val">+ R$ 263</div>
+          <div class="roi-r-val">+ R$ 261</div>
           <div class="roi-r-sub">O sistema se paga no primeiro no-show que ele previne.</div>
         </div>
       </div>
@@ -1508,7 +1508,25 @@
     <div class="pricing-hdr rv">
       <div class="sec-lbl">Planos</div>
       <h2 class="sec-title">Preço justo para<br>cada fase do seu negócio.</h2>
-      <p class="sec-sub" style="margin-top:14px">30 dias grátis em qualquer plano. Sem cartão de crédito para começar. Mude ou cancele quando quiser.</p>
+      <p class="sec-sub" style="margin-top:14px">14 dias grátis em qualquer plano. Sem cartão de crédito para começar. Mude ou cancele quando quiser.</p>
+
+      <!-- Toggle mensal / anual -->
+      <div style="display:inline-flex;align-items:center;justify-content:center;margin-top:28px;margin-left:auto;margin-right:auto;position:relative">
+        <div style="display:flex;align-items:center;gap:0;background:var(--surface,#18181F);border:1px solid var(--bd,rgba(255,255,255,.10));border-radius:12px;padding:4px">
+          <button id="btn-mensal" onclick="setPricingCiclo('mensal')"
+            style="padding:8px 24px;border-radius:9px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;background:var(--g,#00C97A);color:#08080C">
+            Mensal
+          </button>
+          <button id="btn-anual" onclick="setPricingCiclo('anual')"
+            style="padding:8px 24px;border-radius:9px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;background:transparent;color:var(--mt-lt,#9090A8)">
+            Anual
+          </button>
+        </div>
+        <span style="position:absolute;top:-10px;right:-36px;background:var(--g,#00C97A);color:#08080C;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap">-20%</span>
+      </div>
+      <p id="pricing-ciclo-note" style="display:none;margin-top:12px;font-size:13px;color:var(--g,#00C97A);text-align:center">
+        💰 Pague uma vez e economize 2 meses. Cobrado R$ <span id="economia-total">—</span> à vista.
+      </p>
     </div>
 
     <div class="pricing-grid">
@@ -1518,13 +1536,14 @@
         <div class="pc-name">Solo</div>
         <div class="pc-price">
           <span class="pc-curr">R$</span>
-          <span class="pc-num2" style="color:var(--mt-lt)">49</span>
+          <span class="pc-num2 price-val" data-mensal="39" data-anual="31,20" style="color:var(--mt-lt)">39</span>
         </div>
-        <div class="pc-per">/mês · cobrado mensalmente</div>
+        <div class="pc-per price-per">/mês · cobrado mensalmente</div>
+        <div class="price-anual-note" style="display:none;font-size:12px;color:var(--mt,#5A5A72);margin-top:2px">R$ 374,40/ano (pagamento único)</div>
         <div class="pc-hr"></div>
         <ul class="pc-feats">
           <li>1 usuário</li>
-          <li>100 agendamentos/mês</li>
+          <li>Agendamentos ilimitados</li>
           <li>Link de agendamento público</li>
           <li>Confirmação WA automática</li>
           <li>Suporte por email</li>
@@ -1538,16 +1557,17 @@
         <div class="pc-name">Pro</div>
         <div class="pc-price">
           <span class="pc-curr">R$</span>
-          <span class="pc-num2" style="color:var(--g)">89</span>
+          <span class="pc-num2 price-val" data-mensal="59" data-anual="47,20" style="color:var(--g)">59</span>
         </div>
-        <div class="pc-per">/mês · cobrado mensalmente</div>
+        <div class="pc-per price-per">/mês · cobrado mensalmente</div>
+        <div class="price-anual-note" style="display:none;font-size:12px;color:var(--mt,#5A5A72);margin-top:2px">R$ 566,40/ano (pagamento único)</div>
         <div class="pc-hr"></div>
         <ul class="pc-feats">
           <li>5 usuários</li>
           <li>Agendamentos ilimitados</li>
           <li>Bot WhatsApp completo</li>
           <li>CRM completo de leads</li>
-          <li>Módulo financeiro básico</li>
+          <li>Financeiro completo + Agente IA</li>
           <li>Atendimento WA (fila)</li>
         </ul>
         <a href="https://agendix.divulgabr.com.br/cadastro" class="pc-btn pcb-fill">Começar grátis</a>
@@ -1558,9 +1578,10 @@
         <div class="pc-name">Business</div>
         <div class="pc-price">
           <span class="pc-curr">R$</span>
-          <span class="pc-num2" style="color:var(--a-lt)">149</span>
+          <span class="pc-num2 price-val" data-mensal="99" data-anual="79,20" style="color:var(--a-lt)">99</span>
         </div>
-        <div class="pc-per">/mês · cobrado mensalmente</div>
+        <div class="pc-per price-per">/mês · cobrado mensalmente</div>
+        <div class="price-anual-note" style="display:none;font-size:12px;color:var(--mt,#5A5A72);margin-top:2px">R$ 950,40/ano (pagamento único)</div>
         <div class="pc-hr"></div>
         <ul class="pc-feats">
           <li>Usuários ilimitados</li>
@@ -1576,6 +1597,31 @@
     </div>
   </div>
 </section>
+<script>
+function setPricingCiclo(ciclo) {
+  const isAnual = ciclo === 'anual';
+  document.querySelectorAll('.price-val').forEach(el => {
+    el.textContent = isAnual ? el.dataset.anual : el.dataset.mensal;
+  });
+  document.querySelectorAll('.price-per').forEach(el => {
+    el.textContent = isAnual ? '/mês · equivalente anual' : '/mês · cobrado mensalmente';
+  });
+  document.querySelectorAll('.price-anual-note').forEach(el => {
+    el.style.display = isAnual ? 'block' : 'none';
+  });
+  const note = document.getElementById('pricing-ciclo-note');
+  note.style.display = isAnual ? 'block' : 'none';
+  if (isAnual) document.getElementById('economia-total').textContent = '374,40 / 566,40 / 950,40';
+  const btnM = document.getElementById('btn-mensal');
+  const btnA = document.getElementById('btn-anual');
+  const activeStyle = 'var(--g,#00C97A)';
+  const inactiveStyle = 'transparent';
+  btnM.style.background = isAnual ? inactiveStyle : activeStyle;
+  btnM.style.color = isAnual ? 'var(--mt-lt,#9090A8)' : '#08080C';
+  btnA.style.background = isAnual ? activeStyle : inactiveStyle;
+  btnA.style.color = isAnual ? '#08080C' : 'var(--mt-lt,#9090A8)';
+}
+</script>
 
 <!-- ─── TESTIMONIALS MASONRY ─── -->
 <section class="testimonials" aria-label="Depoimentos">
@@ -1587,7 +1633,7 @@
       </div>
       <div class="testi-stat-wrap">
         <div class="testi-stat">4.9 ★</div>
-        <div class="testi-stat-lbl">média de +2.400 avaliações</div>
+        <div class="testi-stat-lbl">média de +200 avaliações</div>
       </div>
     </div>
 
@@ -1658,7 +1704,7 @@
       <div class="cta-l">
         <div class="cta-label">
           <span class="live-dot"></span>
-          30 dias grátis · sem cartão · sem compromisso
+          14 dias grátis · sem cartão · sem compromisso
         </div>
         <h2 class="cta-h2">Comece hoje.<br><em>Sem bagunça</em><br>amanhã.</h2>
         <p class="cta-p">Sem configuração complexa. Sem manual. Seus clientes agendam online em minutos.</p>
@@ -1707,7 +1753,7 @@
   /* ── Tema ── */
   document.getElementById('themeToggle').addEventListener('click', function() {
     var isLight = document.documentElement.classList.toggle('light');
-    localStorage.setItem('agendix-theme', isLight ? 'light' : 'dark');
+    localStorage.setItem('agendix-lp-theme', isLight ? 'light' : 'dark');
   });
 
   /* ── Scroll reveal ── */
@@ -1745,8 +1791,8 @@
     entries.forEach(function(entry) {
       if (entry.isIntersecting) {
         var nums = entry.target.querySelectorAll('.pc-num');
-        // +2.400
-        if (nums[0]) animateCounter(nums[0], 2400, '+', '', 1200);
+        // +200
+        if (nums[0]) animateCounter(nums[0], 200, '+', '', 1200);
         proofObserver.unobserve(entry.target);
       }
     });
@@ -1758,3 +1804,5 @@
 
 </body>
 </html>
+
+

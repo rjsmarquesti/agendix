@@ -5,15 +5,15 @@ const ThemeContext = createContext();
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('agendix-theme');
-    if (saved) return saved;
-    return 'light'; // light-first
+    return saved === 'dark' ? 'dark' : 'light'; // light-first
   });
 
   useEffect(() => {
+    const html = document.documentElement;
     if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
+      html.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      html.classList.remove('dark');
     }
     localStorage.setItem('agendix-theme', theme);
   }, [theme]);

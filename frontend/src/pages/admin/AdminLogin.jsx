@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 function IconShield() {
   return (
@@ -201,6 +202,7 @@ export default function AdminLogin() {
   const [etapa, setEtapa] = useState('credenciais'); // 'credenciais' | 'totp'
   const [credenciais, setCredenciais] = useState(null);
   const { login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   function handleSuccess(data) {
@@ -214,17 +216,24 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--bg)' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 relative" style={{ backgroundColor: 'var(--bg)' }}>
+      <button onClick={toggleTheme}
+        className="absolute top-5 right-5 w-9 h-9 rounded-xl flex items-center justify-center border transition-colors"
+        style={{ borderColor: 'var(--bd-md)', color: 'var(--mt-lt)', backgroundColor: 'transparent' }}
+        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--s2)'}
+        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+        {theme === 'dark'
+          ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        }
+      </button>
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+            <div className="w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center"
               style={{ backgroundColor: 'var(--g)' }}>
-              <svg className="w-7 h-7" stroke="#08080C" fill="none" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
+              <img src="/logo.png" alt="Agendix" className="w-12 h-12 object-cover" />
             </div>
             <span className="font-bold text-2xl tracking-tight" style={{ color: 'var(--tx)' }}>Agendix</span>
           </div>

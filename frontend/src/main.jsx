@@ -5,6 +5,15 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import './index.css';
 
+// Registra service worker para Web Push (VAPID)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err =>
+      console.warn('[SW] Registro falhou:', err)
+    );
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <App />
