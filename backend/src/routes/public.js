@@ -11,6 +11,7 @@ const prisma = require('../lib/prisma');
 const { getSlots } = require('../services/disponibilidadeService');
 const { LIMITE_AGENDAMENTOS } = require('../config/planos');
 const { randomUUID } = require('crypto');
+const { validarHostPublico } = require('../lib/ssrfGuard');
 
 // ── Middleware: resolve tenant pelo slug ─────────────────────────────────────
 async function resolverTenant(req, res, next) {
@@ -233,6 +234,10 @@ router.post('/cancelar/:token', async (req, res, next) => {
 // ── Webhook de notificação (fire-and-forget) ─────────────────────────────────
 async function dispararWebhookNotificacao(tenant, agendamento) {
   if (!tenant.n8nWebhookUrl) return;
+  if (!(await validarHostPublico(tenant.n8nWebhookUrl))) {
+    console.warn(`[webhook] n8nWebhookUrl aponta para host privado/interno — bloqueado (tenant=${tenant.slug})`);
+    return;
+  }
   const config = await prisma.configuracaoAgenda.findUnique({ where: { tenantId: tenant.id } });
   await fetch(tenant.n8nWebhookUrl, {
     method: 'POST',

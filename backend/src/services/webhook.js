@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { validarHostPublico } = require('../lib/ssrfGuard');
 
 /**
  * Dispara um evento para o webhook n8n do tenant (fire-and-forget).
@@ -14,6 +15,10 @@ async function dispararWebhook(tenantId, evento, payload) {
     });
 
     if (!tenant?.n8nWebhookUrl) return;
+    if (!(await validarHostPublico(tenant.n8nWebhookUrl))) {
+      console.warn(`[webhook] n8nWebhookUrl aponta para host privado/interno — bloqueado (tenant=${tenant.slug})`);
+      return;
+    }
 
     const headers = { 'Content-Type': 'application/json' };
     if (tenant.n8nApiKey) headers['Authorization'] = `Bearer ${tenant.n8nApiKey}`;
@@ -35,6 +40,10 @@ async function dispararWebhookAgendamento(tenantId, agendamento) {
       select: { n8nWebhookUrl: true, n8nApiKey: true, id: true, nome: true, slug: true, apiToken: true, nichoLabel: true, evolutionInstance: true, evolutionApiKey: true, evolutionBaseUrl: true },
     });
     if (!tenant?.n8nWebhookUrl) return;
+    if (!(await validarHostPublico(tenant.n8nWebhookUrl))) {
+      console.warn(`[webhook] n8nWebhookUrl aponta para host privado/interno — bloqueado (tenant=${tenant.slug})`);
+      return;
+    }
 
     const config = await prisma.configuracaoAgenda.findUnique({ where: { tenantId } });
 

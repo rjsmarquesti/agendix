@@ -1,6 +1,6 @@
 {
     "name": "agendix-backend",
-    "version": "1.7.0",
+    "version": "1.7.1",
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
@@ -42,7 +42,7 @@
         "rate-limiter-flexible": "^5.0.3",
         "uuid": "^11.0.3",
         "web-push": "^3.6.7",
-        "xlsx": "^0.18.5",
+        "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
         "zod": "^3.23.8"
     },
     "devDependencies": {

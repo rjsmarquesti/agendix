@@ -10,7 +10,7 @@ const { parseEvolution, parseEvolutionConnection } = require('../lib/wa/webhook/
 const { parseMeta, validateMetaSignature }         = require('../lib/wa/webhook/parseMeta');
 const { parseTwilio, validateTwilioSignature }     = require('../lib/wa/webhook/parseTwilio');
 const { parseZApi }                                = require('../lib/wa/webhook/parseZApi');
-const { verificarApikeyEvolutionLog } = require('../middlewares/webhookVerify');
+const { verificarApikeyEvolutionLog, ENFORCE_APIKEY } = require('../middlewares/webhookVerify');
 
 const leadImportSchema = z.object({
   nome_empresa:    z.string().max(255).optional(),
@@ -310,9 +310,11 @@ router.post('/agente/:slug', async (req, res) => {
     if (!raw) return;
     const tenant = decryptTenant(raw);
 
-    // Fase 1 — log apenas: a Evolution envia a key no body, não no header.
-    // Detecta divergência e registra, mas não bloqueia (adoção gradual).
-    await verificarApikeyEvolutionLog(req, tenant).catch(() => {});
+    // Bloqueia quando o tenant tem evolutionApiKey configurada e a key da
+    // requisição não confere — protege contra mensagens forjadas via slug público.
+    // Em erro inesperado da checagem, não bloqueia (evita derrubar o bot por falha própria).
+    const { valido } = await verificarApikeyEvolutionLog(req, tenant).catch(() => ({ valido: true }));
+    if (ENFORCE_APIKEY && !valido) return;
 
     // Evento de conexão (desconexão / ban)
     const connEvt = parseEvolutionConnection(req.body);

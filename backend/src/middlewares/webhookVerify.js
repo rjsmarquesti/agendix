@@ -3,6 +3,10 @@ const prisma = require('../lib/prisma');
 const { decrypt } = require('../lib/encrypt');
 const audit = require('../lib/audit');
 
+// Fase 2 — bloqueia de fato quando a apikey não confere (era só log-apenas).
+// Kill-switch sem redeploy: WEBHOOK_APIKEY_BLOCK=false no EasyPanel volta ao modo log-apenas.
+const ENFORCE_APIKEY = process.env.WEBHOOK_APIKEY_BLOCK !== 'false';
+
 // Verifica X-Webhook-Secret em webhooks da Evolution API por slug de tenant.
 // Se o tenant não tiver webhookSecret configurado, passa sem verificar (retrocompatível).
 async function verifyEvolutionWebhook(req, res, next) {
@@ -41,10 +45,10 @@ async function verifyEvolutionWebhook(req, res, next) {
   }
 }
 
-// Fase 1 (log apenas) — valida apikey da Evolution API comparando body.apikey com a
-// key do tenant. A Evolution envia a key no CORPO do webhook (não no header), então
-// validar por header rejeitava todos os webhooks legítimos. Em divergência apenas
-// registra — não bloqueia (adoção gradual, ver AP de webhook no CLAUDE.md).
+// Valida apikey da Evolution API comparando body.apikey (ou header) com a key do
+// tenant. A Evolution envia a key no CORPO do webhook (não no header), por isso
+// checa os dois. Retorna { valido, motivo } — quem chama decide se bloqueia
+// (ver ENFORCE_APIKEY acima). Tenant sem key configurada nunca é bloqueado.
 async function verificarApikeyEvolutionLog(req, tenant) {
   const storedKey = tenant?.evolutionApiKey;
   if (!storedKey) return { valido: true, motivo: 'sem_key_configurada' };
@@ -66,4 +70,4 @@ async function verificarApikeyEvolutionLog(req, tenant) {
   return { valido, motivo: valido ? 'ok' : 'apikey_divergente' };
 }
 
-module.exports = { verifyEvolutionWebhook, verificarApikeyEvolutionLog };
+module.exports = { verifyEvolutionWebhook, verificarApikeyEvolutionLog, ENFORCE_APIKEY };

@@ -6,7 +6,7 @@ const { decryptTenant } = require('../lib/encrypt');
 const tenantMiddleware = require('../middlewares/tenant');
 const auth = require('../middlewares/auth');
 const { agenteIaWebhookLimiter } = require('../middlewares/rateLimiter');
-const { verificarApikeyEvolutionLog } = require('../middlewares/webhookVerify');
+const { verificarApikeyEvolutionLog, ENFORCE_APIKEY } = require('../middlewares/webhookVerify');
 
 // Middleware: verifica plano para Agente IA
 function requireAgenteIa(req, res, next) {
@@ -132,8 +132,10 @@ router.post('/webhook/:slug', agenteIaWebhookLimiter, async (req, res) => {
     if (!tenant || !tenant.ativo) return res.sendStatus(200);
     if (!AGENTE_IA[tenant.plano]) return res.sendStatus(200);
 
-    // Fase 1 — log apenas: detecta divergência de apikey sem bloquear (adoção gradual)
-    await verificarApikeyEvolutionLog(req, tenant).catch(() => {});
+    // Bloqueia quando o tenant tem evolutionApiKey configurada e a key da
+    // requisição não confere — protege contra mensagens forjadas via slug público.
+    const { valido } = await verificarApikeyEvolutionLog(req, tenant).catch(() => ({ valido: true }));
+    if (ENFORCE_APIKEY && !valido) return res.sendStatus(200);
 
     const body = req.body;
 
