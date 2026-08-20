@@ -42,16 +42,25 @@ function ModalCriar({ dataInicial, onClose, onSaved }) {
     data: dataInicial || '',
     hora: '',
     tipo: '',
+    servicoId: '',
     status: 'marcado',
     observacoes: '',
   });
   const [loading, setLoading] = useState(false);
+  const [leads, setLeads] = useState([]);
+  const [servicos, setServicos] = useState([]);
+
+  useEffect(() => {
+    api.get('/leads', { limit: 200 }).then(d => setLeads(d.leads || [])).catch(() => {});
+    api.get('/servicos', { ativo: 'true' }).then(d => setServicos(d.servicos || [])).catch(() => {});
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/agendamentos', form);
+      const { servicoId, ...resto } = form;
+      await api.post('/agendamentos', { ...resto, servico_id: servicoId || undefined });
       onSaved();
     } catch (err) {
       alert(err.message);
@@ -74,7 +83,21 @@ function ModalCriar({ dataInicial, onClose, onSaved }) {
             </svg>
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+          {leads.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Cliente existente <span className="text-gray-400 font-normal">(opcional)</span></label>
+              <select className={inputCls}
+                value=""
+                onChange={e => {
+                  const lead = leads.find(l => String(l.id) === e.target.value);
+                  if (lead) setForm(f => ({ ...f, nome: lead.nome, telefone: lead.telefone || '', email: lead.email || '' }));
+                }}>
+                <option value="">Buscar cliente cadastrado...</option>
+                {leads.map(l => <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` · ${l.telefone}` : ''}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nome *</label>
             <input type="text" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
@@ -104,9 +127,22 @@ function ModalCriar({ dataInicial, onClose, onSaved }) {
                 required className={inputCls} />
             </div>
           </div>
+          {servicos.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Serviço</label>
+              <select className={inputCls} value={form.servicoId}
+                onChange={e => {
+                  const svc = servicos.find(s => String(s.id) === e.target.value);
+                  setForm(f => ({ ...f, servicoId: e.target.value, tipo: svc ? svc.nome : f.tipo }));
+                }}>
+                <option value="">Selecionar serviço cadastrado...</option>
+                {servicos.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tipo / Serviço</label>
-            <input type="text" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
+            <input type="text" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value, servicoId: '' }))}
               placeholder="Ex: Consulta, Corte..." className={inputCls} />
           </div>
           <div>

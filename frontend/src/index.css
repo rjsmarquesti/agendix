@@ -58,13 +58,13 @@
 
   --cor-primaria: var(--g);
 
-  /* Sidebar — sempre dark independente do tema */
-  --sb-bg:  #0D0D14;
-  --sb-s2:  #1A1A28;
-  --sb-s3:  #222236;
-  --sb-tx:  #EEEEF5;
-  --sb-mt:  #7878A0;
-  --sb-bd:  rgba(255,255,255,0.06);
+  /* Sidebar — segue o tema (claro/escuro), igual à v1.5.3 */
+  --sb-bg:  var(--surface);
+  --sb-s2:  var(--s2);
+  --sb-s3:  var(--s3);
+  --sb-tx:  var(--tx);
+  --sb-mt:  var(--mt-lt);
+  --sb-bd:  var(--bd);
 }
 
 /* ── Tokens Dark ────────────────────────────────────────────────────────── */

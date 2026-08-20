@@ -4,7 +4,7 @@ const ctrl = require('../controllers/agendamentosController');
 const auth = require('../middlewares/auth');
 
 const validar = [
-  body('lead_id').isInt().withMessage('Lead obrigatório'),
+  body('lead_id').optional().isInt().withMessage('Lead inválido'),
   body('data').notEmpty().withMessage('Data obrigatória'),
   body('hora').notEmpty().withMessage('Hora obrigatória'),
 ];

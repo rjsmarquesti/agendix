@@ -44,8 +44,9 @@ exports.criar = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { lead_id, nome, telefone, email, data, hora, tipo, status, observacoes } = req.body;
+    const { lead_id, nome, telefone, email, data, hora, tipo, status, observacoes, servico_id } = req.body;
     const tenantId = req.user.tenantId;
+    const servicoId = servico_id ? Number(servico_id) : null;
 
     let leadId = lead_id ? Number(lead_id) : null;
 
@@ -80,7 +81,7 @@ exports.criar = async (req, res, next) => {
         try {
           const ag = await criarAgendamento(
             {
-              tenantId, leadId, data: dataAtual, hora,
+              tenantId, leadId, servicoId, data: dataAtual, hora,
               tipo: tipo || 'reunião', status: status || 'marcado', observacoes,
               cancelToken: randomUUID(),
               recorrenciaId: rid,
@@ -109,7 +110,7 @@ exports.criar = async (req, res, next) => {
 
     // Agendamento simples (sem recorrência)
     const agendamento = await criarAgendamento(
-      { tenantId, leadId, data, hora, tipo: tipo || 'reunião', status: status || 'marcado', observacoes, cancelToken: randomUUID() },
+      { tenantId, leadId, servicoId, data, hora, tipo: tipo || 'reunião', status: status || 'marcado', observacoes, cancelToken: randomUUID() },
       tenant.plano,
       { incluir: incluirLead }
     );
@@ -151,7 +152,7 @@ exports.atualizar = async (req, res, next) => {
 
     const agendamento = await prisma.agendamento.update({
       where: { id: existe.id, tenantId: req.user.tenantId },
-      data: { leadId: Number(lead_id), data: novaData, hora: novaHora, tipo, status, observacoes },
+      data: { leadId: lead_id ? Number(lead_id) : existe.leadId, data: novaData, hora: novaHora, tipo, status, observacoes },
       include: incluirLead,
     });
     if (status === 'confirmado' && existe.status !== 'confirmado') {
