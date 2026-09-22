@@ -27,7 +27,14 @@ app.use(waf);
 const appUrl = process.env.APP_URL || 'https://agendix.divulgabr.com.br';
 app.use((req, res, next) => {
   const isPublicPage = req.path === '/agendar.html' || req.path === '/sw.js' || req.path === '/manifest.json';
-  if (isPublicPage) return helmet({ contentSecurityPolicy: false })(req, res, next);
+  // Widget público: precisa rodar em iframe no site de qualquer cliente
+  if (isPublicPage) {
+    return helmet({
+      contentSecurityPolicy: false,
+      xFrameOptions: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    })(req, res, next);
+  }
   return helmet({
     contentSecurityPolicy: {
       directives: {
