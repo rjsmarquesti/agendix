@@ -19,4 +19,11 @@ function getRedis() {
   return client;
 }
 
-module.exports = { getRedis };
+function closeRedis() {
+  if (client) {
+    client.disconnect();
+    client = null;
+  }
+}
+
+module.exports = { getRedis, closeRedis };

@@ -1,5 +1,7 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env.test') });
 require('dotenv').config();
 const prisma = require('../lib/prisma');
+const { closeRedis } = require('../lib/redis');
 
 beforeEach(async () => {
   // Limpa em ordem de FK (filhos antes de pais)
@@ -15,4 +17,5 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+  closeRedis();
 });
