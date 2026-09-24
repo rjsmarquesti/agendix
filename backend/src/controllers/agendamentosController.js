@@ -44,7 +44,7 @@ exports.criar = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { lead_id, nome, telefone, email, data, hora, tipo, status, observacoes, servico_id } = req.body;
+    const { lead_id, nome, telefone, email, data, hora, tipo, status, observacoes, servico_id, forcarNovoLead } = req.body;
     const tenantId = req.user.tenantId;
     const servicoId = servico_id ? Number(servico_id) : null;
 
@@ -55,7 +55,20 @@ exports.criar = async (req, res, next) => {
         return res.status(400).json({ error: 'Informe lead_id ou nome + telefone.' });
       }
       const fone = telefone.replace(/\D/g, '');
-      let lead = await prisma.lead.findFirst({ where: { tenantId, telefone: fone } });
+      const leadExistente = await prisma.lead.findFirst({ where: { tenantId, telefone: fone } });
+      const nomeDiferente = leadExistente
+        && leadExistente.nome.trim().toLowerCase() !== nome.trim().toLowerCase();
+
+      // Telefone já pertence a outro contato — não sobrescrever o nome silenciosamente,
+      // deixar o operador decidir (vincular ao existente ou criar novo mesmo assim).
+      if (nomeDiferente && !forcarNovoLead) {
+        return res.status(200).json({
+          conflitoTelefone: true,
+          leadExistente: { id: leadExistente.id, nome: leadExistente.nome, telefone: leadExistente.telefone },
+        });
+      }
+
+      let lead = (leadExistente && !nomeDiferente) ? leadExistente : null;
       if (!lead) {
         lead = await prisma.lead.create({
           data: { tenantId, nome: nome.trim(), telefone: fone,

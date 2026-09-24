@@ -416,7 +416,16 @@ export default function Agendamentos() {
         } else {
           delete payload.recorrencia;
         }
-        const resp = await api.post('/agendamentos', payload);
+        let resp = await api.post('/agendamentos', payload);
+        if (resp.conflitoTelefone) {
+          const { leadExistente } = resp;
+          const vincular = window.confirm(
+            `Este telefone já pertence a "${leadExistente.nome}".\n\nOK = Vincular este agendamento a esse contato existente\nCancelar = Criar um novo contato com o nome "${payload.nome}" mesmo assim`
+          );
+          resp = await api.post('/agendamentos', vincular
+            ? { ...payload, lead_id: leadExistente.id }
+            : { ...payload, forcarNovoLead: true });
+        }
         if (resp.agendamentos) {
           toast.success(`${resp.criados} agendamentos criados! 🔁`);
         } else {

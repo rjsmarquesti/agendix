@@ -37,6 +37,8 @@ export default function Mensagens() {
   const { tenant } = useAuth();
 
   // ── Envio ──────────────────────────────────────────────────────────────────
+  const [novoContatoNome, setNovoContatoNome] = useState('');
+  const [criandoContato,  setCriandoContato]  = useState(false);
   const [leadBusca,   setLeadBusca]   = useState('');
   const [leadSel,     setLeadSel]     = useState(null);
   const [meio,        setMeio]        = useState('email');
@@ -79,6 +81,29 @@ export default function Mensagens() {
            (l.email || '').toLowerCase().includes(q) ||
            (l.telefone || '').includes(q);
   });
+
+  // Digitou um e-mail ou telefone válido que não bateu com nenhum lead — oferece criar contato avulso
+  const buscaEhEmail    = /\S+@\S+\.\S+/.test(leadBusca.trim());
+  const buscaDigitos    = leadBusca.replace(/\D/g, '');
+  const buscaEhTelefone = !buscaEhEmail && buscaDigitos.length >= 10;
+  const podeCriarContato = leadsFiltrados.length === 0 && (buscaEhEmail || buscaEhTelefone);
+
+  async function criarContatoAvulso() {
+    if (!novoContatoNome.trim()) return;
+    setCriandoContato(true);
+    try {
+      const payload = { nome: novoContatoNome.trim(), status: 'novo', fonte: 'manual', origem: 'Mensagens' };
+      if (buscaEhEmail) payload.email = leadBusca.trim();
+      else payload.telefone = buscaDigitos;
+      const { lead } = await api.post('/leads', payload);
+      setTodosLeads(prev => [lead, ...prev]);
+      setLeadSel(lead);
+      setLeadBusca('');
+      setNovoContatoNome('');
+      toast.success('Contato criado!');
+    } catch (e) { toast.error(e.message || 'Erro ao criar contato.'); }
+    finally { setCriandoContato(false); }
+  }
 
   const carregarLogs = useCallback(async (pag = 1) => {
     setCarregando(true);
@@ -143,9 +168,30 @@ export default function Mensagens() {
               />
               <div className="rounded-lg border overflow-y-auto" style={{ background: 'var(--surface)', borderColor: 'var(--bd)', maxHeight: '180px' }}>
                 {leadsFiltrados.length === 0 ? (
-                  <p className="text-xs px-3 py-2" style={{ color: 'var(--mt)' }}>
-                    {todosLeads.length === 0 ? 'Carregando...' : 'Nenhum lead encontrado.'}
-                  </p>
+                  <div className="px-3 py-2">
+                    <p className="text-xs mb-2" style={{ color: 'var(--mt)' }}>
+                      {todosLeads.length === 0 ? 'Carregando...' : 'Nenhum lead encontrado.'}
+                    </p>
+                    {podeCriarContato && (
+                      <div className="space-y-2">
+                        <input
+                          autoFocus
+                          value={novoContatoNome}
+                          onChange={e => setNovoContatoNome(e.target.value)}
+                          placeholder="Nome do contato"
+                          className="w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+                          style={{ background: 'var(--bg)', borderColor: 'var(--bd)', color: 'var(--tx)' }}
+                        />
+                        <button
+                          disabled={!novoContatoNome.trim() || criandoContato}
+                          onClick={criarContatoAvulso}
+                          className="w-full text-xs font-medium py-2 rounded-lg border disabled:opacity-40"
+                          style={{ borderColor: 'var(--g)', color: 'var(--g)' }}>
+                          {criandoContato ? 'Criando...' : `Criar contato com ${buscaEhEmail ? 'este e-mail' : 'este telefone'}`}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ) : leadsFiltrados.map(l => (
                   <button key={l.id} onClick={() => { setLeadSel(l); setLeadBusca(''); }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition border-b last:border-0"

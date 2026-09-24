@@ -179,9 +179,10 @@ function FunilLeads({ leads }) {
 /* ── Gráfico de linha (Desempenho) ───────────────────────────────────────── */
 function GraficoLinha({ serie }) {
   const [Libs, setLibs] = useState(null);
+  const [libsErro, setLibsErro] = useState(false);
 
   useEffect(() => {
-    import('recharts').then(m => setLibs(m));
+    import('recharts').then(m => setLibs(m)).catch(() => setLibsErro(true));
   }, []);
 
   if (!Libs || !serie?.length) {
@@ -190,7 +191,7 @@ function GraficoLinha({ serie }) {
         height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: 'var(--mt)', fontSize: 12,
       }}>
-        {serie?.length === 0 ? 'Sem dados no período' : 'Carregando gráfico…'}
+        {libsErro ? 'Erro ao carregar gráfico — recarregue a página' : serie?.length === 0 ? 'Sem dados no período' : 'Carregando gráfico…'}
       </div>
     );
   }
@@ -233,9 +234,10 @@ const CANAIS_COLORS = {
 
 function GraficoDonut({ canais }) {
   const [Libs, setLibs] = useState(null);
+  const [libsErro, setLibsErro] = useState(false);
 
   useEffect(() => {
-    import('recharts').then(m => setLibs(m));
+    import('recharts').then(m => setLibs(m)).catch(() => setLibsErro(true));
   }, []);
 
   if (!Libs || !canais?.length) {
@@ -244,7 +246,7 @@ function GraficoDonut({ canais }) {
         height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: 'var(--mt)', fontSize: 12,
       }}>
-        {canais?.length === 0 ? 'Sem dados' : 'Carregando…'}
+        {libsErro ? 'Erro ao carregar gráfico — recarregue a página' : canais?.length === 0 ? 'Sem dados' : 'Carregando…'}
       </div>
     );
   }
@@ -327,7 +329,7 @@ export default function Dashboard() {
     api.get('/dashboard/agendamentos-serie').then(d => setSerie(d.serie)).catch(() => setSerie([]));
     api.get('/dashboard/canais').then(d => setCanais(d.canais)).catch(() => setCanais([]));
     /* Buscar leads para o funil */
-    api.get('/leads?limite=200').then(d => setAllLeads(d.leads || [])).catch(() => {});
+    api.get('/leads?limit=200').then(d => setAllLeads(d.leads || [])).catch(() => {});
   }, []);
 
   const db    = data?.dashboard || {};

@@ -141,6 +141,24 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
     </div>
   );
 
+  function formatarTelefone(v) {
+    const d = v.replace(/\D/g, '').slice(0, 11);
+    if (d.length <= 2)  return d;
+    if (d.length <= 6)  return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  }
+
+  const telefoneField = (id, label) => (
+    <div>
+      <label htmlFor={`lead-field-${id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+      <input id={`lead-field-${id}`} type="tel" value={form[id]}
+        onChange={e => setForm(f => ({ ...f, [id]: formatarTelefone(e.target.value) }))}
+        placeholder="(00) 00000-0000" maxLength={15}
+        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+    </div>
+  );
+
   const sel = (id, label, options, labelMap = {}) => (
     <div>
       <label htmlFor={`lead-sel-${id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
@@ -176,8 +194,8 @@ function LeadForm({ form, setForm, onSubmit, loading, nichos }) {
       {/* Dados básicos */}
       {field('nome', 'Nome *', 'text', { required: true, placeholder: 'Nome / Razão social' })}
       <div className="grid grid-cols-2 gap-3">
-        {field('telefone',  'Telefone',   'text', { placeholder: '(00) 00000-0000' })}
-        {field('telefone2', 'Telefone 2', 'text', { placeholder: '(00) 00000-0000' })}
+        {telefoneField('telefone',  'Telefone')}
+        {telefoneField('telefone2', 'Telefone 2')}
       </div>
       <div className="grid grid-cols-2 gap-3">
         {field('email',   'Email',   'email', { placeholder: 'email@exemplo.com' })}
@@ -458,6 +476,7 @@ function ImportModal({ onClose, onDone, filtros }) {
 // ─── Leads ────────────────────────────────────────────────────────────────────
 export default function Leads() {
   const [leads, setLeads]         = useState([]);
+  const [leadsLoading, setLeadsLoading] = useState(true);
   const [total, setTotal]         = useState(0);
   const [stats, setStats]         = useState(null);
   const [nichos, setNichos]       = useState([]);
@@ -502,14 +521,19 @@ export default function Leads() {
 
   const categoriasDoNicho = nichos.find(n => n.nicho === filtroNicho)?.categorias || [];
 
-  // ── carregar nichos e stats ao montar
-  useEffect(() => {
-    api.get('/leads/nichos').then(d => setNichos(d.data || [])).catch(e => console.error('[Leads] nichos:', e.message));
+  const loadStats = useCallback(() => {
     api.get('/leads/stats').then(d => setStats(d)).catch(e => console.error('[Leads] stats:', e.message));
   }, []);
 
+  // ── carregar nichos e stats ao montar
+  useEffect(() => {
+    api.get('/leads/nichos').then(d => setNichos(d.data || [])).catch(e => console.error('[Leads] nichos:', e.message));
+    loadStats();
+  }, [loadStats]);
+
   // ── carregar leads (com debounce nos filtros texto)
   const loadLeads = useCallback(async () => {
+    setLeadsLoading(true);
     try {
       const params = { page, limit: LIMIT };
       if (busca)           params.busca      = busca;
@@ -525,6 +549,7 @@ export default function Leads() {
       setLeads(data.leads);
       setTotal(data.total);
     } catch (err) { toast.error(err.message); }
+    finally { setLeadsLoading(false); }
   }, [busca, filtroStatus, filtroFonte, filtroPriority, filtroEstado,
       filtroMunicipio, filtroBairro, filtroNicho, filtroCategoria, page]);
 
@@ -591,6 +616,7 @@ export default function Leads() {
       toast.success(`${converterLead.nome} convertido em cliente!`);
       setConverterLead(null);
       loadLeads();
+      loadStats();
     } catch (err) { toast.error(err.message); }
     finally { setConvertendo(false); }
   }
@@ -601,6 +627,8 @@ export default function Leads() {
     try {
       const payload = { ...form };
       if (payload.rating === '') delete payload.rating;
+      if (payload.telefone)  payload.telefone  = payload.telefone.replace(/\D/g, '');
+      if (payload.telefone2) payload.telefone2 = payload.telefone2.replace(/\D/g, '');
       if (editId) {
         await api.put(`/leads/${editId}`, payload);
         toast.success('Lead atualizado!');
@@ -610,6 +638,7 @@ export default function Leads() {
       }
       setModalOpen(false);
       loadLeads();
+      loadStats();
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
   }
@@ -620,6 +649,7 @@ export default function Leads() {
       await api.delete(`/leads/${id}`);
       toast.success('Lead removido');
       loadLeads();
+      loadStats();
     } catch (err) { toast.error(err.message); }
   }
 
@@ -630,6 +660,7 @@ export default function Leads() {
       toast.success(`${deletados} lead(s) removido(s)`);
       setSelecionados(new Set());
       loadLeads();
+      loadStats();
     } catch (err) { toast.error(err.message); }
   }
 
@@ -907,7 +938,9 @@ export default function Leads() {
 
       {/* Cards mobile */}
       <div className="md:hidden space-y-3 mb-4 no-print">
-        {leads.length === 0 ? (
+        {leadsLoading ? (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-8 text-center text-gray-400 dark:text-gray-500">Carregando leads…</div>
+        ) : leads.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-8 text-center text-gray-400 dark:text-gray-500">Nenhum lead encontrado</div>
         ) : leads.map(l => (
           <div key={l.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
@@ -989,7 +1022,13 @@ export default function Leads() {
               </tr>
             </thead>
             <tbody>
-              {leads.length === 0 ? (
+              {leadsLoading ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-14 text-center text-gray-400">
+                    Carregando leads…
+                  </td>
+                </tr>
+              ) : leads.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-14 text-center text-gray-400">
                     Nenhum lead encontrado

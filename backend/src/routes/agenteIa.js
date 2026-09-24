@@ -60,9 +60,16 @@ router.post('/toggle', protect, async (req, res) => {
     const config = await prisma.agentConfig.findUnique({ where: { tenantId: req.tenant.id } });
     if (!config) return res.status(400).json({ error: 'Configure o agente antes de ativá-lo.' });
 
+    const vaiAtivar = !config.ativo;
+    if (vaiAtivar && /\[[^\]]+\]/.test(config.promptBase || '')) {
+      return res.status(400).json({
+        error: 'O prompt ainda tem campos entre colchetes não preenchidos (ex: [liste seus serviços aqui]). Edite o prompt em Configuração antes de ativar.',
+      });
+    }
+
     const updated = await prisma.agentConfig.update({
       where: { tenantId: req.tenant.id },
-      data: { ativo: !config.ativo },
+      data: { ativo: vaiAtivar },
     });
     res.json({ ativo: updated.ativo });
   } catch (err) {

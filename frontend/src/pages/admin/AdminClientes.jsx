@@ -225,7 +225,7 @@ export default function AdminClientes() {
   async function reconfigurarWebhook(t) {
     try {
       const res = await api.post(`/admin/tenants/${t.id}/reconfigure-webhook`);
-      toast.success(`Webhook configurado: ${res.data.webhook}`);
+      toast.success(`Webhook configurado: ${res.webhook}`);
     } catch (err) { toast.error(err.message); }
   }
 

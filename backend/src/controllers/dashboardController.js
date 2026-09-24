@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const { localDateStr } = require('../utils/dateUtils');
 const { getConnectionState } = require('../services/evolutionService');
+const { normalizarModulos } = require('../lib/encrypt');
 
 exports.onboarding = async (req, res, next) => {
   try {
@@ -96,6 +97,26 @@ exports.stats = async (req, res, next) => {
       return Math.round(((atual - anterior) / anterior) * 100);
     }
 
+    /* ── Receita do mês (só se módulo financeiro ativo — senão fica null, "não se aplica") ── */
+    let receitaEsteMes = null;
+    let receitaEsteMesTrend = 0;
+    const tenantRow = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { modulos: true } });
+    if (normalizarModulos(tenantRow?.modulos).includes('financeiro')) {
+      const [somaAtual, somaAnterior] = await Promise.all([
+        prisma.lancamentoFinanceiro.aggregate({
+          where: { tenantId, tipo: 'receita', status: 'pago', data: { gte: mesAtualInicio.toISOString().slice(0, 10) } },
+          _sum: { valor: true },
+        }),
+        prisma.lancamentoFinanceiro.aggregate({
+          where: { tenantId, tipo: 'receita', status: 'pago',
+            data: { gte: mesAnteriorInicio.toISOString().slice(0, 10), lte: mesAnteriorFim.toISOString().slice(0, 10) } },
+          _sum: { valor: true },
+        }),
+      ]);
+      receitaEsteMes = Number(somaAtual._sum.valor || 0);
+      receitaEsteMesTrend = calcTrend(receitaEsteMes, Number(somaAnterior._sum.valor || 0));
+    }
+
     res.json({
       stats: { totalLeads, leadsNovos, convertidos, agendamentosHoje },
       /* Campos novos para o dashboard redesenhado */
@@ -108,8 +129,8 @@ exports.stats = async (req, res, next) => {
         leadsEmAbertoTrend:        calcTrend(leadsEmAberto, leadsEmAbertoMesAnterior),
         novosClientesMes,
         novosClientesMesTrend:     calcTrend(novosClientesMes, novosClientesMesAnterior),
-        receitaEsteMes: null, // preenchido abaixo se módulo financeiro ativo
-        receitaEsteMesTrend: 0,
+        receitaEsteMes,
+        receitaEsteMesTrend,
       },
       leadsRecentes,
       agendamentosDodia,
@@ -159,7 +180,7 @@ exports.canais = async (req, res, next) => {
     const tenantId = req.user.tenantId;
 
     const rows = await prisma.agendamento.groupBy({
-      by: ['canal'],
+      by: ['canalOrigem'],
       where: { tenantId },
       _count: { id: true },
     });
@@ -169,7 +190,7 @@ exports.canais = async (req, res, next) => {
     const acum = { WhatsApp: 0, 'Link Público': 0, Manual: 0, Outros: 0 };
 
     rows.forEach(r => {
-      const cat = MAPA[r.canal] || 'Outros';
+      const cat = MAPA[r.canalOrigem] || 'Outros';
       acum[cat] += r._count.id;
     });
 
