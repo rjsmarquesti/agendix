@@ -21,11 +21,12 @@ function parseEvolution(body) {
   if (!phone || !text) return null;
 
   return {
-    from:     phone,
+    from:      phone,
     text,
-    pushName: msg.pushName || msg.notifyName || null,
-    type:     'text',
-    raw:      body,
+    pushName:  msg.pushName || msg.notifyName || null,
+    messageId: msg.key?.id || null,
+    type:      'text',
+    raw:       body,
   };
 }
 

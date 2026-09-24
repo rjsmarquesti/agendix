@@ -26,9 +26,13 @@ const RATE_LIMIT_PER_HOUR = 30;       // mensagens/hora por instância
 const HARD_LIMIT_DAY      = 200;      // mensagens/dia por instância
 const DEDUP_WINDOW_MS     = 60 * 60 * 1000; // 1 hora — janela de dedup
 
-// Janela horária em UTC — equivalente a 08h–20h BRT (UTC-3)
-const HORA_INICIO = 11;  // 08:00 BRT = 11:00 UTC
-const HORA_FIM    = 23;  // 20:00 BRT = 23:00 UTC
+// Janela horária — 08h–20h. Depende do container rodar com TZ=America/Sao_Paulo
+// (env var no EasyPanel); sem isso, new Date().getHours() volta a ser UTC e a
+// janela abre/fecha errado (era exatamente esse o bug antes — AP-011 tapava o
+// sintoma com offset manual de +3h aqui, mas outros arquivos como
+// agentService.js:isOpen() nunca tiveram o mesmo offset e ficavam errados).
+const HORA_INICIO = 8;
+const HORA_FIM    = 20;
 
 // ── Estado em memória ─────────────────────────────────────────────────────────
 // Map<instanceName, QueueState>
@@ -36,6 +40,10 @@ const queues = new Map();
 
 // Dedup: Map<`${instance}:${telefone}:${hash}`, expiresAt>
 const dedupCache = new Map();
+
+// Contador incremental de id de item de fila — só precisa ser único dentro do
+// processo Node (a fila não sobrevive a restart nem é compartilhada entre processos).
+let nextItemId = 1;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -171,6 +179,34 @@ function ehErrodoDestinatario(err) {
   );
 }
 
+// ── Efeitos colaterais de envio (extraído para reuso no disparo forçado) ──────
+
+/** Aplica os efeitos colaterais de um envio bem-sucedido (dedup, reputação, contadores). */
+function aplicarSucessoEnvio(q, instance, telefone, mensagem) {
+  registrarDedup(instance, telefone, mensagem);
+  rep.registrarSucesso(instance, telefone);
+  q.sentThisHour++;
+  q.sentToday++;
+}
+
+/**
+ * Aplica os efeitos colaterais de uma falha de envio (reputação/fallback humano se
+ * for erro do destinatário). Retorna { deveRejeitar } indicando se a Promise original
+ * deve ser rejeitada (erro de instância/rede) ou resolvida sem erro (bounce do número).
+ */
+function aplicarFalhaEnvio(instance, tenant, telefone, err) {
+  if (ehErrodoDestinatario(err)) {
+    // Problema no número, não na instância — penaliza reputação do telefone
+    const recemBloqueado = rep.registrarFalha(instance, telefone);
+    if (recemBloqueado) {
+      criarNotificacaoFallback(tenant, telefone); // fire-and-forget
+    }
+    console.warn(`[waQueue] bounce em ${telefone}: ${err.message}`);
+    return { deveRejeitar: false }; // a instância está ok, só o destinatário é inválido
+  }
+  return { deveRejeitar: true }; // problema na instância/rede — repassa para o caller e watchdog
+}
+
 // ── Processamento da fila ─────────────────────────────────────────────────────
 
 async function processQueue(instance) {
@@ -205,17 +241,27 @@ async function processQueue(instance) {
       resetContadoresSeNecessario(q);
     }
 
-    // Bloqueia fora da janela horária
+    // Bloqueia fora da janela horária — EXCETO mensagens prioritárias (resposta a
+    // conversa que o próprio cliente iniciou agora: bot de agendamento, Agente IA).
+    // A janela existe pra proteger contra disparo em massa não solicitado (lembretes),
+    // que é o vetor real de ban — responder quem acabou de mandar mensagem não é.
+    // Sem essa distinção, um cliente que escreve às 21h só recebia resposta no dia
+    // seguinte (achado ao vivo no tenant divulgabr, 13/09/2026).
+    let idx = 0;
     if (!dentroJanela()) {
-      const espera = msAteProximaJanela();
-      console.warn(
-        `[waQueue] ${instance} — fora da janela (${HORA_INICIO}h–${HORA_FIM}h). ` +
-        `Aguardando ${Math.ceil(espera / 60000)} min.`
-      );
-      await delay(espera);
+      idx = q.items.findIndex(it => it.prioritario);
+      if (idx === -1) {
+        const espera = Math.min(msAteProximaJanela(), 60_000);
+        console.warn(
+          `[waQueue] ${instance} — fora da janela (${HORA_INICIO}h–${HORA_FIM}h), sem mensagens prioritárias pendentes. ` +
+          `Checando de novo em ${Math.ceil(espera / 1000)}s.`
+        );
+        await delay(espera);
+        continue;
+      }
     }
 
-    const { tenant, telefone, mensagem, resolve, reject } = q.items.shift();
+    const { tenant, telefone, mensagem, resolve, reject } = q.items.splice(idx, 1)[0];
 
     // Instância suspensa pelo circuit breaker
     if (isSuspensa(instance)) {
@@ -243,24 +289,11 @@ async function processQueue(instance) {
 
     try {
       await enviarMensagemWA(tenant, telefone, mensagem);
-      registrarDedup(instance, telefone, mensagem);
-      rep.registrarSucesso(instance, telefone);
-      q.sentThisHour++;
-      q.sentToday++;
+      aplicarSucessoEnvio(q, instance, telefone, mensagem);
       resolve();
     } catch (err) {
-      if (ehErrodoDestinatario(err)) {
-        // Problema no número, não na instância — penaliza reputação do telefone
-        const recemBloqueado = rep.registrarFalha(instance, telefone);
-        if (recemBloqueado) {
-          criarNotificacaoFallback(tenant, telefone); // fire-and-forget
-        }
-        console.warn(`[waQueue] bounce em ${telefone}: ${err.message}`);
-        resolve(); // resolve: a instância está ok, só o destinatário é inválido
-      } else {
-        // Problema na instância/rede — repassa para o caller e watchdog
-        reject(err);
-      }
+      const { deveRejeitar } = aplicarFalhaEnvio(instance, tenant, telefone, err);
+      if (deveRejeitar) reject(err); else resolve();
     }
 
     if (q.items.length > 0) {
@@ -275,14 +308,22 @@ async function processQueue(instance) {
 
 /**
  * Enfileira uma mensagem WA. Retorna Promise que resolve quando enviada (ou descartada por dedup).
+ * opts.prioritario: true pula a janela horária (08h–20h) — usar só para resposta a
+ * conversa que o cliente iniciou agora (bot de agendamento, Agente IA), nunca para
+ * disparo em massa (lembretes, mensagens administrativas).
  */
-function enfileirar(tenant, telefone, mensagem) {
+function enfileirar(tenant, telefone, mensagem, opts = {}) {
   return new Promise((resolve, reject) => {
     const instance = getProviderKey(tenant);
     if (!instance) return reject(new Error('Tenant sem provider WA configurado'));
 
     const q = getQueue(instance);
-    q.items.push({ tenant, telefone, mensagem, resolve, reject });
+    q.items.push({
+      id: nextItemId++,
+      tenant, telefone, mensagem, resolve, reject,
+      prioritario: !!opts.prioritario,
+      enqueuedAt: Date.now(),
+    });
 
     processQueue(instance).catch(err =>
       console.error(`[waQueue] erro inesperado na fila ${instance}:`, err.message)
@@ -322,6 +363,121 @@ function statsInstanciaCompleto(instance, threshold = 70) {
   return { ...base, numeros };
 }
 
+// ── Painel de fila detalhada + disparo forçado (admin) ─────────────────────────
+
+const AVG_DELAY = (MIN_DELAY + MAX_DELAY) / 2; // 13.5s — só para estimativa de ETA
+
+/**
+ * Estima o ETA (ms) de um item da fila. É uma ESTIMATIVA: não simula reputação/dedup
+ * de itens à frente, e não encadeia múltiplos resets de hora/dia se a fila for maior
+ * que os limites — nesses casos o ETA fica subestimado. Suficiente para dar noção de
+ * "daqui a quanto tempo", não para SLA.
+ */
+function estimarEta(instance, q, item, indexNaFila) {
+  if (isSuspensa(instance)) {
+    return { etaMs: null, etaStatus: 'suspensa' }; // circuit breaker travou tudo
+  }
+
+  const agora = Date.now();
+  let esperaJanelaMs = 0;
+  let posicaoEfetiva;
+
+  if (dentroJanela() || item.prioritario) {
+    // Dentro da janela: FIFO estrito (índice do array). Fora da janela mas
+    // prioritário: só compete com outros prioritários que vieram antes dele.
+    posicaoEfetiva = (!dentroJanela() && item.prioritario)
+      ? q.items.filter((it, i) => it.prioritario && i < indexNaFila).length
+      : indexNaFila;
+  } else {
+    // Fora da janela e não-prioritário: só será pego depois que a janela abrir.
+    esperaJanelaMs = msAteProximaJanela();
+    posicaoEfetiva = q.items.filter((it, i) => !it.prioritario && i < indexNaFila).length;
+  }
+
+  let etaMs = esperaJanelaMs + posicaoEfetiva * AVG_DELAY;
+
+  // Ajuste grosseiro por rate limit — soma o tempo até o próximo reset se a posição
+  // ultrapassar o que ainda cabe na hora/dia correntes (não encadeia múltiplos resets).
+  if (posicaoEfetiva >= RATE_LIMIT_PER_HOUR - q.sentThisHour) {
+    etaMs += Math.max(0, q.hourReset - agora);
+  }
+  if (posicaoEfetiva >= HARD_LIMIT_DAY - q.sentToday) {
+    etaMs += Math.max(0, q.dayReset - agora);
+  }
+
+  return { etaMs: Math.round(etaMs), etaStatus: 'estimado' };
+}
+
+/**
+ * Lista as mensagens pendentes de uma instância de forma serializável para a API —
+ * NUNCA inclui `resolve`/`reject`/objeto `tenant` completo (que carrega
+ * evolutionApiKey em texto plano) nem o corpo integral da mensagem, só um preview.
+ * Usa `queues.get` (não `getQueue`) para não criar entrada nova no Map ao consultar
+ * uma instância que nunca enfileirou nada.
+ */
+function listarFilaDetalhada(instance) {
+  const q = queues.get(instance);
+  if (!q) return [];
+  resetContadoresSeNecessario(q);
+  const agora = Date.now();
+
+  return q.items.map((item, idx) => {
+    const { etaMs, etaStatus } = estimarEta(instance, q, item, idx);
+    return {
+      id:           item.id,
+      telefone:     item.telefone,
+      preview:      item.mensagem.length > 80 ? item.mensagem.slice(0, 80) + '…' : item.mensagem,
+      prioritario:  !!item.prioritario,
+      enqueuedAt:   new Date(item.enqueuedAt).toISOString(),
+      aguardandoMs: agora - item.enqueuedAt,
+      etaMs,
+      etaStatus, // 'estimado' | 'suspensa'
+    };
+  });
+}
+
+/**
+ * Força o envio IMEDIATO de um item específico da fila, ignorando janela horária,
+ * rate limit/hora, hard limit/dia, circuit breaker, bloqueio por reputação e dedup.
+ *
+ * Escape hatch administrativo — uso pontual e consciente (ex.: destravar teste ou
+ * mensagem manual importante presa). Remove o item de `q.items` de forma SÍNCRONA
+ * (sem `await` entre localizar e dar splice) antes de qualquer chamada assíncrona —
+ * como JS é single-threaded, isso garante que o loop normal de `processQueue` nunca
+ * pegue o mesmo item depois (um item só existe em `q.items` OU está "em voo" dentro
+ * de um `enviarMensagemWA`, nunca as duas coisas ao mesmo tempo).
+ */
+async function forcarDisparoImediato(instance, itemId) {
+  const q = queues.get(instance);
+  if (!q) return { ok: false, motivo: 'fila_nao_encontrada' };
+
+  const idx = q.items.findIndex(it => it.id === itemId);
+  if (idx === -1) return { ok: false, motivo: 'item_nao_encontrado' };
+
+  resetContadoresSeNecessario(q);
+  const { tenant, telefone, mensagem, resolve, reject } = q.items.splice(idx, 1)[0];
+
+  console.warn(
+    `[waQueue] ${instance} — DISPARO FORÇADO (admin) item #${itemId} para ${telefone}, ` +
+    `ignorando janela/rate-limit/circuit-breaker/reputação/dedup`
+  );
+
+  try {
+    await enviarMensagemWA(tenant, telefone, mensagem);
+    aplicarSucessoEnvio(q, instance, telefone, mensagem);
+    resolve();
+    return { ok: true, id: itemId };
+  } catch (err) {
+    const { deveRejeitar } = aplicarFalhaEnvio(instance, tenant, telefone, err);
+    if (deveRejeitar) {
+      reject(err);
+      return { ok: false, motivo: 'erro_instancia', erro: err.message };
+    }
+    resolve(); // erro do destinatário — mesma semântica do fluxo normal
+    return { ok: true, id: itemId, aviso: 'bounce_destinatario', erro: err.message };
+  }
+}
+
 /**
  * Registra um envio direto (sendList, sendMedia) nos contadores da fila,
  * garantindo que bypasses necessários ainda respeitem hard limit e rate limit.
@@ -342,5 +498,7 @@ module.exports = {
   statsInstancia,
   statsInstanciaCompleto,
   registrarEnvioDireto,
+  listarFilaDetalhada,
+  forcarDisparoImediato,
   reputacao: rep,
 };

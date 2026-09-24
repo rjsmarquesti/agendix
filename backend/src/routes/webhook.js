@@ -1,11 +1,13 @@
 const router = require('express').Router();
 const { z }   = require('zod');
 const prisma  = require('../lib/prisma');
+const { getRedis } = require('../lib/redis');
 const { decryptTenant, decrypt } = require('../lib/encrypt');
 const parseEndereco = require('../utils/parseEndereco');
 const { extratorLimiter } = require('../middlewares/rateLimiter');
 const { handleMessage }    = require('../services/agentService');
 const { handleBotMessage } = require('../services/botAgendamentoService');
+const { encaminharParaFilaHumana } = require('../services/waFilaHumanaService');
 const { parseEvolution, parseEvolutionConnection } = require('../lib/wa/webhook/parseEvolution');
 const { parseMeta, validateMetaSignature }         = require('../lib/wa/webhook/parseMeta');
 const { parseTwilio, validateTwilioSignature }     = require('../lib/wa/webhook/parseTwilio');
@@ -232,11 +234,30 @@ router.post('/gmaps', apiTokenAuth, async (req, res) => {
 });
 
 // ── Handler compartilhado de mensagens inbound ────────────────────────────────
-// Chamado por todos os providers após normalizar { from, text, pushName }
+// Chamado por todos os providers após normalizar { from, text, pushName, messageId }
 
-async function handleInboundMessage(tenant, from, text, pushName) {
+// Instâncias Evolution self-hosted podem reenviar o mesmo evento messages.upsert
+// (visto ao vivo no tenant divulgabr, 13/09/2026 — duas mensagens de confirmação
+// processadas em paralelo, a segunda batendo em conflito de lead único e caindo
+// no catch genérico do bot). Dedup por messageId evita a corrida: sem isso, duas
+// chamadas concorrentes de handleBotMessage podem ler o mesmo estado de conversa
+// antes de qualquer uma escrever, processando a mesma mensagem duas vezes.
+async function jaProcessada(tenantId, messageId) {
+  if (!messageId) return false; // provider não manda ID → não dá pra dedupar, segue processando
+  try {
+    const redis = getRedis();
+    const key = `wa:msgdedup:${tenantId}:${messageId}`;
+    const res = await redis.set(key, '1', 'EX', 120, 'NX');
+    return res !== 'OK'; // não conseguiu setar (já existia) → é duplicata
+  } catch {
+    return false; // Redis indisponível → fail-open, não bloqueia o bot por causa do dedup
+  }
+}
+
+async function handleInboundMessage(tenant, from, text, pushName, messageId) {
   const telefoneNorm = (from || '').replace(/\D/g, '');
   if (!telefoneNorm || !text) return;
+  if (await jaProcessada(tenant.id, messageId)) return;
 
   // Garante que qualquer contato WA vira lead (silencioso)
   prisma.lead.upsert({
@@ -254,7 +275,7 @@ async function handleInboundMessage(tenant, from, text, pushName) {
   }).catch(() => {});
 
   // Bot de agendamento tem prioridade; se não processar, cai no agente IA
-  const handled = await handleBotMessage(tenant, from, text);
+  const handled = await handleBotMessage(tenant, from, text, pushName);
   if (!handled) {
     const agenteRespondeu = await handleMessage(tenant, from, text);
 
@@ -262,37 +283,7 @@ async function handleInboundMessage(tenant, from, text, pushName) {
     if (!agenteRespondeu) {
       const modulos = Array.isArray(tenant.modulos) ? tenant.modulos : [];
       if (modulos.includes('wa_atendimento')) {
-        const clienteNome = pushName || 'Cliente WhatsApp';
-        const existente   = await prisma.waFila.findFirst({
-          where: { tenantId: tenant.id, clienteTelefone: telefoneNorm, status: { in: ['aguardando', 'em_atendimento'] } },
-        });
-        if (!existente) {
-          const atendentes = await prisma.waAtendente.findMany({
-            where: { tenantId: tenant.id, ativo: true },
-            orderBy: { cargaAtual: 'asc' },
-          });
-          const atendente = atendentes.find(a => a.cargaAtual < a.cargaMaxima) || null;
-          await prisma.waFila.create({
-            data: {
-              tenantId: tenant.id,
-              clienteTelefone: telefoneNorm,
-              clienteNome,
-              atendenteId: atendente?.id || null,
-              status: atendente ? 'em_atendimento' : 'aguardando',
-            },
-          });
-          if (atendente) {
-            await prisma.waAtendente.update({ where: { id: atendente.id }, data: { cargaAtual: { increment: 1 } } });
-          }
-          prisma.notificacao.create({
-            data: {
-              tenantId: tenant.id,
-              tipo:    'wa_fila_nova',
-              titulo:  '💬 Nova sessão na fila de atendimento',
-              corpo:   `${clienteNome} (${telefoneNorm}) entrou na fila${atendente ? ` e foi atribuído a ${atendente.nome}` : ' aguardando atendente'}.`,
-            },
-          }).catch(() => {});
-        }
+        await encaminharParaFilaHumana(tenant, telefoneNorm, pushName || 'Cliente WhatsApp', text);
       }
     }
   }
@@ -341,7 +332,7 @@ router.post('/agente/:slug', async (req, res) => {
 
     const parsed = parseEvolution(req.body);
     if (!parsed) return;
-    await handleInboundMessage(tenant, parsed.from, parsed.text, parsed.pushName);
+    await handleInboundMessage(tenant, parsed.from, parsed.text, parsed.pushName, parsed.messageId);
   } catch { /* silencioso */ }
 });
 
@@ -442,3 +433,4 @@ router.post('/zapi/:slug', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.handleInboundMessage = handleInboundMessage;

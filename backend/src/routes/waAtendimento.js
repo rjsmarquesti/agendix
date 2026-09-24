@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const auth = require('../middlewares/auth');
+const { enfileirar } = require('../services/waQueue');
 
 // Todo o módulo exige usuário autenticado (achado C1 da auditoria de 31/07/2026 —
 // o router nunca exigia auth, expondo conversas de WhatsApp de clientes sem login).
@@ -15,6 +16,14 @@ function requirePlano(req, res, next) {
   next();
 }
 
+// Usuários com role 'atendente' só veem/respondem sessões próprias ou não
+// atribuídas — admin/super_admin continuam sem restrição (comportamento atual).
+// Retorna o WaAtendente vinculado ao usuário logado, ou null (sem restrição / sem vínculo).
+async function resolverAtendenteDoUsuario(req) {
+  if (req.user.role !== 'atendente') return null;
+  return prisma.waAtendente.findFirst({ where: { tenantId: req.tenant.id, userId: req.user.id } });
+}
+
 // ─── ATENDENTES ───────────────────────────────────────────────────────────────
 
 // GET /api/wa-atendimento/atendentes
@@ -22,6 +31,7 @@ router.get('/atendentes', requirePlano, async (req, res) => {
   try {
     const atendentes = await prisma.waAtendente.findMany({
       where: { tenantId: req.tenant.id },
+      include: { user: { select: { id: true, email: true } } },
       orderBy: { nome: 'asc' },
     });
     res.json({ atendentes });
@@ -32,14 +42,23 @@ router.get('/atendentes', requirePlano, async (req, res) => {
 
 // POST /api/wa-atendimento/atendentes
 router.post('/atendentes', requirePlano, async (req, res) => {
-  const { nome, telefone, cargaMaxima } = req.body;
-  if (!nome || !telefone) return res.status(400).json({ error: 'Nome e telefone são obrigatórios.' });
+  const { nome, telefone, cargaMaxima, userId } = req.body;
+  if (!telefone) return res.status(400).json({ error: 'Telefone é obrigatório.' });
   try {
+    let nomeFinal = nome;
+    if (userId) {
+      const usuario = await prisma.user.findFirst({ where: { id: parseInt(userId), tenantId: req.tenant.id, role: 'atendente' } });
+      if (!usuario) return res.status(400).json({ error: 'Usuário inválido: precisa existir no tenant com papel "atendente".' });
+      nomeFinal = nomeFinal || usuario.nome;
+    }
+    if (!nomeFinal) return res.status(400).json({ error: 'Nome é obrigatório (ou selecione um usuário vinculado).' });
+
     const atendente = await prisma.waAtendente.create({
-      data: { tenantId: req.tenant.id, nome, telefone, cargaMaxima: cargaMaxima || 5 },
+      data: { tenantId: req.tenant.id, nome: nomeFinal, telefone, cargaMaxima: cargaMaxima || 5, userId: userId ? parseInt(userId) : null },
     });
     res.status(201).json({ atendente });
   } catch (err) {
+    if (err.code === 'P2002') return res.status(400).json({ error: 'Este usuário já está vinculado a outro atendente.' });
     res.status(500).json({ error: err.message });
   }
 });
@@ -76,11 +95,18 @@ router.delete('/atendentes/:id', requirePlano, async (req, res) => {
 // GET /api/wa-atendimento/fila  (ativa: aguardando + em_atendimento)
 router.get('/fila', requirePlano, async (req, res) => {
   try {
+    const meuAtendente = await resolverAtendenteDoUsuario(req);
+    const where = {
+      tenantId: req.tenant.id,
+      status: { in: ['aguardando', 'em_atendimento'] },
+    };
+    if (req.user.role === 'atendente') {
+      where.OR = meuAtendente
+        ? [{ atendenteId: meuAtendente.id }, { atendenteId: null }]
+        : [{ atendenteId: null }];
+    }
     const fila = await prisma.waFila.findMany({
-      where: {
-        tenantId: req.tenant.id,
-        status: { in: ['aguardando', 'em_atendimento'] },
-      },
+      where,
       include: { atendente: { select: { id: true, nome: true } } },
       orderBy: { abertaEm: 'asc' },
     });
@@ -95,12 +121,17 @@ router.get('/fila/historico', requirePlano, async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
   try {
+    const meuAtendente = await resolverAtendenteDoUsuario(req);
+    const where = { tenantId: req.tenant.id, status: { in: ['encerrado', 'abandonado'] } };
+    if (req.user.role === 'atendente') {
+      where.OR = meuAtendente
+        ? [{ atendenteId: meuAtendente.id }, { atendenteId: null }]
+        : [{ atendenteId: null }];
+    }
     const [total, fila] = await Promise.all([
-      prisma.waFila.count({
-        where: { tenantId: req.tenant.id, status: { in: ['encerrado', 'abandonado'] } },
-      }),
+      prisma.waFila.count({ where }),
       prisma.waFila.findMany({
-        where: { tenantId: req.tenant.id, status: { in: ['encerrado', 'abandonado'] } },
+        where,
         include: { atendente: { select: { id: true, nome: true } } },
         orderBy: { abertaEm: 'desc' },
         skip,
@@ -222,11 +253,70 @@ router.get('/fila/:id/logs', requirePlano, async (req, res) => {
     const sessao = await prisma.waFila.findFirst({ where: { id, tenantId: req.tenant.id } });
     if (!sessao) return res.status(404).json({ error: 'Sessão não encontrada.' });
 
+    if (req.user.role === 'atendente') {
+      const meuAtendente = await resolverAtendenteDoUsuario(req);
+      if (sessao.atendenteId && sessao.atendenteId !== meuAtendente?.id) {
+        return res.status(403).json({ error: 'Sessão atribuída a outro atendente.' });
+      }
+    }
+
     const logs = await prisma.waConversaLog.findMany({
-      where: { filaId: id },
+      where: { filaId: id, tenantId: req.tenant.id },
       orderBy: { criadoEm: 'asc' },
     });
     res.json({ sessao, logs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/wa-atendimento/fila/:id/responder — atendente responde pelo painel
+// (envia via a mesma fila anti-ban que o bot/Agente IA já usam — prioritario:true
+// pula a janela horária, igual AP-027; fire-and-forget, igual AP-010, pra não
+// travar o request esperando o delay anti-ban de 7-20s)
+router.post('/fila/:id/responder', requirePlano, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { mensagem } = req.body;
+  if (!mensagem || !mensagem.trim()) return res.status(400).json({ error: 'Mensagem é obrigatória.' });
+  try {
+    const sessao = await prisma.waFila.findFirst({ where: { id, tenantId: req.tenant.id } });
+    if (!sessao) return res.status(404).json({ error: 'Sessão não encontrada.' });
+    if (sessao.status === 'encerrado' || sessao.status === 'abandonado') {
+      return res.status(400).json({ error: 'Sessão já encerrada — não é possível responder.' });
+    }
+
+    let meuAtendente = null;
+    if (req.user.role === 'atendente') {
+      meuAtendente = await resolverAtendenteDoUsuario(req);
+      if (sessao.atendenteId && sessao.atendenteId !== meuAtendente?.id) {
+        return res.status(403).json({ error: 'Sessão atribuída a outro atendente.' });
+      }
+    }
+
+    const log = await prisma.waConversaLog.create({
+      data: {
+        filaId: id,
+        tenantId: req.tenant.id,
+        direcao: 'saida',
+        deTelefone: req.tenant.evolutionInstance || req.tenant.slug,
+        paraTelefone: sessao.clienteTelefone,
+        mensagem,
+        atendenteId: meuAtendente?.id || sessao.atendenteId || null,
+        fonte: 'humano',
+        status: 'enviado',
+      },
+    });
+
+    enfileirar(req.tenant, sessao.clienteTelefone, mensagem, { prioritario: true }).catch(err => {
+      console.error('[wa_atendimento] falha ao enviar resposta:', err.message);
+      prisma.waConversaLog.update({ where: { id: log.id }, data: { status: 'erro' } }).catch(() => {});
+    });
+
+    if (sessao.status === 'aguardando') {
+      await prisma.waFila.update({ where: { id }, data: { status: 'em_atendimento' } });
+    }
+
+    res.json({ ok: true, logId: log.id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -116,6 +116,7 @@ model User {
   pushSubscriptions  PushSubscription[]
   atividades         LeadAtividade[]
   permissions        UserPermission[]
+  waAtendente        WaAtendente?
 
   @@unique([email, tenantId])
   @@map("users")
@@ -326,6 +327,8 @@ model ConfiguracaoAgenda {
   agendaDiaEmailAtivo Boolean  @default(false) @map("agenda_dia_email_ativo")
   agendaDiaHorario    String   @default("07:00") @map("agenda_dia_horario")
   agendaDiaEnviadoEm  String?  @map("agenda_dia_enviado_em")
+  confirmacaoLembreteAtiva Boolean @default(false) @map("confirmacao_lembrete_ativa")
+  menuInicialAtivo Boolean @default(false) @map("menu_inicial_ativo")
 
   @@map("configuracoes_agenda")
 }
@@ -450,10 +453,12 @@ model Notificacao {
 
 enum EstadoConversa {
   inicio
+  aguardando_menu_principal
   aguardando_data
   aguardando_slot
   aguardando_nome
   aguardando_confirmacao
+  aguardando_confirmacao_cancelamento
   concluida
   cancelada
 }
@@ -567,7 +572,9 @@ model WaAtendente {
   tenantId    Int      @map("tenant_id")
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   nome        String
-  telefone    String   // número do atendente (para notificação)
+  telefone    String   // dado de contato apenas — não é usado para enviar mensagens
+  userId      Int?     @unique @map("user_id") // login (role atendente) que pode responder pelo painel
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   ativo       Boolean  @default(true)
   cargaAtual  Int      @default(0) @map("carga_atual")
   cargaMaxima Int      @default(5) @map("carga_maxima")
@@ -611,6 +618,7 @@ model WaConversaLog {
   mensagem    String          @db.Text
   atendenteId Int?            @map("atendente_id")   // null = bot
   fonte       FonteMsg        @default(bot)
+  status      String          @default("enviado")    // "enviado" | "erro" — só relevante pra saida/humano (fire-and-forget)
   criadoEm   DateTime         @default(now()) @map("criado_em")
 
   @@index([filaId])
@@ -634,6 +642,7 @@ enum FonteMsg {
   bot
   humano
   gemini
+  cliente
 }
 
 // ─── Orcamento (orçamento de serviço por nicho) ───────────────────────────────

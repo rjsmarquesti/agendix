@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { api } from '../services/api';
+import toast from 'react-hot-toast';
+
+function formatDuracao(ms) {
+  if (ms == null) return '—';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}min`;
+  return `${Math.round(m / 60)}h`;
+}
 
 function BarraProgresso({ valor, limite, label, cor }) {
   const pct = limite > 0 ? Math.min(Math.round((valor / limite) * 100), 100) : 0;
@@ -45,6 +55,9 @@ export default function WaFila() {
   const [lastRefresh, setLastRefresh] = useState(null);
   const [erro, setErro]         = useState(null);
 
+  const [filaDetalhada, setFilaDetalhada] = useState([]);
+  const [disparando, setDisparando]       = useState(null);
+
   const carregar = useCallback(async () => {
     try {
       setErro(null);
@@ -58,12 +71,55 @@ export default function WaFila() {
     }
   }, []);
 
+  const carregarFilaDetalhada = useCallback(async () => {
+    try {
+      const d = await api.get('/wa-fila/fila-detalhada');
+      setFilaDetalhada(d.itens || []);
+    } catch {
+      // painel secundário — não deve gerar tela de erro cheia
+    }
+  }, []);
+
   useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => { carregarFilaDetalhada(); }, [carregarFilaDetalhada]);
 
   useEffect(() => {
     const t = setInterval(carregar, 30_000);
     return () => clearInterval(t);
   }, [carregar]);
+
+  // Polling mais frequente (5s) só enquanto há mensagens pendentes — evita
+  // sobrecarregar o backend quando a fila está vazia (caso comum).
+  useEffect(() => {
+    if (!data?.fila?.pendentes) return;
+    const t = setInterval(carregarFilaDetalhada, 5_000);
+    return () => clearInterval(t);
+  }, [data?.fila?.pendentes, carregarFilaDetalhada]);
+
+  async function dispararAgora(item) {
+    const confirmado = window.confirm(
+      `Forçar envio imediato para ${item.telefone}?\n\n` +
+      `Isso ignora janela de horário, limites de envio, circuit breaker, bloqueio ` +
+      `por reputação e dedup para esta mensagem específica. Use com cautela.`
+    );
+    if (!confirmado) return;
+
+    setDisparando(item.id);
+    try {
+      const resultado = await api.post(`/wa-fila/disparar-agora/${item.id}`);
+      if (resultado.ok) {
+        toast.success(resultado.aviso ? 'Enviado (com aviso de bounce)' : 'Mensagem disparada com sucesso');
+      } else {
+        toast.error('Falha ao disparar: ' + (resultado.erro || resultado.motivo));
+      }
+      await carregarFilaDetalhada();
+      await carregar();
+    } catch (e) {
+      toast.error('Erro: ' + e.message);
+    } finally {
+      setDisparando(null);
+    }
+  }
 
   async function desbloquear(telefone) {
     setUnlocking(telefone);
@@ -203,6 +259,60 @@ export default function WaFila() {
           <BarraProgresso valor={fila.sentToday}    limite={fila.limiteDia}  label="Mensagens hoje" />
           <BarraProgresso valor={fila.sentThisHour} limite={fila.limiteHora} label="Mensagens esta hora" />
         </div>
+
+        {/* Mensagens na fila agora — painel novo, com "Disparar agora" por linha */}
+        {filaDetalhada.length > 0 && (
+          <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--bd)' }}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--bd)' }}>
+              <div>
+                <h2 className="font-semibold text-sm" style={{ color: 'var(--tx)' }}>Mensagens na fila agora</h2>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--mt-lt)' }}>
+                  Tempo de disparo é uma estimativa. "Disparar agora" ignora todas as proteções anti-ban para esta mensagem.
+                </p>
+              </div>
+              <span className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: 'var(--bd)', color: 'var(--mt-lt)' }}>
+                {filaDetalhada.length}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead style={{ backgroundColor: 'var(--s2)' }}>
+                  <tr style={{ color: 'var(--mt-lt)' }}>
+                    <th className="text-left px-5 py-3 font-medium text-xs">Telefone</th>
+                    <th className="text-left px-4 py-3 font-medium text-xs">Mensagem</th>
+                    <th className="text-center px-4 py-3 font-medium text-xs">Prioritário</th>
+                    <th className="text-center px-4 py-3 font-medium text-xs">Aguardando há</th>
+                    <th className="text-center px-4 py-3 font-medium text-xs">Chega em ~</th>
+                    <th className="px-5 py-3 font-medium text-xs"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: 'var(--bd)' }}>
+                  {filaDetalhada.map(item => (
+                    <tr key={item.id} className="hover:bg-[var(--s2)] transition-colors">
+                      <td className="px-5 py-3 font-mono text-xs" style={{ color: 'var(--tx)' }}>{item.telefone}</td>
+                      <td className="px-4 py-3 text-xs max-w-[220px] truncate" style={{ color: 'var(--mt-lt)' }}>{item.preview}</td>
+                      <td className="px-4 py-3 text-center">
+                        {item.prioritario && <span className="px-2 py-0.5 rounded-full text-xs bg-blue-900/40 text-blue-400">Prioritário</span>}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono text-xs" style={{ color: 'var(--tx)' }}>{formatDuracao(item.aguardandoMs)}</td>
+                      <td className="px-4 py-3 text-center font-mono text-xs" style={{ color: 'var(--tx)' }}>
+                        {item.etaStatus === 'suspensa' ? 'suspensa' : formatDuracao(item.etaMs)}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button onClick={() => dispararAgora(item)}
+                          disabled={disparando === item.id}
+                          className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                          style={{ backgroundColor: '#ef4444', color: '#fff' }}>
+                          {disparando === item.id ? '...' : 'Disparar agora'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Tabela de números com score baixo */}
         {numeros?.length > 0 && (

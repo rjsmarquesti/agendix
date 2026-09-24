@@ -5,15 +5,21 @@ const { LIMITE_AGENDAMENTOS } = require('../config/planos');
 const { enfileirar, registrarEnvioDireto } = require('./waQueue');
 const { getWaProvider, getProviderKey } = require('../lib/wa/index');
 const { registrar: logMensagem } = require('../lib/mensagemLog');
+const { callClaude } = require('./agentService');
 
 const TTL_MS = 30 * 60 * 1000; // 30 minutos
 
 // ─── Envio via waQueue (anti-ban) ────────────────────────────────────────────
 
 async function sendWA(tenant, phone, text, { leadId, origem } = {}) {
-  const result = await enfileirar(tenant, phone, text);
+  // Resposta a conversa que o próprio cliente iniciou agora — pula a janela
+  // horária da fila anti-ban (essa proteção é pra disparo em massa, não reply).
+  // `enfileirar` (waQueue.js) resolve a Promise SEM VALOR em todo caminho de
+  // sucesso (envio ok, bounce, dedup, bloqueio de reputação) e só rejeita em
+  // falha real — nunca resolve com `{ ok }`. Não desestruturar o resultado.
+  await enfileirar(tenant, phone, text, { prioritario: true });
   logMensagem({ tenantId: tenant.id, leadId: leadId || null, meio: 'whatsapp', para: phone, corpo: text, origem: origem || 'confirmacao' });
-  return { ok: result.ok };
+  return { ok: true };
 }
 
 async function sendWAList(tenant, phone, slots, data) {
@@ -21,9 +27,11 @@ async function sendWAList(tenant, phone, slots, data) {
                   '1️⃣1️⃣','1️⃣2️⃣','1️⃣3️⃣','1️⃣4️⃣','1️⃣5️⃣','1️⃣6️⃣','1️⃣7️⃣','1️⃣8️⃣','1️⃣9️⃣','2️⃣0️⃣',
                   '2️⃣1️⃣','2️⃣2️⃣','2️⃣3️⃣','2️⃣4️⃣','2️⃣5️⃣','2️⃣6️⃣','2️⃣7️⃣','2️⃣8️⃣','2️⃣9️⃣','3️⃣0️⃣','3️⃣1️⃣'];
 
-  // Respeita a janela horária anti-ban (08–20h BRT = 11–23 UTC)
+  // Fora de 08h-20h BRT usa lista em texto simples em vez do template rico da
+  // Evolution (só estética — o envio em si já é prioritário e sai na hora,
+  // ver sendWA). Depende do container rodar com TZ=America/Sao_Paulo.
   const hora = new Date().getHours();
-  if (hora < 11 || hora >= 23) {
+  if (hora < 8 || hora >= 20) {
     // Fora da janela — usa fallback de texto simples (já passa pelo waQueue com delay correto)
     const lista = slots.map((s, i) => `${emojis[i] || (i + 1) + '.'} ${s}`).join('\n');
     await sendWA(tenant, phone, `📅 Horários disponíveis para *${formatDataBR(data)}*:\n\n${lista}\n\nDigite o número ou o horário desejado.`);
@@ -152,6 +160,31 @@ function isAgendarIntent(text) {
   return /(agendar|marcar|quero\s+um\s+horário|horário|reservar|consulta|atendimento)/i.test(text);
 }
 
+function isCancelarIntent(text) {
+  return /(cancelar|desmarcar|n[ãa]o\s+vou\s+poder)/i.test(text);
+}
+
+function isConsultarIntent(text) {
+  return /(meu\s+hor[aá]rio|quando\s+[eé]|meu\s+agendamento|marcado\s+pr?a)/i.test(text);
+}
+
+// Classificação de intenção em linguagem livre via LLM — só chamada quando os
+// regex acima já falharam, pra manter custo/latência baixos (mesmo padrão de
+// fallback em camadas usado em handleInboundMessage: bot → agente IA → fila humana).
+async function classificarIntencaoLLM(text) {
+  try {
+    const resposta = await callClaude(
+      'Classifique a intenção do cliente numa dessas 4 palavras, responda só a palavra: agendar, cancelar, consultar, outros.',
+      [{ role: 'user', content: text }]
+    );
+    const intent = resposta.trim().toLowerCase().replace(/[^a-zà-ú]/g, '');
+    if (['agendar', 'cancelar', 'consultar', 'outros'].includes(intent)) return intent;
+    return 'outros';
+  } catch {
+    return 'outros';
+  }
+}
+
 // ─── Criação do agendamento ───────────────────────────────────────────────────
 
 async function criarAgendamento(tenant, dados) {
@@ -195,6 +228,22 @@ async function criarAgendamento(tenant, dados) {
   });
 }
 
+// ─── Cancelar / Consultar próximo agendamento ────────────────────────────────
+
+async function buscarProximoAgendamento(tenantId, phone) {
+  const dataHoje = toISO(new Date());
+  return prisma.agendamento.findFirst({
+    where: {
+      tenantId,
+      status: { in: ['marcado', 'confirmado'] },
+      data: { gte: dataHoje },
+      lead: { telefone: phone },
+    },
+    orderBy: [{ data: 'asc' }, { hora: 'asc' }],
+    include: { lead: { select: { nome: true, telefone: true } }, servico: { select: { nome: true } } },
+  });
+}
+
 // ─── Mensagens padrão ─────────────────────────────────────────────────────────
 
 function msgBoasVindas(tenantNome, servicos) {
@@ -219,6 +268,24 @@ function msgConfirmacao(dados) {
   return `Confirmação do agendamento:\n\n👤 Nome: *${nome}*\n📅 Data: *${formatDataBR(data)}*\n🕐 Horário: *${hora}*${servicoNome ? `\n💼 Serviço: *${servicoNome}*` : ''}\n\nConfirma? (sim/não)`;
 }
 
+function msgProximoAgendamento(ag) {
+  const servico = ag.servico?.nome || ag.tipo || 'atendimento';
+  return `📅 Seu próximo agendamento:\n\n🗓️ Data: *${formatDataBR(ag.data)}*\n🕐 Horário: *${ag.hora}*\n💼 Serviço: *${servico}*`;
+}
+
+function msgNenhumAgendamento() {
+  return 'Não encontrei nenhum agendamento futuro no seu nome. Quer marcar um agora? É só me chamar! 😊';
+}
+
+function msgConfirmarCancelamento(ag) {
+  const servico = ag.servico?.nome || ag.tipo || 'atendimento';
+  return `Encontrei seu agendamento:\n\n🗓️ ${formatDataBR(ag.data)} às ${ag.hora}\n💼 ${servico}\n\nConfirma o cancelamento? (sim/não)`;
+}
+
+function msgCancelado() {
+  return 'Pronto, seu agendamento foi cancelado. Se quiser marcar outro, é só chamar! 😊';
+}
+
 function msgAgendado(dados, config) {
   const base = config?.mensagemWaConfirmacao;
   if (base) {
@@ -229,6 +296,115 @@ function msgAgendado(dados, config) {
       .replace('{{servico}}', dados.servicoNome || '');
   }
   return `✅ Agendamento confirmado!\n\n👤 ${dados.nome}\n📅 ${formatDataBR(dados.data)} às ${dados.hora}${dados.servicoNome ? `\n💼 ${dados.servicoNome}` : ''}\n\nTe esperamos! 😊`;
+}
+
+async function iniciarCancelamento(tenant, phone) {
+  const ag = await buscarProximoAgendamento(tenant.id, phone);
+  if (!ag) {
+    await sendWA(tenant, phone, msgNenhumAgendamento());
+    return true;
+  }
+  await saveConversa(tenant.id, phone, 'aguardando_confirmacao_cancelamento', { agendamentoId: ag.id });
+  await sendWA(tenant, phone, msgConfirmarCancelamento(ag));
+  return true;
+}
+
+async function responderConsulta(tenant, phone) {
+  const ag = await buscarProximoAgendamento(tenant.id, phone);
+  await sendWA(tenant, phone, ag ? msgProximoAgendamento(ag) : msgNenhumAgendamento());
+  return true;
+}
+
+async function handleAguardandoConfirmacaoCancelamento(tenant, phone, text, conversa) {
+  const { agendamentoId } = conversa.dadosJson || {};
+
+  if (isSim(text)) {
+    try {
+      const result = await prisma.agendamento.updateMany({
+        where: { id: agendamentoId, tenantId: tenant.id, status: { in: ['marcado', 'confirmado'] } },
+        data: { status: 'cancelado' },
+      });
+      await deleteConversa(tenant.id, phone);
+      if (result.count > 0) {
+        await sendWA(tenant, phone, msgCancelado());
+        // Notifica admin se configurado — best-effort (ver AP-029): falha aqui
+        // nunca pode virar "erro ao cancelar" pro cliente, o cancelamento já
+        // foi efetivado e confirmado a ele.
+        const config = await prisma.configuracaoAgenda.findUnique({ where: { tenantId: tenant.id } });
+        if (config?.whatsappAdmin) {
+          sendWA(tenant, config.whatsappAdmin, `❌ Agendamento cancelado via WhatsApp pelo cliente ${phone}.`).catch(err => {
+            console.error(`[botAgendamentoService] falha ao notificar admin (${config.whatsappAdmin}):`, err.message);
+          });
+        }
+      } else {
+        await sendWA(tenant, phone, 'Esse agendamento já não está mais ativo.');
+      }
+    } catch (err) {
+      console.error(`[botAgendamentoService] handleAguardandoConfirmacaoCancelamento falhou (tenant=${tenant.id}, phone=${phone}):`, err.stack || err.message);
+      await deleteConversa(tenant.id, phone);
+      await sendWA(tenant, phone, 'Ocorreu um erro ao cancelar. Por favor, tente novamente ou fale com a gente diretamente.');
+    }
+  } else if (isNao(text)) {
+    await deleteConversa(tenant.id, phone);
+    await sendWA(tenant, phone, 'Ok, mantive seu agendamento. 😊');
+  } else {
+    await sendWA(tenant, phone, 'Por favor, responda *sim* para confirmar o cancelamento ou *não* para manter.');
+  }
+}
+
+// ─── Resposta ao lembrete de confirmação de presença (1 dia antes) ────────────
+// Não usa ConversaWhatsapp/estado — identifica a resposta pela combinação
+// telefone + agendamento de amanhã já lembrado. Isso expira naturalmente: se o
+// cliente responder dias depois, "amanhã" não bate mais com o agendamento
+// antigo. Mesma data de referência (toISOString, UTC) usada pelo
+// notificacaoService.js — precisa bater com o "amanhã" de quando o
+// lembrete1dEnviado foi marcado.
+function amanhaISO() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+}
+
+async function handleRespostaConfirmacaoLembrete(tenant, phone, text) {
+  const config = await prisma.configuracaoAgenda.findUnique({ where: { tenantId: tenant.id } });
+  if (!config?.confirmacaoLembreteAtiva) return false;
+
+  const ag = await prisma.agendamento.findFirst({
+    where: {
+      tenantId: tenant.id,
+      data: amanhaISO(),
+      lembrete1dEnviado: true,
+      status: { in: ['marcado', 'confirmado'] },
+      OR: [{ clienteTelefone: phone }, { lead: { telefone: phone } }],
+    },
+    include: { lead: true },
+  });
+  if (!ag) return false;
+
+  if (isSim(text)) {
+    await prisma.agendamento.updateMany({
+      where: { id: ag.id, tenantId: tenant.id, status: { in: ['marcado', 'confirmado'] } },
+      data: { status: 'confirmado' },
+    });
+    await sendWA(tenant, phone, `Perfeito! Confirmado pra amanhã às ${ag.hora}. Te esperamos! 😊`);
+  } else if (isNao(text)) {
+    await prisma.agendamento.updateMany({
+      where: { id: ag.id, tenantId: tenant.id, status: { in: ['marcado', 'confirmado'] } },
+      data: { status: 'cancelado' },
+    });
+    await sendWA(tenant, phone, 'Tudo bem! Cancelamos seu horário de amanhã. Se quiser remarcar, é só chamar. 😊');
+    // Notifica admin se configurado — best-effort (ver AP-029/AP-030): falha
+    // aqui nunca pode virar "erro" pro cliente, o cancelamento já foi feito.
+    if (config.whatsappAdmin) {
+      const nome = ag.clienteNome || ag.lead?.nome || phone;
+      sendWA(tenant, config.whatsappAdmin, `❌ Cliente avisou que NÃO vai comparecer amanhã: ${nome} — ${ag.data} às ${ag.hora}.`).catch(err => {
+        console.error(`[botAgendamentoService] falha ao notificar admin (${config.whatsappAdmin}):`, err.message);
+      });
+    }
+  } else {
+    return false;
+  }
+  return true;
 }
 
 // ─── Máquina de estados ───────────────────────────────────────────────────────
@@ -342,15 +518,21 @@ async function handleAguardandoConfirmacao(tenant, phone, text, conversa) {
       await saveConversa(tenant.id, phone, 'concluida', dados);
       await sendWA(tenant, phone, msgAgendado({ ...dados, hora: dados.slotEscolhido }, config));
 
-      // Notifica admin se configurado
+      // Notifica admin se configurado — best-effort: o agendamento já foi
+      // criado e o cliente já foi avisado, então uma falha aqui (instância
+      // suspensa, número do admin inválido) nunca pode virar "erro ao
+      // confirmar" para o cliente (ver catch abaixo).
       const whatsappAdmin = config?.whatsappAdmin;
       if (whatsappAdmin) {
         const adminMsg = `📅 Novo agendamento via WhatsApp:\n👤 ${dados.nome}\n📞 ${phone}\n📅 ${formatDataBR(dados.data)} às ${dados.slotEscolhido}${dados.servicoNome ? `\n💼 ${dados.servicoNome}` : ''}`;
-        await sendWA(tenant, whatsappAdmin, adminMsg);
+        sendWA(tenant, whatsappAdmin, adminMsg).catch(err => {
+          console.error(`[botAgendamentoService] falha ao notificar admin (${whatsappAdmin}):`, err.message);
+        });
       }
 
       await deleteConversa(tenant.id, phone);
     } catch (err) {
+      console.error(`[botAgendamentoService] handleAguardandoConfirmacao falhou (tenant=${tenant.id}, phone=${phone}):`, err.stack || err.message);
       if (err.message === 'slot_ocupado') {
         await saveConversa(tenant.id, phone, 'aguardando_data', { servicoId: dados.servicoId, servicoNome: dados.servicoNome });
         await sendWA(tenant, phone, 'Ops! Esse horário acabou de ser reservado por outra pessoa. 😔\n\nMe diga outra data para verificarmos a disponibilidade.');
@@ -372,24 +554,103 @@ async function handleAguardandoConfirmacao(tenant, phone, text, conversa) {
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
-async function handleBotMessage(tenant, phone, text) {
+async function opcoesMenuDisponiveis(tenant) {
+  const modulos = Array.isArray(tenant.modulos) ? tenant.modulos : [];
+  const agentConfig = await prisma.agentConfig.findUnique({ where: { tenantId: tenant.id } });
+  return { atendente: modulos.includes('wa_atendimento'), ia: !!agentConfig?.ativo };
+}
+
+function msgMenuPrincipal(tenantNome, opcoes) {
+  const linhas = ['1. Agendar um horário'];
+  if (opcoes.atendente) linhas.push('2. Falar com um atendente');
+  if (opcoes.ia) linhas.push(`${opcoes.atendente ? '3' : '2'}. Assistente virtual`);
+  return `Olá! 👋 Seja bem-vindo(a) à *${tenantNome}*!\n\nComo posso te ajudar?\n${linhas.join('\n')}\n\nDigite o número da opção.`;
+}
+
+// Menu inicial de roteamento (opt-in, ConfiguracaoAgenda.menuInicialAtivo) — feature
+// 19/09/2026: hoje qualquer saudação cai direto no agendamento, sem chance de
+// escolher atendente/IA. Só oferece as opções que o tenant realmente tem.
+async function handleMenuPrincipal(tenant, phone, text, conversa, pushName) {
+  const opcoes = conversa.dadosJson?.opcoes || {};
+  const escolha = text.trim().toLowerCase();
+
+  if (escolha === '1' || escolha.includes('agend')) {
+    await deleteConversa(tenant.id, phone);
+    await handleInicio(tenant, phone, text);
+    return true;
+  }
+  if (opcoes.atendente && (escolha === '2' || escolha.includes('atend') || escolha.includes('human'))) {
+    await deleteConversa(tenant.id, phone);
+    const { encaminharParaFilaHumana } = require('./waFilaHumanaService');
+    await encaminharParaFilaHumana(tenant, phone, pushName || 'Cliente WhatsApp', text);
+    await sendWA(tenant, phone, 'Você foi encaminhado a um de nossos atendentes. Aguarde só um momento! 🙋');
+    return true;
+  }
+  if (opcoes.ia && (escolha === '3' || escolha.includes('assist') || escolha.includes('ia'))) {
+    await deleteConversa(tenant.id, phone);
+    return false; // webhook.js chama agentService.handleMessage em seguida
+  }
+
+  await sendWA(tenant, phone, msgMenuPrincipal(tenant.nome, opcoes)); // não reconheceu — reenvia
+  return true;
+}
+
+async function handleBotMessage(tenant, phone, text, pushName = null) {
+  // Checado ANTES do gate de plano de propósito: mesmo tenants no plano solo
+  // (sem bot conversacional) devem poder usar essa redução de no-show, já que
+  // não depende de ConversaWhatsapp/estado — só entra em jogo quando NÃO há
+  // conversa ativa, pra nunca sequestrar um "sim/não" que é resposta de um
+  // fluxo de agendar/cancelar já em andamento.
+  const conversaAtiva = await getConversa(tenant.id, phone);
+  if (!conversaAtiva && (isSim(text) || isNao(text))) {
+    if (await handleRespostaConfirmacaoLembrete(tenant, phone, text)) return true;
+  }
+
   const plano = tenant.plano || 'solo';
   const { BOT_WHATSAPP } = require('../config/planos');
   if (!BOT_WHATSAPP[plano]) return false; // plano sem bot → não processa
   if (BOT_WHATSAPP[plano] === 'confirmacao') return false; // solo: só envia confirmação, não processa conversa
 
-  const conversa = await getConversa(tenant.id, phone);
+  const conversa = conversaAtiva;
 
-  // Sem conversa ativa: só inicia se houver intenção de agendar
+  // Sem conversa ativa: cancelar/consultar são atendidos direto; agendar inicia o fluxo;
+  // qualquer outra coisa tenta a classificação por LLM antes de desistir pro agentService.
   if (!conversa) {
-    if (!isAgendarIntent(text) && !['oi','olá','ola','bom dia','boa tarde','boa noite','hey','hello'].some(s => text.trim().toLowerCase().startsWith(s))) {
-      return false; // não é intenção de agendamento → deixa o agentService responder
+    if (isCancelarIntent(text)) return await iniciarCancelamento(tenant, phone);
+    if (isConsultarIntent(text)) return await responderConsulta(tenant, phone);
+
+    const configMenu = await prisma.configuracaoAgenda.findUnique({ where: { tenantId: tenant.id } });
+    if (configMenu?.menuInicialAtivo) {
+      const opcoes = await opcoesMenuDisponiveis(tenant);
+      if (opcoes.atendente || opcoes.ia) {
+        const { loadSession } = require('./agentService');
+        const semSessaoIA = (await loadSession(tenant.id, phone)).length === 0;
+        const semFilaAberta = !(await prisma.waFila.findFirst({
+          where: { tenantId: tenant.id, clienteTelefone: phone, status: { in: ['aguardando', 'em_atendimento'] } },
+        }));
+        if (semSessaoIA && semFilaAberta) {
+          await saveConversa(tenant.id, phone, 'aguardando_menu_principal', { opcoes });
+          await sendWA(tenant, phone, msgMenuPrincipal(tenant.nome, opcoes));
+          return true;
+        }
+      }
+    }
+
+    const ehSaudacao = ['oi','olá','ola','bom dia','boa tarde','boa noite','hey','hello'].some(s => text.trim().toLowerCase().startsWith(s));
+    if (!isAgendarIntent(text) && !ehSaudacao) {
+      const intent = await classificarIntencaoLLM(text);
+      if (intent === 'cancelar')  return await iniciarCancelamento(tenant, phone);
+      if (intent === 'consultar') return await responderConsulta(tenant, phone);
+      if (intent !== 'agendar')   return false; // 'outros' → deixa o agentService responder
     }
     await handleInicio(tenant, phone, text);
     return true;
   }
 
   // Conversa ativa → processa conforme estado
+  if (conversa.estado === 'aguardando_menu_principal') {
+    return await handleMenuPrincipal(tenant, phone, text, conversa, pushName);
+  }
   switch (conversa.estado) {
     case 'inicio':
       await handleInicio(tenant, phone, text);
@@ -406,6 +667,9 @@ async function handleBotMessage(tenant, phone, text) {
     case 'aguardando_confirmacao':
       await handleAguardandoConfirmacao(tenant, phone, text, conversa);
       break;
+    case 'aguardando_confirmacao_cancelamento':
+      await handleAguardandoConfirmacaoCancelamento(tenant, phone, text, conversa);
+      break;
     default:
       await deleteConversa(tenant.id, phone);
       return false;
@@ -413,4 +677,4 @@ async function handleBotMessage(tenant, phone, text) {
   return true;
 }
 
-module.exports = { handleBotMessage };
+module.exports = { handleBotMessage, isCancelarIntent, isConsultarIntent, classificarIntencaoLLM, buscarProximoAgendamento };

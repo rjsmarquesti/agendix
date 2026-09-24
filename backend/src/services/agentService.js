@@ -108,7 +108,7 @@ async function handleMessage(tenant, phone, text) {
   if (!isOpen(config)) {
     const msg = config.msgForaHorario ||
       `Olá! No momento estou fora do horário de atendimento. Retorno em breve! 😊`;
-    await enfileirar(tenant, phone, msg);
+    await enfileirar(tenant, phone, msg, { prioritario: true });
     return true; // respondeu (msg fora de horário), não escalar para fila
   }
 
@@ -134,16 +134,16 @@ async function handleMessage(tenant, phone, text) {
     const checkoutMsg = checkoutLink
       ? `Ótimo! Aqui está o link para você começar:\n\n${checkoutLink}\n\nQualquer dúvida, é só chamar! 💪`
       : `Ótimo! Para começar, entre em contato com a gente pelo nosso atendimento. Qualquer dúvida, é só chamar! 💪`;
-    await enfileirar(tenant, phone, checkoutMsg);
+    await enfileirar(tenant, phone, checkoutMsg, { prioritario: true });
     return true;
   }
 
   const reply = await callClaude(config.promptBase, messages);
   messages.push({ role: 'assistant', content: reply });
   await saveSession(tenant.id, phone, messages);
-  await enfileirar(tenant, phone, reply);
+  await enfileirar(tenant, phone, reply, { prioritario: true });
   logMensagem({ tenantId: tenant.id, meio: 'whatsapp', para: phone, corpo: reply, origem: 'agente_ia' });
   return true;
 }
 
-module.exports = { handleMessage };
+module.exports = { handleMessage, callClaude, loadSession };

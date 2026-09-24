@@ -12,22 +12,27 @@ const STATUS_LABEL = {
 };
 
 export default function WaAtendimento() {
-  const { tenant } = useAuth();
+  const { tenant, user } = useAuth();
   const plano = tenant?.plano;
   const liberado = ['pro', 'business', 'trial'].includes(plano);
+  const isAtendente = user?.role === 'atendente';
 
   const [tab, setTab] = useState('dashboard');
   const [dashboard, setDashboard] = useState(null);
   const [fila, setFila] = useState([]);
   const [historico, setHistorico] = useState([]);
   const [atendentes, setAtendentes] = useState([]);
+  const [usuariosAtendentes, setUsuariosAtendentes] = useState([]);
   const [logsModal, setLogsModal] = useState(null); // { sessao, logs }
   const [loading, setLoading] = useState(false);
+  const [resposta, setResposta] = useState('');
+  const [enviandoResposta, setEnviandoResposta] = useState(false);
 
   // form novo atendente
   const [novoNome, setNovoNome] = useState('');
   const [novoTelefone, setNovoTelefone] = useState('');
   const [novoCarga, setNovoCarga] = useState(5);
+  const [novoUserId, setNovoUserId] = useState('');
 
   async function carregarDashboard() {
     try {
@@ -65,11 +70,23 @@ export default function WaAtendimento() {
     }
   }
 
+  async function carregarUsuariosAtendentes() {
+    try {
+      const data = await api.get('/users');
+      setUsuariosAtendentes((data?.users || []).filter(u => u.role === 'atendente'));
+    } catch (err) {
+      console.error('[WaAtendimento] usuarios:', err.message);
+    }
+  }
+
   useEffect(() => {
     if (!liberado) return;
     carregarDashboard();
     carregarFila();
-    carregarAtendentes();
+    if (!isAtendente) {
+      carregarAtendentes();
+      carregarUsuariosAtendentes();
+    }
   }, [liberado]);
 
   useEffect(() => {
@@ -78,17 +95,35 @@ export default function WaAtendimento() {
 
   async function criarAtendente(e) {
     e.preventDefault();
-    if (!novoNome || !novoTelefone) return toast.error('Preencha nome e telefone.');
+    if (!novoTelefone) return toast.error('Preencha o telefone.');
+    if (!novoUserId && !novoNome) return toast.error('Preencha o nome ou selecione um usuário.');
     setLoading(true);
     try {
-      await api.post('/wa-atendimento/atendentes', { nome: novoNome, telefone: novoTelefone, cargaMaxima: novoCarga });
+      await api.post('/wa-atendimento/atendentes', {
+        nome: novoNome || undefined, telefone: novoTelefone, cargaMaxima: novoCarga,
+        userId: novoUserId || undefined,
+      });
       toast.success('Atendente cadastrado!');
-      setNovoNome(''); setNovoTelefone(''); setNovoCarga(5);
+      setNovoNome(''); setNovoTelefone(''); setNovoCarga(5); setNovoUserId('');
       carregarAtendentes();
       carregarDashboard();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Erro ao cadastrar');
     } finally { setLoading(false); }
+  }
+
+  async function enviarResposta() {
+    if (!resposta.trim()) return toast.error('Digite uma mensagem.');
+    setEnviandoResposta(true);
+    try {
+      await api.post(`/wa-atendimento/fila/${logsModal.sessao.id}/responder`, { mensagem: resposta });
+      setResposta('');
+      const data = await api.get(`/wa-atendimento/fila/${logsModal.sessao.id}/logs`);
+      setLogsModal(data);
+      carregarFila();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Erro ao enviar resposta');
+    } finally { setEnviandoResposta(false); }
   }
 
   async function toggleAtendente(id, ativo) {
@@ -119,6 +154,7 @@ export default function WaAtendimento() {
   async function verLogs(sessao) {
     try {
       const data = await api.get(`/wa-atendimento/fila/${sessao.id}/logs`);
+      setResposta('');
       setLogsModal(data);
     } catch { toast.error('Erro ao carregar logs'); }
   }
@@ -145,7 +181,7 @@ export default function WaAtendimento() {
           {[
             { id: 'dashboard', label: 'Dashboard' },
             { id: 'fila', label: 'Fila Ativa' },
-            { id: 'atendentes', label: 'Atendentes' },
+            ...(isAtendente ? [] : [{ id: 'atendentes', label: 'Atendentes' }]),
             { id: 'historico', label: 'Histórico' },
           ].map(t => (
             <button
@@ -247,10 +283,20 @@ export default function WaAtendimento() {
           <div className="space-y-4">
             <form onSubmit={criarAtendente} className="bg-white border rounded-lg p-4 space-y-3">
               <h2 className="text-sm font-semibold text-gray-700">Adicionar atendente</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <select
+                  className="border rounded px-3 py-2 text-sm"
+                  value={novoUserId}
+                  onChange={e => setNovoUserId(e.target.value)}
+                >
+                  <option value="">Sem usuário (só contato)</option>
+                  {usuariosAtendentes
+                    .filter(u => !atendentes.some(a => a.userId === u.id))
+                    .map(u => <option key={u.id} value={u.id}>{u.nome} — {u.email}</option>)}
+                </select>
                 <input
                   className="border rounded px-3 py-2 text-sm"
-                  placeholder="Nome"
+                  placeholder={novoUserId ? 'Nome (opcional, usa o do usuário)' : 'Nome'}
                   value={novoNome}
                   onChange={e => setNovoNome(e.target.value)}
                 />
@@ -285,7 +331,10 @@ export default function WaAtendimento() {
                 <div key={a.id} className="bg-white border rounded-lg p-4 flex items-center justify-between gap-4">
                   <div>
                     <p className="font-medium text-gray-800">{a.nome}</p>
-                    <p className="text-xs text-gray-500">{a.telefone} · Carga max: {a.cargaMaxima}</p>
+                    <p className="text-xs text-gray-500">
+                      {a.telefone} · Carga max: {a.cargaMaxima}
+                      {a.user && <> · <span className="text-emerald-600">{a.user.email}</span></>}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.ativo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -372,11 +421,30 @@ export default function WaAtendimento() {
                     <p>{log.mensagem}</p>
                     <p className={`text-xs mt-1 ${log.direcao === 'saida' ? 'text-emerald-100' : 'text-gray-400'}`}>
                       {log.fonte} · {new Date(log.criadoEm).toLocaleTimeString('pt-BR')}
+                      {log.status === 'erro' && <span className="text-red-300"> · falhou ao enviar</span>}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
+            {!['encerrado', 'abandonado'].includes(logsModal.sessao.status) && (
+              <div className="p-3 border-t flex gap-2">
+                <input
+                  className="flex-1 border rounded px-3 py-2 text-sm"
+                  placeholder="Digite a resposta..."
+                  value={resposta}
+                  onChange={e => setResposta(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !enviandoResposta) enviarResposta(); }}
+                />
+                <button
+                  onClick={enviarResposta}
+                  disabled={enviandoResposta}
+                  className="bg-emerald-600 text-white text-sm px-4 py-2 rounded hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {enviandoResposta ? 'Enviando...' : 'Enviar'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -14,6 +14,12 @@ function amanha() {
   return d.toISOString().split('T')[0];
 }
 
+function em3Dias() {
+  const d = new Date();
+  d.setDate(d.getDate() + 3);
+  return d.toISOString().split('T')[0];
+}
+
 function montarMensagem(template, agendamento) {
   const data = agendamento.data?.split('-').reverse().join('/') || '';
   const hora = agendamento.hora || '';
@@ -33,6 +39,14 @@ function montarMensagem(template, agendamento) {
     .replace(/\{\{servico\}\}/g, servico);
 }
 
+function montarMensagemConfirmacao(agendamento) {
+  const data = agendamento.data?.split('-').reverse().join('/') || '';
+  const hora = agendamento.hora || '';
+  const nome = agendamento.clienteNome || agendamento.lead?.nome || '';
+  const servico = agendamento.servico?.nome || agendamento.tipo || 'atendimento';
+  return `Oi ${nome}! Confirma sua presença amanhã, ${data} às ${hora}, pro seu ${servico}? Responda *sim* ou *não*. 😊`;
+}
+
 
 async function criarNotificacao(tenantId, tipo, titulo, corpo) {
   await prisma.notificacao.create({ data: { tenantId, tipo, titulo, corpo } });
@@ -45,14 +59,16 @@ async function processarTenant(tenant) {
 
   const dataHoje = hoje();
   const dataAmanha = amanha();
+  const dataEm3Dias = em3Dias();
 
   const agendamentos = await prisma.agendamento.findMany({
     where: {
       tenantId: tenant.id,
       status: { in: ['marcado', 'confirmado'] },
       OR: [
-        { data: dataAmanha, lembrete1dEnviado: false },
-        { data: dataHoje,   lembreteDiaEnviado: false },
+        { data: dataEm3Dias, lembrete3dEnviado: false },
+        { data: dataAmanha,  lembrete1dEnviado: false },
+        { data: dataHoje,    lembreteDiaEnviado: false },
       ],
     },
     include: {
@@ -65,9 +81,13 @@ async function processarTenant(tenant) {
     const telefone = ag.clienteTelefone || ag.lead?.telefone;
     if (!telefone) continue;
 
-    const isHoje   = ag.data === dataHoje;
-    const template = config?.mensagemWaLembrete;
-    const mensagem = montarMensagem(template, ag);
+    const isHoje    = ag.data === dataHoje;
+    const isEm3Dias = ag.data === dataEm3Dias;
+    const isAmanha  = !isHoje && !isEm3Dias;
+    const template  = config?.mensagemWaLembrete;
+    const mensagem  = (isAmanha && config?.confirmacaoLembreteAtiva)
+      ? montarMensagemConfirmacao(ag)
+      : montarMensagem(template, ag);
 
     try {
       await enfileirar(tenant, telefone, mensagem);
@@ -75,7 +95,7 @@ async function processarTenant(tenant) {
 
       await prisma.agendamento.update({
         where: { id: ag.id },
-        data: isHoje ? { lembreteDiaEnviado: true } : { lembrete1dEnviado: true },
+        data: isHoje ? { lembreteDiaEnviado: true } : isEm3Dias ? { lembrete3dEnviado: true } : { lembrete1dEnviado: true },
       });
 
       const nomeCliente = ag.clienteNome || ag.lead?.nome || telefone;
@@ -168,4 +188,4 @@ async function notificarAgendamento(tenant, agendamento) {
   }
 }
 
-module.exports = { agendarCron, executarLembretes, notificarAgendamento };
+module.exports = { agendarCron, executarLembretes, notificarAgendamento, processarTenant };

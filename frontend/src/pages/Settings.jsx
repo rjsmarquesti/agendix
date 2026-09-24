@@ -286,6 +286,7 @@ export default function Settings() {
     mensagemConfirmacao: '', mensagemWaConfirmacao: '', mensagemWaLembrete: '', mensagemWaAdmin: '',
     whatsappAdmin: '', ativo: true,
     agendaDiaAtivo: false, agendaDiaEmailAtivo: false, agendaDiaHorario: '07:00',
+    confirmacaoLembreteAtiva: false, menuInicialAtivo: false,
   });
   const [showSmtpPass, setShowSmtpPass] = useState(false);
   const [apiToken, setApiToken]   = useState('');
@@ -455,6 +456,8 @@ export default function Settings() {
         agendaDiaAtivo: c.agendaDiaAtivo || false,
         agendaDiaEmailAtivo: c.agendaDiaEmailAtivo || false,
         agendaDiaHorario: c.agendaDiaHorario || '07:00',
+        confirmacaoLembreteAtiva: c.confirmacaoLembreteAtiva || false,
+        menuInicialAtivo: c.menuInicialAtivo || false,
       });
     }).catch(e => console.error('[Settings] agenda:', e.message));
 
@@ -625,9 +628,17 @@ export default function Settings() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Logo <span className="text-gray-400 font-normal">(opcional)</span></label>
                 <div className="flex items-center gap-2">
-                  <input type="url" value={form.logo} onChange={e => setForm(f => ({ ...f, logo: e.target.value }))}
-                    placeholder="Cole uma URL ou envie um arquivo →"
-                    className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                  {form.logo?.startsWith('data:') ? (
+                    <div className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 flex items-center justify-between gap-2">
+                      <span>Imagem carregada do dispositivo</span>
+                      <button type="button" onClick={() => setForm(f => ({ ...f, logo: '' }))}
+                        className="text-red-500 hover:text-red-600 text-xs font-medium flex-shrink-0">Remover</button>
+                    </div>
+                  ) : (
+                    <input type="url" value={form.logo} onChange={e => setForm(f => ({ ...f, logo: e.target.value }))}
+                      placeholder="Cole uma URL ou envie um arquivo →"
+                      className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                  )}
                   <label className="cursor-pointer px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition whitespace-nowrap">
                     📁 Enviar
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden"
@@ -879,6 +890,23 @@ export default function Settings() {
                     onChange={e => setAgendaForm(f => ({ ...f, mensagemWaLembrete: e.target.value }))}
                     placeholder={'⏰ Lembrete: você tem um {{nicho}} amanhã!\n📅 {{data}} às {{hora}}\nQualquer dúvida, nos avise.'}
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none" />
+                  <label className="flex items-center gap-3 cursor-pointer mt-3">
+                    <div onClick={() => setAgendaForm(f => ({ ...f, confirmacaoLembreteAtiva: !f.confirmacaoLembreteAtiva }))}
+                      className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${agendaForm.confirmacaoLembreteAtiva ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${agendaForm.confirmacaoLembreteAtiva ? 'translate-x-4' : ''}`} />
+                    </div>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Pedir confirmação de presença 1 dia antes (reduz no-show)</span>
+                  </label>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Quando ligado, o lembrete de 1 dia antes vira uma pergunta (responda *sim* ou *não*). Se o cliente responder que não vai comparecer, o horário é liberado automaticamente.</p>
+
+                  <label className="flex items-center gap-3 cursor-pointer mt-4">
+                    <div onClick={() => setAgendaForm(f => ({ ...f, menuInicialAtivo: !f.menuInicialAtivo }))}
+                      className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${agendaForm.menuInicialAtivo ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${agendaForm.menuInicialAtivo ? 'translate-x-4' : ''}`} />
+                    </div>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Mostrar menu inicial (Agendar / Atendente / Assistente IA)</span>
+                  </label>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Quando ligado, a 1ª mensagem de uma conversa nova mostra um menu em vez de ir direto pro agendamento. Só oferece as opções que você tiver ativas (Atendimento humano e/ou Agente IA) — sem nenhuma das duas, o toggle não tem efeito.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Alerta para o admin</label>

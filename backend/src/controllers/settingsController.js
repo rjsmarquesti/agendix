@@ -85,7 +85,7 @@ exports.getAgenda = async (req, res, next) => {
 exports.updateAgenda = async (req, res, next) => {
   try {
     const { horarioInicio, horarioFim, duracaoSlot, diasUteis, antecedenciaMin, antecedenciaMax, mensagemConfirmacao, mensagemWaConfirmacao, mensagemWaLembrete, mensagemWaAdmin, whatsappAdmin, ativo,
-            agendaDiaAtivo, agendaDiaEmailAtivo, agendaDiaHorario } = req.body;
+            agendaDiaAtivo, agendaDiaEmailAtivo, agendaDiaHorario, confirmacaoLembreteAtiva, menuInicialAtivo } = req.body;
     const msgFields = {
       mensagemConfirmacao: mensagemConfirmacao || null,
       mensagemWaConfirmacao: mensagemWaConfirmacao || null,
@@ -97,10 +97,12 @@ exports.updateAgenda = async (req, res, next) => {
       agendaDiaEmailAtivo: agendaDiaEmailAtivo === true,
       agendaDiaHorario: agendaDiaHorario || '07:00',
     };
+    const confirmacaoLembreteFields = { confirmacaoLembreteAtiva: confirmacaoLembreteAtiva === true };
+    const menuInicialFields = { menuInicialAtivo: menuInicialAtivo === true };
     const config = await prisma.configuracaoAgenda.upsert({
       where: { tenantId: req.user.tenantId },
-      update: { horarioInicio, horarioFim, duracaoSlot: Number(duracaoSlot), diasUteis, antecedenciaMin: Number(antecedenciaMin), antecedenciaMax: Number(antecedenciaMax), ...msgFields, whatsappAdmin: whatsappAdmin || null, ativo: ativo !== false, ...agendaDiaFields },
-      create: { tenantId: req.user.tenantId, horarioInicio, horarioFim, duracaoSlot: Number(duracaoSlot), diasUteis, antecedenciaMin: Number(antecedenciaMin), antecedenciaMax: Number(antecedenciaMax), ...msgFields, whatsappAdmin: whatsappAdmin || null, ...agendaDiaFields },
+      update: { horarioInicio, horarioFim, duracaoSlot: Number(duracaoSlot), diasUteis, antecedenciaMin: Number(antecedenciaMin), antecedenciaMax: Number(antecedenciaMax), ...msgFields, whatsappAdmin: whatsappAdmin || null, ativo: ativo !== false, ...agendaDiaFields, ...confirmacaoLembreteFields, ...menuInicialFields },
+      create: { tenantId: req.user.tenantId, horarioInicio, horarioFim, duracaoSlot: Number(duracaoSlot), diasUteis, antecedenciaMin: Number(antecedenciaMin), antecedenciaMax: Number(antecedenciaMax), ...msgFields, whatsappAdmin: whatsappAdmin || null, ...agendaDiaFields, ...confirmacaoLembreteFields, ...menuInicialFields },
     });
     res.json({ config });
   } catch (err) { next(err); }
