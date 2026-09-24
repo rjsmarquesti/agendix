@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # PROJECT: Agendix
 
 CRM SaaS multi-tenant com agendamento, WhatsApp, financeiro e painel admin completo.
@@ -65,6 +69,28 @@ Tasks pendentes: veja `MEMORY/inbox.md`.
 3. Antes de buildar Docker: verificar se há erro com `node --check` nos arquivos alterados
 4. Antes de push: confirmar tag com o usuário
 5. Ao criar AdminLancamento via webhook MP: verificar `MP_WEBHOOK_SECRET` antes de processar
+6. **REGRA DE IMPACTO — obrigatória antes de qualquer alteração (correção, melhoria, refatoração ou nova funcionalidade):**
+
+**OBJETIVO:** Nunca quebrar funcionalidades existentes. Preservar compatibilidade e comportamento atual, exceto quando explicitamente solicitado.
+
+**ANÁLISE PRÉ-IMPLEMENTAÇÃO**
+- Analise dependências diretas e indiretas do código a ser alterado
+- Identifique funções, arquivos, rotas, APIs, componentes, banco e integrações potencialmente afetadas
+- Avalie impactos colaterais antes de modificar qualquer código
+
+**IMPLEMENTAÇÃO SEGURA**
+- Faça alterações minimamente invasivas
+- Preserve interfaces existentes sempre que possível
+- Evite alterar comportamento global sem necessidade
+
+**VERIFICAÇÃO PRÉ-ENTREGA**
+- Confirme: sem erros de compilação, sem imports quebrados, sem dependências ausentes
+- Verifique que fluxos existentes continuam funcionando
+
+**AUTO-CHECK obrigatório antes de finalizar:**
+> ✓ O que foi alterado? ✓ O que poderia quebrar? ✓ O que foi verificado? ✓ Existe regressão possível? ✓ Há impacto em outras funções?
+
+**REGRA FINAL:** Se existir risco significativo de quebrar outra funcionalidade, avisar antes de aplicar.
 
 ## FORBIDDEN
 - NUNCA hardcodar credenciais, API keys ou connection strings no código
@@ -82,6 +108,104 @@ Antes de declarar qualquer tarefa concluída:
 - Nenhuma credencial hardcoded introduzida
 - Se mudou frontend: testar no browser o golden path da feature
 - Se mudou Docker: buildar e informar tag gerada
+
+## DEV COMMANDS
+
+```bash
+# Backend
+cd backend && npm run dev          # nodemon — hot reload
+cd backend && npm test             # jest --runInBand --forceExit
+cd backend && npm run db:migrate   # prisma migrate deploy (produção)
+cd backend && npm run db:studio    # Prisma Studio na porta 5555
+node --check src/arquivo.js        # syntax check sem executar
+
+# Frontend
+cd frontend && npm run dev         # Vite dev server
+cd frontend && npm run build       # build de produção
+
+# Prisma — nova migration
+cd backend && npx prisma migrate dev --name descricao_curta
+
+# Docker — build obrigatório com --no-cache (cache ignora arquivos estáticos)
+docker build --no-cache -t rjsmarquesti/agendix-backend:TAG  -f backend/Dockerfile  backend
+docker build --no-cache -t rjsmarquesti/agendix-frontend:TAG -f frontend/Dockerfile frontend
+docker push rjsmarquesti/agendix-backend:TAG
+docker push rjsmarquesti/agendix-frontend:TAG
+```
+
+**Tag Docker obrigatória:** `YYYYMMDD[letra]-v[semver]` (ex: `20260624c-v1.5.87`).
+Bumpar `version` no `package.json` do serviço antes de buildar.
+
+---
+
+## CRITICAL PATTERNS (descobertos em produção)
+
+### 1. Middleware order em server.js — ordem importa
+`/api/public/cancelar` **deve** ser montado antes de `/api/public/:slug` — caso contrário o Express captura "cancelar" como slug.
+`/api/agente-ia` é montado **antes** do `tenantMiddleware` global porque tem webhook público (`POST /webhook/:slug`). Rotas protegidas dentro dele aplicam `[tenantMiddleware, auth]` inline.
+
+### 2. `enfileirar()` — nunca `await` em handler HTTP
+A fila WA tem delay 7–20s e bloqueia fora da janela horária (11h–23h UTC = 08h–20h BRT). `await enfileirar()` dentro de rota HTTP causa timeout 504 e UI travada.
+```js
+// CORRETO — fire-and-forget
+const log = await prisma.mensagemLog.create({ data: { ...status: 'enviado' } });
+enfileirar(tenant, telefone, corpo).catch(e =>
+  prisma.mensagemLog.update({ where: { id: log.id }, data: { status: 'erro', erroMsg: e.message } }).catch(() => {})
+);
+return res.json({ ok: true });
+```
+
+### 3. `decryptTenant()` antes de qualquer chamada Evolution API
+`evolutionApiKey` é salvo criptografado via `encrypt()`. Usar `tenant.evolutionApiKey` diretamente envia o ciphertext como header `apikey` — Evolution API aceita HTTP 200 mas a mensagem nunca chega.
+```js
+const { decrypt } = require('../lib/encrypt');
+const apikey = decrypt(tenant.evolutionApiKey) || tenant.evolutionApiKey; // fallback para tenants antigos
+```
+
+### 4. Prisma + JSONB — nunca serializar manualmente
+Campo `Json` do Prisma retorna/salva JS arrays/objects diretamente.
+```js
+// ERRADO
+JSON.parse(tenant.modulos)        // Prisma já parseou
+JSON.stringify(newModulos)        // Prisma serializa sozinho
+
+// CORRETO
+const mods = normalizarModulos(tenant.modulos); // lib/encrypt.js
+await prisma.tenant.update({ data: { modulos: newArray } });
+```
+`normalizarModulos(m)` em `lib/encrypt.js` é a única função autorizada para normalizar o campo `modulos` — não reescrever inline.
+
+### 5. Janela horária da fila WA é em UTC
+Container Docker roda em UTC. `HORA_INICIO=11, HORA_FIM=23` corresponde a 08h–20h BRT (UTC-3). Nunca alterar para horas "locais" sem converter.
+
+### 6. Telefone para Evolution API — sempre com código do país
+Números no banco podem estar sem `55`. Normalizar antes de enviar:
+```js
+const digits = (tel || '').replace(/\D/g, '');
+const phone  = digits.startsWith('55') ? digits : '55' + digits;
+```
+
+### 7. Rate limiters — cada endpoint público precisa do seu
+O `apiGeralLimiter` (300 req/min) é o fallback global. Endpoints públicos que acionam serviço externo pago (Claude API, SMS) ou aceitam dados em lote precisam de limiter próprio mais restrito, aplicado **antes** da rota:
+```js
+app.use('/api/public/cancelar', cancelarLimiter);      // 10/15min
+// routes/agenteIa.js:
+router.post('/webhook/:slug', agenteIaWebhookLimiter, handler); // 30/min
+```
+
+### 8. PowerShell — encoding de arquivos
+`Set-Content -Encoding UTF8` no PS 5.1 grava UTF-16 LE com BOM, quebrando `prisma generate` no Docker. Usar:
+```powershell
+[System.IO.File]::WriteAllText($path, $content, (New-Object System.Text.UTF8Encoding $false))
+```
+
+### 9. Migrations com enum — não usar `prisma migrate dev` em prod
+Se houver enum changes anteriores, `prisma migrate dev` falha com P3006 (shadow DB). Criar o SQL manualmente em `prisma/migrations/YYYYMMDD_nome/migration.sql`. O `entrypoint.sh` roda `prisma migrate deploy` automaticamente no boot.
+
+### 10. `lib/waQueue.js` está deprecated
+O arquivo `lib/waQueue.js` ainda existe mas não deve ser importado em código novo. Usar sempre `services/waQueue.js` (Sprint 3, com todas as 7 camadas de proteção anti-ban).
+
+---
 
 ## COMMANDS
 

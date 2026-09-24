@@ -31,7 +31,16 @@ fi
 
 echo ""
 if [ -f "$PROJECT_DIR/MEMORY/wake-up.md" ]; then
-    echo "📋 Leia MEMORY/wake-up.md antes de qualquer ação."
+    # Checagem de herança: título do wake-up.md bate com o nome real do projeto?
+    WAKEUP_TITLE=$(head -1 "$PROJECT_DIR/MEMORY/wake-up.md" | sed 's/^# Wake-Up — //')
+    if [ -n "$WAKEUP_TITLE" ] && ! echo "$WAKEUP_TITLE" | grep -qi "$PROJECT_NAME"; then
+        echo "🚨 MEMORY/wake-up.md referencia \"$WAKEUP_TITLE\" mas este projeto é \"$PROJECT_NAME\" — provável herança de fork não corrigida (ver 'REGRA — Checklist de herança' no CLAUDE.md)."
+        echo ""
+    fi
+    echo "📋 MEMORY/wake-up.md:"
+    echo "---"
+    cat "$PROJECT_DIR/MEMORY/wake-up.md"
+    echo "---"
 elif [ -f "$PROJECT_DIR/CLAUDE.md" ]; then
     echo "📋 Leia CLAUDE.md antes de qualquer ação."
 fi
