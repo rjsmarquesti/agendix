@@ -177,59 +177,12 @@ router.post('/agendar', resolverTenant, async (req, res, next) => {
   }
 });
 
-// ── GET /api/public/cancelar/:token — consulta agendamento pelo token ────────
-router.get('/cancelar/:token', async (req, res, next) => {
-  try {
-    const ag = await prisma.agendamento.findUnique({
-      where: { cancelToken: req.params.token },
-      include: {
-        tenant: { select: { nome: true, logo: true, corPrimaria: true } },
-        servico: { select: { nome: true } },
-      },
-    });
-
-    if (!ag) return res.status(404).json({ error: 'Link inválido ou expirado.' });
-    if (ag.status === 'cancelado') return res.json({ agendamento: ag, jaCancelado: true });
-
-    res.json({ agendamento: ag, jaCancelado: false });
-  } catch (err) { next(err); }
-});
-
-// ── POST /api/public/cancelar/:token — efetua o cancelamento ─────────────────
-router.post('/cancelar/:token', async (req, res, next) => {
-  try {
-    const ag = await prisma.agendamento.findUnique({
-      where: { cancelToken: req.params.token },
-      include: {
-        tenant: true,
-        lead: { select: { nome: true } },
-      },
-    });
-
-    if (!ag) return res.status(404).json({ error: 'Link inválido ou expirado.' });
-    if (ag.status === 'cancelado') return res.status(409).json({ error: 'Este agendamento já foi cancelado.' });
-    if (['realizado', 'nao_compareceu'].includes(ag.status)) {
-      return res.status(409).json({ error: 'Não é possível cancelar um agendamento já realizado.' });
-    }
-
-    await prisma.agendamento.update({
-      where: { id: ag.id },
-      data: { status: 'cancelado' },
-    });
-
-    // Push notification para o tenant
-    const { enviarPushParaTenant } = require('../services/pushService');
-    const nomeCliente = ag.clienteNome || ag.lead?.nome || 'Cliente';
-    enviarPushParaTenant(ag.tenantId, {
-      title: 'Agendamento cancelado pelo cliente',
-      body:  `${nomeCliente} • ${ag.data} às ${ag.hora}`,
-      url:   '/agendamentos',
-      icon:  '/logo.png',
-    }).catch(err => console.error('[push/cancelado-cliente]', err.message));
-
-    res.json({ ok: true, mensagem: 'Agendamento cancelado com sucesso.' });
-  } catch (err) { next(err); }
-});
+// Nota: cancelamento público por token vive em routes/publicCancelamento.js
+// (/api/public/cancelar/:token, sem slug — é o que o frontend usa de fato e o
+// único caminho coberto pelo cancelarLimiter). Havia uma segunda implementação
+// duplicada aqui mesmo, sob /api/public/:slug/cancelar/:token — nunca chamada
+// por nenhum client real, mas alcançável com qualquer slug arbitrário e sem
+// rate limit dedicado; removida em favor da versão única em publicCancelamento.js.
 
 // ── Webhook de notificação (fire-and-forget) ─────────────────────────────────
 async function dispararWebhookNotificacao(tenant, agendamento) {

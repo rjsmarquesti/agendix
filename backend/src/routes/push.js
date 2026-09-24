@@ -40,13 +40,13 @@ router.post('/subscribe', auth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/push/unsubscribe — remove subscription (endpoint é globalmente único)
-router.post('/unsubscribe', async (req, res, next) => {
+// POST /api/push/unsubscribe — remove subscription (exige o dono autenticado da subscription)
+router.post('/unsubscribe', auth, async (req, res, next) => {
   try {
     const { endpoint } = req.body;
     if (!endpoint) return res.status(400).json({ error: 'endpoint obrigatório.' });
 
-    await prisma.pushSubscription.deleteMany({ where: { endpoint } });
+    await prisma.pushSubscription.deleteMany({ where: { endpoint, userId: req.user.id } });
 
     res.json({ ok: true });
   } catch (err) { next(err); }

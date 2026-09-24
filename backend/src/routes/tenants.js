@@ -13,24 +13,6 @@ const validarTenant = [
 
 router.get('/',    ...onlySuper, ctrl.listar);
 
-// Reputação de números (Sprint 3): números com score baixo por tenant
-router.get('/wa-reputacao', ...onlySuper, async (req, res) => {
-  try {
-    const { reputacao } = require('../services/waQueue');
-    const threshold = Number(req.query.threshold || 70);
-    const baixos = reputacao.numerosComBaixoScore(threshold);
-    res.json({ total: baixos.length, threshold, numeros: baixos });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// Score de um número específico
-router.get('/wa-reputacao/:telefone', ...onlySuper, (req, res) => {
-  try {
-    const { reputacao } = require('../services/waQueue');
-    res.json(reputacao.statsNumero(req.params.telefone));
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 // Stats da fila WA por instância (anti-ban: sent hoje, sent hora, pendentes)
 router.get('/wa-queue-stats', ...onlySuper, async (req, res) => {
   try {

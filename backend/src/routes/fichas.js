@@ -2,8 +2,9 @@ const express = require('express');
 const router  = express.Router();
 const ctrl    = require('../controllers/fichasController');
 const authMiddleware = require('../middlewares/auth');
+const requireModulo = require('../middlewares/requireModulo');
 
-router.use(authMiddleware);
+router.use(authMiddleware, requireModulo('fichas'));
 
 router.get('/',    ctrl.listar);
 router.get('/:id', ctrl.buscar);

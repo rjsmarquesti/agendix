@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const ctrl   = require('../controllers/ordemServicoController');
 const auth   = require('../middlewares/auth');
+const requireModulo = require('../middlewares/requireModulo');
 
-router.use(auth);
+router.use(auth, requireModulo('ordem_servico'));
 
 router.get('/',    ctrl.listar);
 router.get('/:id', ctrl.buscar);
