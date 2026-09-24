@@ -1,27 +1,18 @@
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
 const { getConnectionState } = require('./evolutionService');
-const nodemailer = require('nodemailer');
+const { criarTransporter } = require('../lib/mailer');
 
 // Tenants que já foram alertados neste ciclo (evita spam por cada tick)
 // Chave: tenantId, Valor: timestamp do último alerta
 const alertadoEm = new Map();
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hora entre alertas do mesmo tenant
 
-function transporter() {
-  return nodemailer.createTransport({
-    host:   process.env.SMTP_HOST || 'smtp.hostinger.com',
-    port:   Number(process.env.SMTP_PORT || 465),
-    secure: true,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
-}
-
 async function enviarAlertaEmail(tenant) {
   const adminEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
   if (!adminEmail) return;
 
-  await transporter().sendMail({
+  await criarTransporter().sendMail({
     from: `"Agendix Monitor" <${adminEmail}>`,
     to:   adminEmail,
     subject: `⚠️ WhatsApp desconectado — ${tenant.nome}`,

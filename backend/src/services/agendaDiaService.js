@@ -162,12 +162,24 @@ async function enviarAgendaDiaTenant(tenant, config) {
 
   const pdfBuffer = semAgendamentos ? null : await gerarPdfAgenda(tenant, agendamentos, dataFormatada).catch(() => null);
 
+  let tentativas = 0;
+  let sucessos = 0;
+  const tentar = async (canal, destino, envio) => {
+    tentativas++;
+    try {
+      await envio();
+      sucessos++;
+    } catch (err) {
+      console.error(`[agendaDia] falha ${canal} tenant ${tenant.slug} (${destino}):`, err.message);
+    }
+  };
+
   for (const usuario of usuarios) {
     if (tenant.evolutionInstance && tenant.evolutionApiKey && usuario.whatsapp) {
       if (semAgendamentos) {
-        await enviarTextoWA(tenant, usuario.whatsapp, msgSemAgenda).catch(() => {});
+        await tentar('WA', usuario.whatsapp, () => enviarTextoWA(tenant, usuario.whatsapp, msgSemAgenda));
       } else if (pdfBuffer) {
-        await enviarPdfViaWhatsApp(tenant, usuario.whatsapp, pdfBuffer, dataFormatada).catch(() => {});
+        await tentar('WA', usuario.whatsapp, () => enviarPdfViaWhatsApp(tenant, usuario.whatsapp, pdfBuffer, dataFormatada));
       }
     }
 
@@ -175,15 +187,18 @@ async function enviarAgendaDiaTenant(tenant, config) {
       const html = semAgendamentos
         ? `<p style="font-family:sans-serif">Sem atendimentos agendados para ${dataFormatada}.</p>`
         : gerarHtmlAgenda(tenant, agendamentos, dataFormatada);
-      await enviarEmailTenant(tenant, {
+      await tentar('email', usuario.email, () => enviarEmailTenant(tenant, {
         para: usuario.email,
         assunto: `📅 Agenda do dia — ${dataFormatada}`,
         html,
-      }).catch(() => {});
+        origem: 'agenda_dia',
+      }));
     }
   }
 
-  // Marcar como enviado hoje
+  // Se tudo falhou, não marca — o cron tenta de novo no próximo tick do horário.
+  if (tentativas > 0 && sucessos === 0) return;
+
   await prisma.configuracaoAgenda.update({
     where: { tenantId: tenant.id },
     data: { agendaDiaEnviadoEm: dataHoje },

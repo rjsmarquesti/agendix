@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const { registrar } = require('./mensagemLog');
+const { decrypt } = require('./encrypt');
 
 /* ── Cores do design system (espelha a landing page) ── */
 const C = {
@@ -64,13 +65,17 @@ function criarTransporter(cfg = {}) {
   const secure = cfg.smtpSecure !== undefined
     ? cfg.smtpSecure
     : port === 465 ? true : process.env.SMTP_SECURE === 'true';
+  // cfg pode ser um tenant "cru" do Prisma (smtpPass ainda criptografado) ou já
+  // descriptografado (ex: req.tenant, que passa por decryptTenant()) — decrypt()
+  // detecta o prefixo 'enc:' e devolve o valor como está quando já é plaintext.
+  const smtpPass = cfg.smtpPass ? (decrypt(cfg.smtpPass) || cfg.smtpPass) : process.env.SMTP_PASS;
   return nodemailer.createTransport({
     host:   cfg.smtpHost || process.env.SMTP_HOST || 'smtp-relay.brevo.com',
     port,
     secure,
     auth: {
       user: cfg.smtpUser || process.env.SMTP_USER,
-      pass: cfg.smtpPass || process.env.SMTP_PASS,
+      pass: smtpPass,
     },
   });
 }
@@ -369,6 +374,7 @@ async function enviarEmailRenovacaoAnual({ para, nome, diasRestantes, plano, val
 }
 
 module.exports = {
+  criarTransporter,
   enviarEmailRedefinicao,
   enviarEmailAtivacao,
   enviarEmailBoasVindas,

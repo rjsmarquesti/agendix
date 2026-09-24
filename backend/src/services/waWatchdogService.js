@@ -10,7 +10,7 @@
  *   suspended  → suspensa por SUSPEND_DURATION_MS após THRESHOLD erros
  */
 
-const nodemailer = require('nodemailer');
+const { criarTransporter } = require('../lib/mailer');
 const { getWaProvider, getProviderKey } = require('../lib/wa/index');
 
 const THRESHOLD        = 5;               // erros consecutivos antes de suspender
@@ -61,14 +61,7 @@ async function notificarAdmin(instance, tenantNome, liberaEm) {
   const destino = process.env.SMTP_FROM || process.env.SMTP_USER;
   if (!from || !destino || !process.env.SMTP_PASS) return;
 
-  const t = nodemailer.createTransport({
-    host:   process.env.SMTP_HOST || 'smtp.hostinger.com',
-    port:   Number(process.env.SMTP_PORT || 465),
-    secure: process.env.SMTP_SECURE !== 'false',
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
-
-  await t.sendMail({
+  await criarTransporter().sendMail({
     from: `"Agendix Monitor" <${from}>`,
     to:   destino,
     subject: `🚨 Instância WA suspensa — ${tenantNome || instance}`,
